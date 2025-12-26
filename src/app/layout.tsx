@@ -6,7 +6,7 @@ import { Providers } from "@/components/providers/session-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CleanerCRM - Simple CRM for Home Cleaners",
+  title: "CleanDayCRM - Simple CRM for Home Cleaners",
   description: "Calendar, clients, payments, and reminders for independent home cleaners",
   viewport: {
     width: "device-width",

@@ -72,7 +72,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">CleanerCRM</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">CleanDayCRM</CardTitle>
           <CardDescription className="text-center">
             Create your account
           </CardDescription>

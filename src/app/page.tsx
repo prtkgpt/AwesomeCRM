@@ -20,7 +20,7 @@ export default async function Home() {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Calendar className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">CleanerCRM</span>
+            <span className="text-xl font-bold text-gray-900">CleanDayCRM</span>
           </div>
           <Link
             href="/login"
@@ -90,7 +90,7 @@ export default async function Home() {
             Tired of juggling texts, notes, and spreadsheets?
           </h2>
           <p className="text-xl text-gray-600 mb-8">
-            You're running a business, not a software company. CleanerCRM gives you everything you need—nothing you don't.
+            You're running a business, not a software company. CleanDayCRM gives you everything you need—nothing you don't.
           </p>
         </div>
       </section>
@@ -409,7 +409,7 @@ export default async function Home() {
             <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
               <Calendar className="h-4 w-4 text-white" />
             </div>
-            <span className="font-semibold">CleanerCRM</span>
+            <span className="font-semibold">CleanDayCRM</span>
           </div>
           <div className="flex gap-6">
             <Link href="/login" className="hover:text-gray-900">
@@ -420,7 +420,7 @@ export default async function Home() {
             </Link>
           </div>
           <div className="text-gray-500">
-            © 2024 CleanerCRM. Built for cleaners who deserve better.
+            © 2024 CleanDayCRM. Built for cleaners who deserve better.
           </div>
         </div>
       </footer>

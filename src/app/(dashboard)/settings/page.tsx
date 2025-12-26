@@ -164,7 +164,7 @@ export default function SettingsPage() {
           <CardTitle>About</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-gray-600">
-          <p>CleanerCRM v1.0</p>
+          <p>CleanDayCRM v1.0</p>
           <p>Simple CRM for independent home cleaners</p>
           <p className="pt-2 text-xs text-gray-500">
             Built with Next.js, Prisma, Stripe, and Twilio
