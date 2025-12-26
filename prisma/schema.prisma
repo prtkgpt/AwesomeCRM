@@ -1,0 +1,233 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTH
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  phone         String?
+  businessName  String?
+
+  // For future team expansion - nullable for now
+  workspaceId   String?
+
+  clients       Client[]
+  bookings      Booking[]
+  messages      Message[]
+  messageTemplates MessageTemplate[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+}
+
+// ============================================
+// CLIENTS & ADDRESSES
+// ============================================
+
+model Client {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name              String
+  email             String?
+  phone             String?
+  tags              String[]  // ["VIP", "Weekly", "Monthly", "Pain"]
+  notes             String?   // General client notes
+
+  addresses         Address[]
+  bookings          Booking[]
+
+  // Stripe integration
+  stripeCustomerId  String?   @unique
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([email])
+}
+
+model Address {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  label         String?   // "Home", "Office", etc.
+  street        String
+  city          String
+  state         String
+  zip           String
+
+  // Cleaner-specific notes
+  parkingInfo   String?
+  gateCode      String?
+  petInfo       String?
+  preferences   String?   // "Remove shoes", "Back door", etc.
+
+  bookings      Booking[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([clientId])
+}
+
+// ============================================
+// BOOKINGS (JOBS)
+// ============================================
+
+enum BookingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ServiceType {
+  STANDARD
+  DEEP
+  MOVE_OUT
+}
+
+enum RecurrenceFrequency {
+  NONE
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+model Booking {
+  id                    String              @id @default(cuid())
+  userId                String
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  clientId              String
+  client                Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  addressId             String
+  address               Address             @relation(fields: [addressId], references: [id])
+
+  // Scheduling
+  scheduledDate         DateTime
+  duration              Int                 // minutes
+
+  // Service details
+  serviceType           ServiceType         @default(STANDARD)
+  status                BookingStatus       @default(SCHEDULED)
+
+  // Pricing
+  price                 Float
+  isPaid                Boolean             @default(false)
+  paymentMethod         String?             // "card", "cash", "check", "zelle"
+  paidAt                DateTime?
+
+  // Stripe integration
+  stripePaymentIntentId String?             @unique
+  stripePaymentLink     String?
+
+  // Recurrence
+  isRecurring           Boolean             @default(false)
+  recurrenceFrequency   RecurrenceFrequency @default(NONE)
+  recurrenceParentId    String?             // Points to the original booking
+  recurrenceEndDate     DateTime?           // When to stop generating
+
+  // Notes
+  notes                 String?             // Customer-facing notes
+  internalNotes         String?             // Private notes
+
+  // Automation tracking
+  confirmationSent      Boolean             @default(false)
+  reminderSent          Boolean             @default(false)
+
+  messages              Message[]
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([userId, scheduledDate])
+  @@index([clientId])
+  @@index([status])
+  @@index([scheduledDate])
+}
+
+// ============================================
+// MESSAGING
+// ============================================
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  FAILED
+  PENDING
+}
+
+enum MessageType {
+  CONFIRMATION
+  REMINDER
+  ON_MY_WAY
+  THANK_YOU
+  PAYMENT_REQUEST
+  CUSTOM
+}
+
+model Message {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookingId     String?
+  booking       Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  to            String        // Phone number
+  from          String        // Twilio number
+  body          String
+
+  type          MessageType   @default(CUSTOM)
+  status        MessageStatus @default(PENDING)
+
+  // Twilio metadata
+  twilioSid     String?       @unique
+  errorMessage  String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([bookingId])
+  @@index([twilioSid])
+}
+
+model MessageTemplate {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type          MessageType
+  name          String
+  template      String      // Template with variables: {{clientName}}, {{date}}, {{time}}, {{price}}
+
+  isActive      Boolean     @default(true)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId, type])
+}
