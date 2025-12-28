@@ -23,6 +23,10 @@ export default function JobsPage() {
   const [dateTo, setDateTo] = useState('');
   const [clientSearch, setClientSearch] = useState('');
 
+  // Bulk action states
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+
   useEffect(() => {
     fetchBookings();
   }, [tab, statusFilter, paymentFilter, dateFrom, dateTo, clientSearch]);
@@ -94,6 +98,67 @@ export default function JobsPage() {
   };
 
   const hasActiveFilters = statusFilter !== 'all' || paymentFilter !== 'all' || dateFrom || dateTo || clientSearch;
+
+  // Bulk action handlers
+  const toggleJobSelection = (jobId: string) => {
+    const newSelected = new Set(selectedJobs);
+    if (newSelected.has(jobId)) {
+      newSelected.delete(jobId);
+    } else {
+      newSelected.add(jobId);
+    }
+    setSelectedJobs(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedJobs.size === bookings.length) {
+      setSelectedJobs(new Set());
+    } else {
+      setSelectedJobs(new Set(bookings.map(b => b.id)));
+    }
+  };
+
+  const bulkMarkComplete = async () => {
+    setBulkUpdating(true);
+    try {
+      await Promise.all(
+        Array.from(selectedJobs).map(jobId =>
+          fetch(`/api/bookings/${jobId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'COMPLETED' }),
+          })
+        )
+      );
+      setSelectedJobs(new Set());
+      fetchBookings();
+    } catch (error) {
+      alert('Failed to update jobs');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const bulkMarkPaid = async () => {
+    setBulkUpdating(true);
+    try {
+      await Promise.all(
+        Array.from(selectedJobs).map(jobId =>
+          fetch('/api/payments/mark-paid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId: jobId }),
+          })
+        )
+      );
+      setSelectedJobs(new Set());
+      fetchBookings();
+    } catch (error) {
+      alert('Failed to mark jobs as paid');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -257,56 +322,122 @@ export default function JobsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {bookings.map((booking) => (
-            <Link key={booking.id} href={`/jobs/${booking.id}`}>
-              <Card className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                          booking.status
-                        )}`}
-                      >
-                        {booking.status}
-                      </span>
-                      {booking.isRecurring && (
-                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                          Recurring
-                        </span>
-                      )}
+        <>
+          {bookings.length > 0 && (
+            <div className="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm">
+              <input
+                type="checkbox"
+                checked={selectedJobs.size === bookings.length && bookings.length > 0}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <span className="text-sm text-gray-600">
+                {selectedJobs.size > 0
+                  ? `${selectedJobs.size} selected`
+                  : 'Select all'}
+              </span>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {bookings.map((booking) => (
+              <Card key={booking.id} className="p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedJobs.has(booking.id)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      toggleJobSelection(booking.id);
+                    }}
+                    className="h-5 w-5 rounded border-gray-300 mt-1"
+                  />
+                  <Link href={`/jobs/${booking.id}`} className="flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
+                              booking.status
+                            )}`}
+                          >
+                            {booking.status}
+                          </span>
+                          {booking.isRecurring && (
+                            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                              Recurring
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-lg">{booking.client.name}</h3>
+                        <p className="text-sm text-gray-600">
+                          {formatDateTime(booking.scheduledDate)}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {booking.address.street}, {booking.address.city}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {booking.serviceType} • {booking.duration} min
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold text-lg">
+                          {formatCurrency(booking.price)}
+                        </div>
+                        {!booking.isPaid && booking.status === 'COMPLETED' && (
+                          <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
+                            Unpaid
+                          </span>
+                        )}
+                        {booking.isPaid && (
+                          <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                            Paid
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <h3 className="font-semibold text-lg">{booking.client.name}</h3>
-                    <p className="text-sm text-gray-600">
-                      {formatDateTime(booking.scheduledDate)}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {booking.address.street}, {booking.address.city}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {booking.serviceType} • {booking.duration} min
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-lg">
-                      {formatCurrency(booking.price)}
-                    </div>
-                    {!booking.isPaid && booking.status === 'COMPLETED' && (
-                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
-                        Unpaid
-                      </span>
-                    )}
-                    {booking.isPaid && (
-                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                        Paid
-                      </span>
-                    )}
-                  </div>
+                  </Link>
                 </div>
               </Card>
-            </Link>
-          ))}
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Bulk Action Bar */}
+      {selectedJobs.size > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 mx-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <span className="font-semibold">{selectedJobs.size} jobs selected</span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={bulkMarkComplete}
+                disabled={bulkUpdating}
+                className="bg-white text-blue-600 hover:bg-gray-100"
+              >
+                Mark Completed
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={bulkMarkPaid}
+                disabled={bulkUpdating}
+                className="bg-white text-blue-600 hover:bg-gray-100"
+              >
+                Mark Paid
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedJobs(new Set())}
+                className="text-white hover:bg-blue-700"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
