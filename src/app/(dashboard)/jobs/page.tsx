@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { formatDateTime, formatCurrency } from '@/lib/utils';
 import type { BookingWithRelations } from '@/types';
 
@@ -12,10 +14,18 @@ export default function JobsPage() {
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [clientSearch, setClientSearch] = useState('');
 
   useEffect(() => {
     fetchBookings();
-  }, [tab]);
+  }, [tab, statusFilter, paymentFilter, dateFrom, dateTo, clientSearch]);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -23,18 +33,49 @@ export default function JobsPage() {
       const now = new Date();
       const params = new URLSearchParams();
 
+      // Apply tab-based date filters
       if (tab === 'upcoming') {
         params.append('from', now.toISOString());
-        params.append('status', 'SCHEDULED');
+        if (statusFilter === 'all') {
+          params.append('status', 'SCHEDULED');
+        }
       } else {
         params.append('to', now.toISOString());
+      }
+
+      // Apply status filter
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+
+      // Apply date range filters
+      if (dateFrom) {
+        params.append('from', new Date(dateFrom).toISOString());
+      }
+      if (dateTo) {
+        params.append('to', new Date(dateTo + 'T23:59:59').toISOString());
       }
 
       const response = await fetch(`/api/bookings?${params}`);
       const data = await response.json();
 
       if (data.success) {
-        setBookings(data.data);
+        let filtered = data.data;
+
+        // Client-side filters
+        if (clientSearch) {
+          filtered = filtered.filter((booking: BookingWithRelations) =>
+            booking.client.name.toLowerCase().includes(clientSearch.toLowerCase())
+          );
+        }
+
+        if (paymentFilter === 'paid') {
+          filtered = filtered.filter((booking: BookingWithRelations) => booking.isPaid);
+        } else if (paymentFilter === 'unpaid') {
+          filtered = filtered.filter((booking: BookingWithRelations) => !booking.isPaid);
+        }
+
+        setBookings(filtered);
       }
     } catch (error) {
       console.error('Failed to fetch bookings:', error);
@@ -42,6 +83,17 @@ export default function JobsPage() {
       setLoading(false);
     }
   };
+
+  const clearFilters = () => {
+    setStatusFilter('all');
+    setPaymentFilter('all');
+    setDateFrom('');
+    setDateTo('');
+    setClientSearch('');
+    setShowFilters(false);
+  };
+
+  const hasActiveFilters = statusFilter !== 'all' || paymentFilter !== 'all' || dateFrom || dateTo || clientSearch;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -62,13 +114,110 @@ export default function JobsPage() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Jobs</h1>
-        <Link href="/jobs/new">
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            New Job
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className={hasActiveFilters ? 'border-blue-500 text-blue-600' : ''}
+          >
+            <Filter className="h-4 w-4 mr-1" />
+            Filters
+            {hasActiveFilters && (
+              <span className="ml-1 bg-blue-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
+                !
+              </span>
+            )}
           </Button>
-        </Link>
+          <Link href="/jobs/new">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              New Job
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <Card className="p-4 space-y-4 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Filters</h3>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-1" />
+                Clear All
+              </Button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Status
+              </label>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="SCHEDULED">Scheduled</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+                <option value="NO_SHOW">No Show</option>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Payment
+              </label>
+              <Select
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+              >
+                <option value="all">All Payments</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                From Date
+              </label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                To Date
+              </label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Search Client
+              </label>
+              <Input
+                type="text"
+                placeholder="Search by client name..."
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="flex gap-2 bg-white p-1 rounded-lg shadow-sm">
         <button
