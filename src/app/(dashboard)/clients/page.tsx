@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -35,16 +35,69 @@ export default function ClientsPage() {
     }
   };
 
+  const exportToCSV = () => {
+    if (clients.length === 0) {
+      alert('No clients to export');
+      return;
+    }
+
+    // CSV headers
+    const headers = ['Name', 'Email', 'Phone', 'Tags', 'Street', 'City', 'State', 'ZIP', 'Notes'];
+
+    // CSV rows
+    const rows = clients.map(client => {
+      const primaryAddress = client.addresses.find(a => a.isDefault) || client.addresses[0];
+      return [
+        client.name,
+        client.email || '',
+        client.phone || '',
+        client.tags.join('; '),
+        primaryAddress?.street || '',
+        primaryAddress?.city || '',
+        primaryAddress?.state || '',
+        primaryAddress?.zip || '',
+        client.notes || ''
+      ].map(field => `"${field}"`); // Wrap in quotes for CSV safety
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `cleandaycrm-clients-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Clients</h1>
-        <Link href="/clients/new">
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            New Client
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          {clients.length > 0 && (
+            <Button variant="outline" size="sm" onClick={exportToCSV}>
+              <Download className="h-4 w-4 mr-1" />
+              Export CSV
+            </Button>
+          )}
+          <Link href="/clients/new">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              New Client
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="relative">
