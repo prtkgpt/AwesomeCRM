@@ -176,15 +176,20 @@ export default function JobsPage() {
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Jobs</h1>
-        <div className="flex gap-2">
+    <div className="p-4 md:p-8 space-y-4 md:space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold">Jobs</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base mt-1">
+            Manage your cleaning jobs and schedules
+          </p>
+        </div>
+        <div className="flex gap-2 md:gap-3">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className={hasActiveFilters ? 'border-blue-500 text-blue-600' : ''}
+            className={hasActiveFilters ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400' : ''}
           >
             <Filter className="h-4 w-4 mr-1" />
             Filters
@@ -195,8 +200,8 @@ export default function JobsPage() {
             )}
           </Button>
           <Link href="/jobs/new">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1" />
+            <Button size="sm" className="md:size-default">
+              <Plus className="h-4 w-4 mr-1 md:mr-2" />
               New Job
             </Button>
           </Link>
@@ -205,9 +210,9 @@ export default function JobsPage() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <Card className="p-4 space-y-4 bg-gray-50">
+        <Card className="p-4 md:p-6 space-y-4 bg-gray-50 dark:bg-gray-900/50">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Filters</h3>
+            <h3 className="font-semibold text-lg">Filters</h3>
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 <X className="h-4 w-4 mr-1" />
@@ -216,9 +221,9 @@ export default function JobsPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                 Status
               </label>
               <Select
@@ -234,7 +239,7 @@ export default function JobsPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                 Payment
               </label>
               <Select
@@ -248,7 +253,19 @@ export default function JobsPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                Search Client
+              </label>
+              <Input
+                type="text"
+                placeholder="Search by client name..."
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                 From Date
               </label>
               <Input
@@ -259,25 +276,13 @@ export default function JobsPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                 To Date
               </label>
               <Input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Search Client
-              </label>
-              <Input
-                type="text"
-                placeholder="Search by client name..."
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
               />
             </div>
           </div>
@@ -339,64 +344,69 @@ export default function JobsPage() {
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {bookings.map((booking) => (
-              <Card key={booking.id} className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedJobs.has(booking.id)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      toggleJobSelection(booking.id);
-                    }}
-                    className="h-5 w-5 rounded border-gray-300 mt-1"
-                  />
-                  <Link href={`/jobs/${booking.id}`} className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                              booking.status
-                            )}`}
-                          >
-                            {booking.status}
-                          </span>
-                          {booking.isRecurring && (
-                            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                              Recurring
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="font-semibold text-lg">{booking.client.name}</h3>
-                        <p className="text-sm text-gray-600">
-                          {formatDateTime(booking.scheduledDate)}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {booking.address.street}, {booking.address.city}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {booking.serviceType} • {booking.duration} min
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-lg">
-                          {formatCurrency(booking.price)}
-                        </div>
-                        {!booking.isPaid && booking.status === 'COMPLETED' && (
-                          <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
-                            Unpaid
-                          </span>
-                        )}
-                        {booking.isPaid && (
-                          <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                            Paid
+              <Card key={booking.id} className="p-4 md:p-5 hover:shadow-lg transition-shadow">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-start gap-3 mb-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedJobs.has(booking.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleJobSelection(booking.id);
+                      }}
+                      className="h-5 w-5 rounded border-gray-300 mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
+                            booking.status
+                          )}`}
+                        >
+                          {booking.status}
+                        </span>
+                        {booking.isRecurring && (
+                          <span className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full">
+                            Recurring
                           </span>
                         )}
                       </div>
+                      <Link href={`/jobs/${booking.id}`}>
+                        <h3 className="font-semibold text-lg mb-1 hover:text-blue-600 dark:hover:text-blue-400">
+                          {booking.client.name}
+                        </h3>
+                      </Link>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {formatDateTime(booking.scheduledDate)}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {booking.address.street}, {booking.address.city}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                        {booking.serviceType} • {booking.duration} min
+                      </p>
                     </div>
-                  </Link>
+                  </div>
+
+                  <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <div className="font-semibold text-lg">
+                      {formatCurrency(booking.price)}
+                    </div>
+                    <div className="flex gap-1">
+                      {!booking.isPaid && booking.status === 'COMPLETED' && (
+                        <span className="text-xs px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full">
+                          Unpaid
+                        </span>
+                      )}
+                      {booking.isPaid && (
+                        <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
+                          Paid
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </Card>
             ))}
@@ -406,16 +416,16 @@ export default function JobsPage() {
 
       {/* Bulk Action Bar */}
       {selectedJobs.size > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 mx-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <span className="font-semibold">{selectedJobs.size} jobs selected</span>
+        <div className="fixed bottom-20 md:bottom-6 left-0 right-0 mx-4 md:mx-auto md:max-w-2xl bg-blue-600 dark:bg-blue-500 text-white p-4 md:p-5 rounded-lg shadow-xl z-50">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <span className="font-semibold text-lg">{selectedJobs.size} job{selectedJobs.size > 1 ? 's' : ''} selected</span>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={bulkMarkComplete}
                 disabled={bulkUpdating}
-                className="bg-white text-blue-600 hover:bg-gray-100"
+                className="bg-white text-blue-600 hover:bg-gray-100 flex-1 md:flex-none"
               >
                 Mark Completed
               </Button>
@@ -424,7 +434,7 @@ export default function JobsPage() {
                 size="sm"
                 onClick={bulkMarkPaid}
                 disabled={bulkUpdating}
-                className="bg-white text-blue-600 hover:bg-gray-100"
+                className="bg-white text-blue-600 hover:bg-gray-100 flex-1 md:flex-none"
               >
                 Mark Paid
               </Button>
@@ -432,7 +442,7 @@ export default function JobsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedJobs(new Set())}
-                className="text-white hover:bg-blue-700"
+                className="text-white hover:bg-blue-700 dark:hover:bg-blue-600"
               >
                 <X className="h-4 w-4" />
               </Button>
