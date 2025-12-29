@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       where: {
         userId: session.user.id,
         status: 'SCHEDULED',
-        scheduledFor: { gte: now },
+        scheduledDate: { gte: now },
       },
     });
 
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       where: {
         userId: session.user.id,
         status: 'COMPLETED',
-        scheduledFor: {
+        scheduledDate: {
           gte: startOfMonth,
           lte: endOfMonth,
         },
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         userId: session.user.id,
         status: 'COMPLETED',
         isPaid: true,
-        scheduledFor: {
+        scheduledDate: {
           gte: startOfMonth,
           lte: endOfMonth,
         },
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       where: {
         userId: session.user.id,
         status: 'SCHEDULED',
-        scheduledFor: { gte: now },
+        scheduledDate: { gte: now },
       },
       include: {
         client: {
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: {
-        scheduledFor: 'asc',
+        scheduledDate: 'asc',
       },
       take: 5,
     });

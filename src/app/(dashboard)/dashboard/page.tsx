@@ -13,7 +13,7 @@ interface DashboardStats {
   revenueThisMonth: number;
   upcomingJobsList: Array<{
     id: string;
-    scheduledFor: string;
+    scheduledDate: string;
     serviceType: string;
     client: { name: string };
   }>;
@@ -169,14 +169,14 @@ export default function DashboardPage() {
                     <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500 dark:text-gray-400">
-                          {new Date(job.scheduledFor).toLocaleDateString('en-US', {
+                          {new Date(job.scheduledDate).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',
                           })}
                         </span>
                         <span className="font-medium text-blue-600 dark:text-blue-400">
-                          {new Date(job.scheduledFor).toLocaleTimeString('en-US', {
+                          {new Date(job.scheduledDate).toLocaleTimeString('en-US', {
                             hour: 'numeric',
                             minute: '2-digit',
                           })}
