@@ -12,6 +12,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check if Stripe is configured
+    if (!stripe) {
+      return NextResponse.json(
+        { success: false, error: 'Payment processing is not configured' },
+        { status: 503 }
+      );
+    }
+
     const { bookingId } = await request.json();
 
     if (!bookingId) {

@@ -63,9 +63,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createClientSchema.parse(body);
 
-    // Create Stripe customer if email provided
+    // Create Stripe customer if email provided and Stripe is configured
     let stripeCustomerId: string | undefined;
-    if (validatedData.email) {
+    if (validatedData.email && stripe) {
       try {
         const stripeCustomer = await stripe.customers.create({
           email: validatedData.email,

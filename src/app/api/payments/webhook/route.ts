@@ -6,6 +6,14 @@ import Stripe from 'stripe';
 
 // POST /api/payments/webhook - Stripe webhook handler
 export async function POST(request: NextRequest) {
+  // Check if Stripe is configured
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'Payment processing is not configured' },
+      { status: 503 }
+    );
+  }
+
   const body = await request.text();
   const signature = headers().get('stripe-signature');
 
