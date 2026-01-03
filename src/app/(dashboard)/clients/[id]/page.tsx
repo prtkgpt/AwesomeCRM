@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime, formatCurrency } from '@/lib/utils';
 import type { ClientWithAddresses, BookingWithRelations } from '@/types';
 
@@ -18,6 +19,9 @@ export default function ClientDetailPage() {
   const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   useEffect(() => {
     fetchClient();
@@ -31,6 +35,7 @@ export default function ClientDetailPage() {
 
       if (data.success) {
         setClient(data.data);
+        setNotes(data.data.notes || '');
       } else {
         router.push('/clients');
       }
@@ -53,6 +58,35 @@ export default function ClientDetailPage() {
     } catch (error) {
       console.error('Failed to fetch bookings:', error);
     }
+  };
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    try {
+      const response = await fetch(`/api/clients/${clientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setClient(data.data);
+        setEditingNotes(false);
+      } else {
+        alert(data.error || 'Failed to save notes');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const handleCancelNotes = () => {
+    setNotes(client?.notes || '');
+    setEditingNotes(false);
   };
 
   const handleDelete = async () => {
@@ -107,21 +141,31 @@ export default function ClientDetailPage() {
     return null;
   }
 
+  // Calculate job stats
+  const totalJobs = bookings.length;
+  const completedJobs = bookings.filter(b => b.status === 'COMPLETED').length;
+  const totalRevenue = bookings
+    .filter(b => b.status === 'COMPLETED' && b.isPaid)
+    .reduce((sum, b) => sum + b.price, 0);
+  const unpaidRevenue = bookings
+    .filter(b => b.status === 'COMPLETED' && !b.isPaid)
+    .reduce((sum, b) => sum + b.price, 0);
+
   return (
-    <div className="p-4 max-w-4xl mx-auto space-y-4">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{client.name}</h1>
+            <h1 className="text-3xl md:text-4xl font-bold">{client.name}</h1>
             {client.tags.length > 0 && (
-              <div className="flex gap-1 mt-1">
+              <div className="flex gap-1 mt-2">
                 {client.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
+                    className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full"
                   >
                     {tag}
                   </span>
@@ -135,12 +179,65 @@ export default function ClientDetailPage() {
           size="sm"
           onClick={handleDelete}
           disabled={deleting}
-          className="text-red-600 hover:text-red-700"
+          className="text-red-600 hover:text-red-700 dark:text-red-400"
         >
           <Trash2 className="h-4 w-4 mr-1" />
           {deleting ? 'Deleting...' : 'Delete'}
         </Button>
       </div>
+
+      {/* Job Stats */}
+      {totalJobs > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Jobs</p>
+                <p className="text-2xl font-bold">{totalJobs}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+                <p className="text-2xl font-bold">{completedJobs}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Revenue</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                <DollarSign className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Unpaid</p>
+                <p className="text-2xl font-bold">{formatCurrency(unpaidRevenue)}</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       <Card className="p-4 space-y-3">
         <h2 className="font-semibold text-lg">Contact Information</h2>
@@ -189,12 +286,67 @@ export default function ClientDetailPage() {
           </div>
         )}
 
-        {client.notes && (
-          <div className="pt-2 border-t">
-            <h3 className="font-medium text-sm mb-1">Notes</h3>
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">
-              {client.notes}
-            </p>
+      </Card>
+
+      {/* Notes Section */}
+      <Card className="p-4 md:p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <StickyNote className="h-5 w-5" />
+            Notes
+          </h2>
+          {!editingNotes && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingNotes(true)}
+            >
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          )}
+        </div>
+
+        {editingNotes ? (
+          <div className="space-y-3">
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add notes about this client..."
+              rows={6}
+              className="w-full"
+            />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSaveNotes}
+                disabled={savingNotes}
+                size="sm"
+              >
+                <Save className="h-4 w-4 mr-1" />
+                {savingNotes ? 'Saving...' : 'Save'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCancelNotes}
+                disabled={savingNotes}
+                size="sm"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {client.notes ? (
+              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                {client.notes}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                No notes yet. Click Edit to add notes about this client.
+              </p>
+            )}
           </div>
         )}
       </Card>
