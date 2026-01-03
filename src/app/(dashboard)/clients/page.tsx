@@ -18,6 +18,7 @@ export default function ClientsPage() {
   }, [search]);
 
   const fetchClients = async () => {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
