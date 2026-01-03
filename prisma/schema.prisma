@@ -29,6 +29,7 @@ model User {
   bookings      Booking[]
   messages      Message[]
   messageTemplates MessageTemplate[]
+  invoices      Invoice[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -53,6 +54,7 @@ model Client {
 
   addresses         Address[]
   bookings          Booking[]
+  invoices          Invoice[]
 
   // Stripe integration
   stripeCustomerId  String?   @unique
@@ -157,6 +159,7 @@ model Booking {
   reminderSent          Boolean             @default(false)
 
   messages              Message[]
+  invoice               Invoice?
 
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
@@ -230,4 +233,59 @@ model MessageTemplate {
 
   @@unique([userId, type])
   @@index([userId, type])
+}
+
+// ============================================
+// INVOICES
+// ============================================
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  bookingId       String?       @unique
+  booking         Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  // Invoice details
+  invoiceNumber   String        @unique
+  issueDate       DateTime      @default(now())
+  dueDate         DateTime
+  status          InvoiceStatus @default(DRAFT)
+
+  // Line items stored as JSON
+  // Format: [{ description: string, quantity: number, rate: number, amount: number }]
+  lineItems       Json
+
+  // Totals
+  subtotal        Float
+  tax             Float         @default(0)
+  total           Float
+
+  // Notes
+  notes           String?
+  terms           String?       // Payment terms
+
+  // Email tracking
+  sentAt          DateTime?
+  sentTo          String?       // Email address
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([status])
+  @@index([invoiceNumber])
 }

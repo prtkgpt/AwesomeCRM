@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Settings, Home, LogOut } from 'lucide-react';
+import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -27,6 +27,11 @@ const navItems = [
     href: '/clients',
     label: 'Clients',
     icon: Users,
+  },
+  {
+    href: '/invoices',
+    label: 'Invoices',
+    icon: FileText,
   },
   {
     href: '/settings',

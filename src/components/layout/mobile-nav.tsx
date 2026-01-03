@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Home, Menu } from 'lucide-react';
+import { Calendar, Briefcase, Users, Home, Menu, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { signOut } from 'next-auth/react';
@@ -58,6 +58,15 @@ export function MobileNav() {
           </div>
 
           <nav className="flex-1 p-4 space-y-2">
+            <Link
+              href="/invoices"
+              className="flex items-center gap-3 px-3 py-3 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              onClick={() => setShowMenu(false)}
+            >
+              <FileText className="w-5 h-5" />
+              <span className="text-sm font-medium">Invoices</span>
+            </Link>
+
             <Link
               href="/settings"
               className="flex items-center px-3 py-3 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"

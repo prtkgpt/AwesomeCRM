@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote, TrendingUp, DollarSign, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote, TrendingUp, DollarSign, Calendar, FileText, Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,7 @@ export default function ClientDetailPage() {
 
   const [client, setClient] = useState<ClientWithAddresses | null>(null);
   const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -26,6 +27,7 @@ export default function ClientDetailPage() {
   useEffect(() => {
     fetchClient();
     fetchBookings();
+    fetchInvoices();
   }, [clientId]);
 
   const fetchClient = async () => {
@@ -57,6 +59,37 @@ export default function ClientDetailPage() {
       }
     } catch (error) {
       console.error('Failed to fetch bookings:', error);
+    }
+  };
+
+  const fetchInvoices = async () => {
+    try {
+      const response = await fetch(`/api/invoices?clientId=${clientId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setInvoices(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch invoices:', error);
+    }
+  };
+
+  const handleDownloadPDF = async (invoiceId: string, invoiceNumber: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/pdf`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF');
     }
   };
 
@@ -350,6 +383,75 @@ export default function ClientDetailPage() {
           </div>
         )}
       </Card>
+
+      {/* Invoices Section */}
+      {invoices.length > 0 && (
+        <>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Invoices
+            </h2>
+            <Link href="/invoices">
+              <Button variant="outline" size="sm">
+                View All
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid gap-3">
+            {invoices.map((invoice) => (
+              <Card key={invoice.id} className="p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        {invoice.invoiceNumber}
+                      </h3>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          invoice.status === 'PAID'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : invoice.status === 'SENT'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : invoice.status === 'OVERDUE'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                        }`}
+                      >
+                        {invoice.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Due: {new Date(invoice.dueDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-lg mb-2">
+                      {formatCurrency(invoice.total)}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/invoices`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleDownloadPDF(invoice.id, invoice.invoiceNumber)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Jobs</h2>

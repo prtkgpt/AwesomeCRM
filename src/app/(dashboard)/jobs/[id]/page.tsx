@@ -12,6 +12,7 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -28,9 +29,12 @@ export default function JobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const [hasInvoice, setHasInvoice] = useState(false);
 
   useEffect(() => {
     fetchJob();
+    checkInvoice();
   }, [jobId]);
 
   const fetchJob = async () => {
@@ -48,6 +52,44 @@ export default function JobDetailPage() {
       router.push('/jobs');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkInvoice = async () => {
+    try {
+      const response = await fetch(`/api/invoices?bookingId=${jobId}`);
+      const data = await response.json();
+
+      if (data.success && data.data.length > 0) {
+        setHasInvoice(true);
+      }
+    } catch (error) {
+      console.error('Failed to check invoice:', error);
+    }
+  };
+
+  const handleGenerateInvoice = async () => {
+    setGeneratingInvoice(true);
+    try {
+      const response = await fetch('/api/invoices/from-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: jobId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Invoice generated successfully!');
+        setHasInvoice(true);
+        router.push(`/invoices`);
+      } else {
+        alert(data.error || 'Failed to generate invoice');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setGeneratingInvoice(false);
     }
   };
 
@@ -308,6 +350,35 @@ export default function JobDetailPage() {
                 <DollarSign className="h-4 w-4 mr-1" />
                 Mark as Paid
               </Button>
+            </div>
+          )}
+
+          {job.status === 'COMPLETED' && (
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Invoice
+              </label>
+              {hasInvoice ? (
+                <Button
+                  onClick={() => router.push('/invoices')}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  View Invoice
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleGenerateInvoice}
+                  disabled={generatingInvoice}
+                  size="sm"
+                  className="w-full"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  {generatingInvoice ? 'Generating...' : 'Generate Invoice'}
+                </Button>
+              )}
             </div>
           )}
         </div>
