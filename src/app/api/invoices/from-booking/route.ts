@@ -21,11 +21,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Fetch the booking
     const booking = await prisma.booking.findFirst({
       where: {
         id: bookingId,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
       include: {
         client: true,
@@ -81,6 +91,7 @@ export async function POST(request: Request) {
 
     const invoice = await prisma.invoice.create({
       data: {
+        companyId: user.companyId,
         userId: session.user.id,
         clientId: booking.clientId,
         bookingId: booking.id,
