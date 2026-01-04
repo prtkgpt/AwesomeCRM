@@ -47,7 +47,7 @@ export default function ClientsPage() {
 
     // CSV rows
     const rows = clients.map(client => {
-      const primaryAddress = client.addresses.find(a => a.isDefault) || client.addresses[0];
+const primaryAddress = client.addresses[0];
       return [
         client.name,
         client.email || '',
