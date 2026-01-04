@@ -70,8 +70,7 @@ export async function GET(
     };
 
     // Generate PDF stream
-    const stream = await renderToStream(<InvoicePDF invoice={invoiceData} />);
-
+    const stream = await renderToStream(<InvoicePDF invoice={invoiceData as any} />);
     // Convert stream to buffer
     const chunks: Uint8Array[] = [];
     for await (const chunk of stream as any) {
