@@ -188,9 +188,7 @@ export default function NewJobPage() {
               >
                 {selectedClient.addresses.map((address) => (
                   <option key={address.id} value={address.id}>
-                    {address.street}
-                    {address.unit ? ` ${address.unit}` : ''}, {address.city}
-                    {address.isDefault ? ' (Default)' : ''}
+                    {address.street}, {address.city}
                   </option>
                 ))}
               </Select>
