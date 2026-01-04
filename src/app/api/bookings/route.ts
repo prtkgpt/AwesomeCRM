@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const bookings = await prisma.booking.findMany({
       where: {
         userId: session.user.id,
-        ...(status && { status }),
+        ...(status && { status: status as any }),
         ...(clientId && { clientId }),
         ...(from && to && {
           scheduledDate: {
