@@ -14,6 +14,50 @@ datasource db {
 // USER & AUTH
 // ============================================
 
+enum UserRole {
+  OWNER          // Company creator, full access
+  ADMIN          // Office staff, manage operations
+  CLEANER        // Field worker, view assigned jobs
+  CUSTOMER       // End customer, view/book services
+}
+
+model Company {
+  id                  String   @id @default(cuid())
+  name                String              // "Acme Cleaning"
+  slug                String   @unique    // "acme-cleaning" (for URL)
+
+  // Contact Info
+  email               String?
+  phone               String?
+  address             String?
+
+  // Branding
+  logo                String?             // URL to logo
+  primaryColor        String?             // Hex color
+
+  // Settings
+  timezone            String   @default("America/New_York")
+  currency            String   @default("USD")
+
+  // Subscription
+  plan                String   @default("FREE")  // FREE, BASIC, PRO
+  subscriptionStatus  String   @default("ACTIVE")
+
+  users               User[]
+  clients             Client[]
+  bookings            Booking[]
+  messages            Message[]
+  messageTemplates    MessageTemplate[]
+  invoices            Invoice[]
+  teamMembers         TeamMember[]
+  invitations         Invitation[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([slug])
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -22,19 +66,92 @@ model User {
   phone         String?
   businessName  String?
 
-  // For future team expansion - nullable for now
+  // Multi-tenancy
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  role          UserRole  @default(CUSTOMER)
+
+  // Legacy field - kept for compatibility
   workspaceId   String?
 
+  // Relations
   clients       Client[]
   bookings      Booking[]
   messages      Message[]
   messageTemplates MessageTemplate[]
   invoices      Invoice[]
 
+  // Cleaner profile (if role = CLEANER)
+  teamMember    TeamMember?
+
+  // Customer profile (if role = CUSTOMER)
+  customerClient  Client?   @relation("CustomerAccount")
+  customerBookings Booking[] @relation("CustomerBookings")
+
+  // Invitations sent
+  sentInvitations Invitation[] @relation("InvitationSender")
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([email])
+  @@index([companyId, role])
+}
+
+model TeamMember {
+  id                String    @id @default(cuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Employment Info
+  hourlyRate        Float?
+  employeeId        String?           // Internal ID
+  hireDate          DateTime?
+
+  // Personal Info
+  emergencyContact  String?
+  emergencyPhone    String?
+  photo             String?           // Profile photo URL
+
+  // Work Info
+  specialties       String[]          // ["Deep Clean", "Move-out"]
+  availability      Json?             // Weekly schedule
+
+  // Assignment
+  assignedBookings  Booking[]         @relation("AssignedCleaner")
+
+  isActive          Boolean   @default(true)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+}
+
+model Invitation {
+  id            String      @id @default(cuid())
+  companyId     String
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  email         String
+  role          UserRole
+  token         String      @unique
+
+  invitedById   String
+  invitedBy     User        @relation("InvitationSender", fields: [invitedById], references: [id])
+
+  status        String      @default("PENDING")  // PENDING, ACCEPTED, EXPIRED
+  expiresAt     DateTime
+
+  createdAt     DateTime    @default(now())
+
+  @@index([token])
+  @@index([companyId, email])
 }
 
 // ============================================
@@ -43,6 +160,12 @@ model User {
 
 model Client {
   id                String    @id @default(cuid())
+
+  // Multi-tenancy
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Created by (admin/office staff)
   userId            String
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -59,9 +182,14 @@ model Client {
   // Stripe integration
   stripeCustomerId  String?   @unique
 
+  // Link to customer user account (if they sign up)
+  customerUserId    String?   @unique
+  customerUser      User?     @relation("CustomerAccount", fields: [customerUserId], references: [id])
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  @@index([companyId])
   @@index([userId])
   @@index([email])
 }
@@ -117,6 +245,12 @@ enum RecurrenceFrequency {
 
 model Booking {
   id                    String              @id @default(cuid())
+
+  // Multi-tenancy
+  companyId             String
+  company               Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Created by (admin/office staff)
   userId                String
   user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -125,6 +259,14 @@ model Booking {
 
   addressId             String
   address               Address             @relation(fields: [addressId], references: [id])
+
+  // Cleaner Assignment
+  assignedTo            String?
+  assignee              TeamMember?         @relation("AssignedCleaner", fields: [assignedTo], references: [id])
+
+  // Customer Link (if customer has account)
+  customerId            String?
+  customer              User?               @relation("CustomerBookings", fields: [customerId], references: [id])
 
   // Scheduling
   scheduledDate         DateTime
@@ -164,8 +306,11 @@ model Booking {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 
+  @@index([companyId])
   @@index([userId, scheduledDate])
   @@index([clientId])
+  @@index([assignedTo])
+  @@index([customerId])
   @@index([status])
   @@index([scheduledDate])
 }
@@ -192,6 +337,11 @@ enum MessageType {
 
 model Message {
   id            String        @id @default(cuid())
+
+  // Multi-tenancy
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   userId        String
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -212,6 +362,7 @@ model Message {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  @@index([companyId])
   @@index([userId])
   @@index([bookingId])
   @@index([twilioSid])
@@ -219,6 +370,11 @@ model Message {
 
 model MessageTemplate {
   id            String      @id @default(cuid())
+
+  // Multi-tenancy
+  companyId     String
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   userId        String
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -231,7 +387,8 @@ model MessageTemplate {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  @@unique([userId, type])
+  @@unique([companyId, type])
+  @@index([companyId])
   @@index([userId, type])
 }
 
@@ -249,6 +406,11 @@ enum InvoiceStatus {
 
 model Invoice {
   id              String        @id @default(cuid())
+
+  // Multi-tenancy
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   userId          String
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -284,6 +446,7 @@ model Invoice {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  @@index([companyId])
   @@index([userId])
   @@index([clientId])
   @@index([status])
