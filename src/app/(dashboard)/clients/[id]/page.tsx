@@ -305,7 +305,6 @@ export default function ClientDetailPage() {
                 className="pl-6 text-sm text-gray-600 border-l-2 border-gray-200"
               >
                 <div>{address.street}</div>
-                {address.unit && <div>Unit {address.unit}</div>}
                 <div>
                   {address.city}, {address.state} {address.zip}
                 </div>
