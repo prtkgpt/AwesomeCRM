@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
           // Log message
           await prisma.message.create({
             data: {
+              companyId: booking.companyId,
               userId: booking.userId,
               bookingId: booking.id,
               to: normalizedPhone,
@@ -105,6 +106,7 @@ export async function GET(request: NextRequest) {
           // Log failed message
           await prisma.message.create({
             data: {
+              companyId: booking.companyId,
               userId: booking.userId,
               bookingId: booking.id,
               to: normalizedPhone,
