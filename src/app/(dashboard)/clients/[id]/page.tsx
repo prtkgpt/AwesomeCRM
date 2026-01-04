@@ -308,11 +308,7 @@ export default function ClientDetailPage() {
                 <div>
                   {address.city}, {address.state} {address.zip}
                 </div>
-                {address.isDefault && (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded mt-1 inline-block">
-                    Default
-                  </span>
-                )}
+              
               </div>
             ))}
           </div>
