@@ -46,7 +46,7 @@ export default function NewJobPage() {
       if (client && client.addresses.length > 0) {
         setFormData((prev) => ({
           ...prev,
-          addressId: client.addresses.find((a) => a.isDefault)?.id || client.addresses[0].id,
+          addressId: client.addresses[0].id,
         }));
       }
     } else {
