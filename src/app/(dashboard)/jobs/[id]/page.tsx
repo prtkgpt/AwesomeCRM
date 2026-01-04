@@ -267,7 +267,6 @@ export default function JobDetailPage() {
               <div className="text-sm font-medium text-gray-500">Address</div>
               <div className="text-sm">
                 {job.address.street}
-                {job.address.unit && `, ${job.address.unit}`}
                 <br />
                 {job.address.city}, {job.address.state} {job.address.zip}
               </div>
