@@ -13,13 +13,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const tags = searchParams.get('tags')?.split(',').filter(Boolean);
 
     const clients = await prisma.client.findMany({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         ...(search && {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
@@ -63,6 +73,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createClientSchema.parse(body);
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Create Stripe customer if email provided and Stripe is configured
     let stripeCustomerId: string | undefined;
     if (validatedData.email && stripe) {
@@ -82,6 +102,7 @@ export async function POST(request: NextRequest) {
     // Create client with addresses
     const client = await prisma.client.create({
       data: {
+        companyId: user.companyId,
         userId: session.user.id,
         name: validatedData.name,
         email: validatedData.email || null,

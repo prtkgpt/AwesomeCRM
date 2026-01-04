@@ -12,6 +12,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
     const view = searchParams.get('view') || 'day';
@@ -25,7 +35,7 @@ export async function GET(request: NextRequest) {
     // Fetch bookings for the date range
     const bookings = await prisma.booking.findMany({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         scheduledDate: {
           gte: boundaries.start,
           lte: boundaries.end,

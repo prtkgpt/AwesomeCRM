@@ -11,11 +11,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get('clientId');
     const status = searchParams.get('status');
 
-    const where: any = { userId: session.user.id };
+    const where: any = { companyId: user.companyId };
     if (clientId) where.clientId = clientId;
     if (status) where.status = status;
 
@@ -97,8 +107,19 @@ export async function POST(request: Request) {
       }
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const invoice = await prisma.invoice.create({
       data: {
+        companyId: user.companyId,
         userId: session.user.id,
         clientId,
         bookingId: bookingId || null,

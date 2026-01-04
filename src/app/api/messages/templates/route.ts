@@ -12,9 +12,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const templates = await prisma.messageTemplate.findMany({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
       },
       orderBy: {
         type: 'asc',
@@ -49,18 +59,29 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const updateData = updateMessageTemplateSchema.parse(validatedData);
 
     // Update or create template
     const template = await prisma.messageTemplate.upsert({
       where: {
-        userId_type: {
-          userId: session.user.id,
+        companyId_type: {
+          companyId: user.companyId,
           type,
         },
       },
       update: updateData,
       create: {
+        companyId: user.companyId,
         userId: session.user.id,
         type,
         name: updateData.name || type,

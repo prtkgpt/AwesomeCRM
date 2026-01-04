@@ -20,13 +20,23 @@ export async function POST(request: NextRequest) {
     // Normalize phone number
     const normalizedPhone = normalizePhoneNumber(validatedData.to);
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Get booking details if provided
     let booking;
     if (validatedData.bookingId) {
       booking = await prisma.booking.findFirst({
         where: {
           id: validatedData.bookingId,
-          userId: session.user.id,
+          companyId: user.companyId,
         },
         include: {
           client: true,
@@ -55,6 +65,7 @@ export async function POST(request: NextRequest) {
     // Log message in database
     const message = await prisma.message.create({
       data: {
+        companyId: user.companyId,
         userId: session.user.id,
         bookingId: validatedData.bookingId,
         to: normalizedPhone,
