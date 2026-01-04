@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate recurring bookings if needed
-    let generatedBookings = [];
+    let generatedBookings: any[] = [];
     if (
       validatedData.isRecurring &&
       validatedData.recurrenceFrequency !== 'NONE'
