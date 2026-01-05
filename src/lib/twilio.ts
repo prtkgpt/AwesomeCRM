@@ -14,16 +14,36 @@ export const twilioClient = accountSid && authToken
 
 /**
  * Send an SMS message via Twilio
+ * Supports company-specific credentials or falls back to env vars
  */
-export async function sendSMS(to: string, body: string) {
-  if (!twilioClient || !twilioPhoneNumber) {
-    throw new Error('Twilio is not configured');
+export async function sendSMS(
+  to: string,
+  body: string,
+  options?: {
+    accountSid?: string;
+    authToken?: string;
+    from?: string;
+  }
+) {
+  // Use company-specific credentials if provided, otherwise use default
+  const sid = options?.accountSid || accountSid;
+  const token = options?.authToken || authToken;
+  const from = options?.from || twilioPhoneNumber;
+
+  if (!sid || !token || !from) {
+    return {
+      success: false,
+      error: 'Twilio is not configured',
+    };
   }
 
   try {
-    const message = await twilioClient.messages.create({
+    // Create client with provided or default credentials
+    const client = twilio(sid, token);
+
+    const message = await client.messages.create({
       body,
-      from: twilioPhoneNumber,
+      from,
       to,
     });
 

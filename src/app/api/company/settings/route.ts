@@ -11,6 +11,13 @@ const updateCompanySettingsSchema = z.object({
   twilioAuthToken: z.string().optional(),
   twilioPhoneNumber: z.string().optional(),
   resendApiKey: z.string().optional(),
+  // Reminder settings
+  enableCustomerReminders: z.boolean().optional(),
+  enableCleanerReminders: z.boolean().optional(),
+  customerReminderHours: z.number().min(1).max(72).optional(),
+  cleanerReminderHours: z.number().min(1).max(72).optional(),
+  enableMorningOfReminder: z.boolean().optional(),
+  morningOfReminderTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
 });
 
 // GET /api/company/settings - Get company settings
@@ -57,6 +64,12 @@ export async function GET(request: NextRequest) {
         twilioAccountSid: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
+        enableCustomerReminders: true,
+        enableCleanerReminders: true,
+        customerReminderHours: true,
+        cleanerReminderHours: true,
+        enableMorningOfReminder: true,
+        morningOfReminderTime: true,
         createdAt: true,
         // Don't send auth tokens for security
       },
@@ -168,6 +181,26 @@ export async function PATCH(request: NextRequest) {
       updateData.resendApiKey = validatedData.resendApiKey;
     }
 
+    // Reminder settings
+    if (validatedData.enableCustomerReminders !== undefined) {
+      updateData.enableCustomerReminders = validatedData.enableCustomerReminders;
+    }
+    if (validatedData.enableCleanerReminders !== undefined) {
+      updateData.enableCleanerReminders = validatedData.enableCleanerReminders;
+    }
+    if (validatedData.customerReminderHours !== undefined) {
+      updateData.customerReminderHours = validatedData.customerReminderHours;
+    }
+    if (validatedData.cleanerReminderHours !== undefined) {
+      updateData.cleanerReminderHours = validatedData.cleanerReminderHours;
+    }
+    if (validatedData.enableMorningOfReminder !== undefined) {
+      updateData.enableMorningOfReminder = validatedData.enableMorningOfReminder;
+    }
+    if (validatedData.morningOfReminderTime !== undefined) {
+      updateData.morningOfReminderTime = validatedData.morningOfReminderTime;
+    }
+
     // Update company settings
     const updatedCompany = await prisma.company.update({
       where: { id: user.companyId },
@@ -179,6 +212,12 @@ export async function PATCH(request: NextRequest) {
         twilioAccountSid: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
+        enableCustomerReminders: true,
+        enableCleanerReminders: true,
+        customerReminderHours: true,
+        cleanerReminderHours: true,
+        enableMorningOfReminder: true,
+        morningOfReminderTime: true,
       },
     });
 
