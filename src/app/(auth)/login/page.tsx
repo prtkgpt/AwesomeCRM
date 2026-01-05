@@ -42,7 +42,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">CleanDayCRM</CardTitle>
@@ -103,6 +103,33 @@ export default function LoginPage() {
           </CardFooter>
         </form>
       </Card>
+
+      {/* Footer Attribution */}
+      <footer className="mt-8 text-center">
+        <p className="text-xs text-gray-600 dark:text-gray-400">
+          Built with love by{' '}
+          <a
+            href="https://www.prateekgupta.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Prateek Gupta
+          </a>
+          {' '}and{' '}
+          <a
+            href="https://getawesomemaids.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Team
+          </a>
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+          © 2026 CleanDay CRM. All rights reserved.
+        </p>
+      </footer>
     </div>
   );
 }

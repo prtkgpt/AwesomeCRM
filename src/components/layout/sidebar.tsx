@@ -150,6 +150,33 @@ export function Sidebar() {
             <LogOut className="h-5 w-5 mr-3" />
             Sign Out
           </button>
+
+          {/* Footer Attribution */}
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center leading-relaxed">
+              Built with love by{' '}
+              <a
+                href="https://www.prateekgupta.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Prateek Gupta
+              </a>
+              {' '}and{' '}
+              <a
+                href="https://getawesomemaids.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Team
+              </a>
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-1">
+              © 2026 CleanDay CRM
+            </p>
+          </div>
         </div>
       </div>
     </aside>

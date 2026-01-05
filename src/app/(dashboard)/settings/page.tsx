@@ -1171,6 +1171,26 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 text-center">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    Built with love by{' '}
+                    <a
+                      href="https://www.prateekgupta.org"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Prateek Gupta
+                    </a>
+                    {' '}and{' '}
+                    <a
+                      href="https://getawesomemaids.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Team
+                    </a>
+                  </p>
                   <p className="text-xs text-gray-500">
                     © 2026 CleanDay CRM. All rights reserved.
                   </p>
