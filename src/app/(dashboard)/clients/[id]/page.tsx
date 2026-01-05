@@ -36,6 +36,9 @@ export default function ClientDetailPage() {
       const data = await response.json();
 
       if (data.success) {
+        console.log('🔵 CLIENT PROFILE - Full client data:', data.data);
+        console.log('🔵 CLIENT PROFILE - hasInsurance value:', data.data.hasInsurance);
+        console.log('🔵 CLIENT PROFILE - Insurance provider:', data.data.insuranceProvider);
         setClient(data.data);
         setNotes(data.data.notes || '');
       } else {

@@ -254,22 +254,30 @@ export default function NewClientPage() {
         </Card>
 
         {/* Insurance & Helper Bee's */}
-        <Card className="p-4 space-y-4">
+        <Card className={`p-6 space-y-4 ${formData.hasInsurance ? 'bg-blue-50 border-2 border-blue-500' : ''}`}>
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-lg">
+            <h2 className="font-bold text-xl">
               Insurance & Helper Bee's Information
             </h2>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer bg-white p-3 rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors">
               <input
                 type="checkbox"
                 name="hasInsurance"
                 checked={formData.hasInsurance}
                 onChange={handleChange}
-                className="h-4 w-4 rounded"
+                className="h-6 w-6 rounded"
               />
-              <span className="text-sm font-medium">Has Insurance Coverage</span>
+              <span className="text-base font-bold">Has Insurance Coverage</span>
             </label>
           </div>
+
+          {!formData.hasInsurance && (
+            <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                ⬆️ Check the box above if this client has insurance coverage to see additional fields
+              </p>
+            </div>
+          )}
 
           {formData.hasInsurance && (
             <div className="space-y-4 pt-2 border-t">
