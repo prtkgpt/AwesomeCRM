@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -20,6 +21,9 @@ import {
   Edit,
   Save,
   X,
+  Navigation,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +37,7 @@ export default function JobDetailPage() {
   const router = useRouter();
   const params = useParams();
   const jobId = params.id as string;
+  const { data: session } = useSession();
 
   const [job, setJob] = useState<BookingWithRelations | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +62,7 @@ export default function JobDetailPage() {
     price: '',
     notes: '',
   });
+  const [processingAction, setProcessingAction] = useState(false);
 
   useEffect(() => {
     fetchJob();
@@ -308,6 +314,30 @@ export default function JobDetailPage() {
       alert('An error occurred. Please try again.');
     } finally {
       setSavingDocumentation(false);
+    }
+  };
+
+  const handleCleanerAction = async (action: 'on_my_way' | 'clock_in' | 'clock_out') => {
+    setProcessingAction(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}/cleaner-actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setJob(data.data);
+        alert(data.message);
+      } else {
+        alert(data.error || 'Failed to process action');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setProcessingAction(false);
     }
   };
 
@@ -649,6 +679,110 @@ export default function JobDetailPage() {
             >
               {savingDocumentation ? 'Saving...' : 'Save Documentation'}
             </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Cleaner Workflow - Only show for assigned cleaner on day of cleaning */}
+      {session?.user && job.assignee && job.assignee.userId === session.user.id && (
+        <Card className="p-4 space-y-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <Clock className="h-5 w-5 text-blue-600" />
+            Today's Workflow
+          </h2>
+
+          <div className="space-y-3">
+            {/* On My Way Button */}
+            {!job.onMyWaySentAt && (
+              <div>
+                <Button
+                  onClick={() => handleCleanerAction('on_my_way')}
+                  disabled={processingAction}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  size="lg"
+                >
+                  <Navigation className="h-5 w-5 mr-2" />
+                  {processingAction ? 'Sending...' : "I'm On My Way"}
+                </Button>
+                <p className="text-xs text-gray-600 mt-1 text-center">
+                  Notify customer that you're heading to their location
+                </p>
+              </div>
+            )}
+            {job.onMyWaySentAt && (
+              <div className="flex items-center gap-2 p-3 bg-white rounded-md border border-green-200">
+                <Check className="h-5 w-5 text-green-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-700">On My Way Sent</p>
+                  <p className="text-xs text-gray-600">
+                    {new Date(job.onMyWaySentAt).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Clock In Button */}
+            {!job.clockedInAt && (
+              <div>
+                <Button
+                  onClick={() => handleCleanerAction('clock_in')}
+                  disabled={processingAction || !job.onMyWaySentAt}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  size="lg"
+                >
+                  <LogIn className="h-5 w-5 mr-2" />
+                  {processingAction ? 'Clocking In...' : 'Clock In - Start Job'}
+                </Button>
+                <p className="text-xs text-gray-600 mt-1 text-center">
+                  {!job.onMyWaySentAt ? 'Click "On My Way" first' : 'Mark when you arrive and start cleaning'}
+                </p>
+              </div>
+            )}
+            {job.clockedInAt && !job.clockedOutAt && (
+              <div className="flex items-center gap-2 p-3 bg-white rounded-md border border-blue-200">
+                <Clock className="h-5 w-5 text-blue-600 animate-pulse" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-700">Job In Progress</p>
+                  <p className="text-xs text-gray-600">
+                    Started at {new Date(job.clockedInAt).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Clock Out Button */}
+            {job.clockedInAt && !job.clockedOutAt && (
+              <div>
+                <Button
+                  onClick={() => handleCleanerAction('clock_out')}
+                  disabled={processingAction}
+                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  size="lg"
+                >
+                  <LogOut className="h-5 w-5 mr-2" />
+                  {processingAction ? 'Clocking Out...' : 'Clock Out - Job Complete'}
+                </Button>
+                <p className="text-xs text-gray-600 mt-1 text-center">
+                  Mark job as finished and log completion time
+                </p>
+              </div>
+            )}
+            {job.clockedOutAt && (
+              <div className="flex items-center gap-2 p-3 bg-white rounded-md border border-purple-200">
+                <CheckCircle className="h-5 w-5 text-purple-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-purple-700">Job Completed</p>
+                  <p className="text-xs text-gray-600">
+                    Finished at {new Date(job.clockedOutAt).toLocaleTimeString()}
+                  </p>
+                  {job.clockedInAt && (
+                    <p className="text-xs text-gray-500">
+                      Duration: {Math.round((new Date(job.clockedOutAt).getTime() - new Date(job.clockedInAt).getTime()) / 60000)} minutes
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       )}
