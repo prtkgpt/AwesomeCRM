@@ -47,7 +47,7 @@ export function getEstimateSMSMessage(data: {
   price: number;
   estimateUrl: string;
 }) {
-  return `Hi ${data.customerName}! ${data.companyName} has sent you a cleaning estimate for $${data.price.toFixed(2)}. View and book your appointment: ${estimateUrl}`;
+  return `Hi ${data.customerName}! ${data.companyName} has sent you a cleaning estimate for $${data.price.toFixed(2)}. View and book your appointment: ${data.estimateUrl}`;
 }
 
 export function getBookingConfirmationSMSMessage(data: {
