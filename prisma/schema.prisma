@@ -39,6 +39,13 @@ model Company {
   timezone            String   @default("America/New_York")
   currency            String   @default("USD")
 
+  // API Integrations
+  emailDomain         String?             // Custom domain for emails
+  twilioAccountSid    String?             // Twilio Account SID
+  twilioAuthToken     String?             // Twilio Auth Token
+  twilioPhoneNumber   String?             // Twilio Phone Number
+  resendApiKey        String?             // Resend API Key
+
   // Subscription
   plan                String   @default("FREE")  // FREE, BASIC, PRO
   subscriptionStatus  String   @default("ACTIVE")
