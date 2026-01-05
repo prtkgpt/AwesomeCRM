@@ -248,10 +248,11 @@ export async function POST(request: NextRequest) {
               clientId: client.id,
               addressId: client.addresses[0].id,
               scheduledDate,
+              duration: 120, // Default 2 hours
               status: row.status.toUpperCase() as any,
               serviceType: validServiceType as any,
               price,
-              createdBy: session.user.id,
+              userId: session.user.id,
             },
           });
 
