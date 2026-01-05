@@ -192,7 +192,15 @@ export default function ClientDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold">{client.name}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl md:text-4xl font-bold">{client.name}</h1>
+              {client.hasInsurance && (
+                <span className="flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm font-medium border-2 border-blue-300 dark:border-blue-700">
+                  <FileText className="h-4 w-4" />
+                  Insurance
+                </span>
+              )}
+            </div>
             {client.tags.length > 0 && (
               <div className="flex gap-1 mt-2">
                 {client.tags.map((tag) => (

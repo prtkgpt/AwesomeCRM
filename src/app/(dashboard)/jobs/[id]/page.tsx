@@ -61,13 +61,16 @@ export default function JobDetailPage() {
     serviceType: '',
     price: '',
     notes: '',
+    assignedTo: '',
   });
   const [processingAction, setProcessingAction] = useState(false);
+  const [cleaners, setCleaners] = useState<any[]>([]);
 
   useEffect(() => {
     fetchJob();
     checkInvoice();
     fetchReviews();
+    fetchCleaners();
   }, [jobId]);
 
   const fetchJob = async () => {
@@ -89,6 +92,7 @@ export default function JobDetailPage() {
           serviceType: data.data.serviceType,
           price: data.data.price.toString(),
           notes: data.data.notes || '',
+          assignedTo: data.data.assignedTo || '',
         });
       } else {
         router.push('/jobs');
@@ -124,6 +128,23 @@ export default function JobDetailPage() {
       }
     } catch (error) {
       console.error('Failed to fetch reviews:', error);
+    }
+  };
+
+  const fetchCleaners = async () => {
+    try {
+      const response = await fetch('/api/team/members');
+      const data = await response.json();
+
+      if (data.success) {
+        // Filter only active cleaners
+        const activeCleaners = data.data.filter(
+          (member: any) => member.isActive && member.user.role === 'CLEANER'
+        );
+        setCleaners(activeCleaners);
+      }
+    } catch (error) {
+      console.error('Failed to fetch cleaners:', error);
     }
   };
 
@@ -255,6 +276,7 @@ export default function JobDetailPage() {
       serviceType: job.serviceType,
       price: job.price.toString(),
       notes: job.notes || '',
+      assignedTo: job.assignedTo || '',
     });
     setIsEditing(false);
   };
@@ -271,6 +293,7 @@ export default function JobDetailPage() {
           serviceType: editForm.serviceType,
           price: parseFloat(editForm.price),
           notes: editForm.notes,
+          assignedTo: editForm.assignedTo || null,
         }),
       });
 
@@ -501,6 +524,26 @@ export default function JobDetailPage() {
                   <option value="STANDARD">Standard Clean</option>
                   <option value="DEEP">Deep Clean</option>
                   <option value="MOVE_OUT">Move Out Clean</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 mb-1">
+                  Assigned Cleaner
+                </label>
+                <select
+                  id="assignedTo"
+                  name="assignedTo"
+                  value={editForm.assignedTo}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Not Assigned</option>
+                  {cleaners.map((cleaner) => (
+                    <option key={cleaner.id} value={cleaner.id}>
+                      {cleaner.user.name || cleaner.user.email}
+                    </option>
+                  ))}
                 </select>
               </div>
 
