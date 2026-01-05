@@ -198,6 +198,16 @@ model Client {
   tags              String[]  // ["VIP", "Weekly", "Monthly", "Pain"]
   notes             String?   // General client notes
 
+  // Insurance & Helper Bee's Integration
+  helperBeesReferralId    String?   // Helper Bee's referral/member ID
+  insuranceProvider       String?   // "Helper Bee's", "Blue Cross", etc.
+  hasInsurance            Boolean   @default(false)
+  insurancePaymentAmount  Float?    // Default amount insurance pays (e.g., $125 or $175)
+  standardCopayAmount     Float?    // Standard copay amount (e.g., $50)
+  hasDiscountedCopay      Boolean   @default(false)
+  copayDiscountAmount     Float?    // Discount amount off copay (e.g., $10 off)
+  copayNotes              String?   // Notes about copay arrangements
+
   addresses         Address[]
   bookings          Booking[]
   invoices          Invoice[]
@@ -215,6 +225,7 @@ model Client {
   @@index([companyId])
   @@index([userId])
   @@index([email])
+  @@index([helperBeesReferralId])
 }
 
 model Address {
@@ -228,6 +239,21 @@ model Address {
   state         String
   zip           String
 
+  // Google Maps Verification
+  googlePlaceId String?   // Google Places API place ID
+  lat           Float?    // Latitude
+  lng           Float?    // Longitude
+  isVerified    Boolean   @default(false)
+  formattedAddress String? // Google-formatted address
+
+  // Property Details
+  propertyType  String?   // "Single Family", "Condo", "Apartment", "Townhouse"
+  squareFootage Int?      // Square feet
+  bedrooms      Int?      // Number of bedrooms
+  bathrooms     Float?    // Number of bathrooms (can be 2.5, etc.)
+  floors        Int?      // Number of floors/stories
+  yearBuilt     Int?      // Year property was built
+
   // Cleaner-specific notes
   parkingInfo   String?
   gateCode      String?
@@ -240,6 +266,7 @@ model Address {
   updatedAt     DateTime  @updatedAt
 
   @@index([clientId])
+  @@index([googlePlaceId])
 }
 
 // ============================================
@@ -304,6 +331,17 @@ model Booking {
   isPaid                Boolean             @default(false)
   paymentMethod         String?             // "card", "cash", "check", "zelle"
   paidAt                DateTime?
+
+  // Insurance & Copay Tracking
+  hasInsuranceCoverage  Boolean             @default(false)
+  insuranceAmount       Float               @default(0)    // Amount insurance pays
+  copayAmount           Float               @default(0)    // Amount client pays as copay
+  copayDiscountApplied  Float               @default(0)    // Discount applied to copay
+  finalCopayAmount      Float               @default(0)    // Actual copay after discount
+  insurancePaid         Boolean             @default(false)
+  copayPaid             Boolean             @default(false)
+  insurancePaidAt       DateTime?
+  copayPaidAt           DateTime?
 
   // Stripe integration
   stripePaymentIntentId String?             @unique

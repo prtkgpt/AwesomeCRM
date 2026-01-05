@@ -35,6 +35,12 @@ export default function NewJobPage() {
     isRecurring: false,
     recurrenceFrequency: 'NONE',
     recurrenceEndDate: '',
+    // Insurance fields
+    hasInsuranceCoverage: false,
+    insuranceAmount: '0',
+    copayAmount: '0',
+    copayDiscountApplied: '0',
+    finalCopayAmount: '0',
   });
 
   useEffect(() => {
@@ -63,10 +69,40 @@ export default function NewJobPage() {
     if (formData.clientId) {
       const client = clients.find((c) => c.id === formData.clientId);
       setSelectedClient(client || null);
+
+      // Auto-populate address
       if (client && client.addresses.length > 0) {
+        const updates: any = {
+          addressId: client.addresses[0].id,
+        };
+
+        // Auto-populate insurance fields if client has insurance
+        if ((client as any).hasInsurance) {
+          const insuranceAmount = (client as any).insurancePaymentAmount || 0;
+          const copayAmount = (client as any).standardCopayAmount || 0;
+          const copayDiscount = (client as any).hasDiscountedCopay
+            ? ((client as any).copayDiscountAmount || 0)
+            : 0;
+          const finalCopay = copayAmount - copayDiscount;
+          const totalPrice = insuranceAmount + finalCopay;
+
+          updates.hasInsuranceCoverage = true;
+          updates.insuranceAmount = String(insuranceAmount);
+          updates.copayAmount = String(copayAmount);
+          updates.copayDiscountApplied = String(copayDiscount);
+          updates.finalCopayAmount = String(finalCopay);
+          updates.price = String(totalPrice);
+        } else {
+          updates.hasInsuranceCoverage = false;
+          updates.insuranceAmount = '0';
+          updates.copayAmount = '0';
+          updates.copayDiscountApplied = '0';
+          updates.finalCopayAmount = '0';
+        }
+
         setFormData((prev) => ({
           ...prev,
-          addressId: client.addresses[0].id,
+          ...updates,
         }));
       }
     } else {
@@ -128,6 +164,12 @@ export default function NewJobPage() {
         recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate
           ? new Date(formData.recurrenceEndDate).toISOString()
           : undefined,
+        // Insurance payment fields
+        hasInsuranceCoverage: formData.hasInsuranceCoverage,
+        insuranceAmount: parseFloat(formData.insuranceAmount),
+        copayAmount: parseFloat(formData.copayAmount),
+        copayDiscountApplied: parseFloat(formData.copayDiscountApplied),
+        finalCopayAmount: parseFloat(formData.finalCopayAmount),
       };
 
       const response = await fetch('/api/bookings', {
@@ -325,6 +367,28 @@ export default function NewJobPage() {
               min="0"
               step="0.01"
             />
+            {formData.hasInsuranceCoverage && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm space-y-1">
+                <p className="font-semibold text-blue-900">Insurance Coverage Active</p>
+                <div className="space-y-0.5 text-blue-800">
+                  <p>Insurance pays: ${parseFloat(formData.insuranceAmount).toFixed(2)}</p>
+                  {parseFloat(formData.copayDiscountApplied) > 0 ? (
+                    <>
+                      <p>Standard copay: ${parseFloat(formData.copayAmount).toFixed(2)}</p>
+                      <p>Discount applied: -${parseFloat(formData.copayDiscountApplied).toFixed(2)}</p>
+                      <p className="font-semibold">Client pays: ${parseFloat(formData.finalCopayAmount).toFixed(2)}</p>
+                    </>
+                  ) : parseFloat(formData.copayAmount) > 0 ? (
+                    <p>Client copay: ${parseFloat(formData.copayAmount).toFixed(2)}</p>
+                  ) : (
+                    <p>No copay required</p>
+                  )}
+                  <p className="pt-1 border-t border-blue-300 font-semibold">
+                    Total: ${parseFloat(formData.price).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

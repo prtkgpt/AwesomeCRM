@@ -110,6 +110,15 @@ export async function POST(request: NextRequest) {
         tags: validatedData.tags,
         notes: validatedData.notes,
         stripeCustomerId,
+        // Insurance & Helper Bee's fields
+        hasInsurance: validatedData.hasInsurance || false,
+        helperBeesReferralId: validatedData.helperBeesReferralId,
+        insuranceProvider: validatedData.insuranceProvider,
+        insurancePaymentAmount: validatedData.insurancePaymentAmount,
+        standardCopayAmount: validatedData.standardCopayAmount,
+        hasDiscountedCopay: validatedData.hasDiscountedCopay || false,
+        copayDiscountAmount: validatedData.copayDiscountAmount,
+        copayNotes: validatedData.copayNotes,
         addresses: {
           create: validatedData.addresses.map((addr) => ({
             label: addr.label,
@@ -121,6 +130,19 @@ export async function POST(request: NextRequest) {
             gateCode: addr.gateCode,
             petInfo: addr.petInfo,
             preferences: addr.preferences,
+            // Google Maps verification
+            googlePlaceId: addr.googlePlaceId,
+            lat: addr.lat,
+            lng: addr.lng,
+            isVerified: addr.isVerified || false,
+            formattedAddress: addr.formattedAddress,
+            // Property details
+            propertyType: addr.propertyType,
+            squareFootage: addr.squareFootage,
+            bedrooms: addr.bedrooms,
+            bathrooms: addr.bathrooms,
+            floors: addr.floors,
+            yearBuilt: addr.yearBuilt,
           })),
         },
       },

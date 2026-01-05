@@ -32,6 +32,19 @@ export const addressSchema = z.object({
   gateCode: z.string().optional(),
   petInfo: z.string().optional(),
   preferences: z.string().optional(),
+  // Google Maps Verification
+  googlePlaceId: z.string().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  isVerified: z.boolean().optional(),
+  formattedAddress: z.string().optional(),
+  // Property Details
+  propertyType: z.string().optional(),
+  squareFootage: z.number().optional(),
+  bedrooms: z.number().optional(),
+  bathrooms: z.number().optional(),
+  floors: z.number().optional(),
+  yearBuilt: z.number().optional(),
 });
 
 export const createClientSchema = z.object({
@@ -41,6 +54,15 @@ export const createClientSchema = z.object({
   tags: z.array(z.string()).default([]),
   notes: z.string().optional(),
   addresses: z.array(addressSchema).min(1, 'At least one address is required'),
+  // Insurance & Helper Bee's Integration
+  hasInsurance: z.boolean().optional(),
+  helperBeesReferralId: z.string().optional(),
+  insuranceProvider: z.string().optional(),
+  insurancePaymentAmount: z.number().optional(),
+  standardCopayAmount: z.number().optional(),
+  hasDiscountedCopay: z.boolean().optional(),
+  copayDiscountAmount: z.number().optional(),
+  copayNotes: z.string().optional(),
 });
 
 export const updateClientSchema = z.object({
@@ -68,6 +90,12 @@ export const createBookingSchema = z.object({
   isRecurring: z.boolean().default(false),
   recurrenceFrequency: z.enum(['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']).default('NONE'),
   recurrenceEndDate: z.string().or(z.date()).transform((val) => new Date(val)).optional(),
+  // Insurance payment fields
+  hasInsuranceCoverage: z.boolean().optional(),
+  insuranceAmount: z.number().optional(),
+  copayAmount: z.number().optional(),
+  copayDiscountApplied: z.number().optional(),
+  finalCopayAmount: z.number().optional(),
 });
 
 export const updateBookingSchema = z.object({

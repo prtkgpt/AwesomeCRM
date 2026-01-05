@@ -110,6 +110,12 @@ export async function POST(request: NextRequest) {
         isRecurring: validatedData.isRecurring,
         recurrenceFrequency: validatedData.recurrenceFrequency,
         recurrenceEndDate: validatedData.recurrenceEndDate,
+        // Insurance payment tracking
+        hasInsuranceCoverage: validatedData.hasInsuranceCoverage || false,
+        insuranceAmount: validatedData.insuranceAmount || 0,
+        copayAmount: validatedData.copayAmount || 0,
+        copayDiscountApplied: validatedData.copayDiscountApplied || 0,
+        finalCopayAmount: validatedData.finalCopayAmount || 0,
       },
       include: {
         client: true,
@@ -147,6 +153,12 @@ export async function POST(request: NextRequest) {
               isRecurring: true,
               recurrenceFrequency: validatedData.recurrenceFrequency,
               recurrenceParentId: booking.id, // Link to parent
+              // Insurance payment tracking
+              hasInsuranceCoverage: validatedData.hasInsuranceCoverage || false,
+              insuranceAmount: validatedData.insuranceAmount || 0,
+              copayAmount: validatedData.copayAmount || 0,
+              copayDiscountApplied: validatedData.copayDiscountApplied || 0,
+              finalCopayAmount: validatedData.finalCopayAmount || 0,
             },
           })
         )
