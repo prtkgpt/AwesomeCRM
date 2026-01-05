@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
     const emailHtml = getPasswordResetEmailTemplate({
-      name: user.name,
+      name: user.name || 'User',
       resetUrl,
     });
 
