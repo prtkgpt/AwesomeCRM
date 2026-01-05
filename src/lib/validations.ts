@@ -63,6 +63,7 @@ export const createClientSchema = z.object({
   hasDiscountedCopay: z.boolean().optional(),
   copayDiscountAmount: z.number().optional(),
   copayNotes: z.string().optional(),
+  cleaningObservations: z.string().optional(),
 });
 
 export const updateClientSchema = z.object({

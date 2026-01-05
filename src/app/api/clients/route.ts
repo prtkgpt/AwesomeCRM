@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
         hasDiscountedCopay: validatedData.hasDiscountedCopay || false,
         copayDiscountAmount: validatedData.copayDiscountAmount,
         copayNotes: validatedData.copayNotes,
+        cleaningObservations: validatedData.cleaningObservations,
         addresses: {
           create: validatedData.addresses.map((addr) => ({
             label: addr.label,
