@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Download } from 'lucide-react';
+import { Plus, Search, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -94,10 +94,16 @@ const primaryAddress = client.addresses[0];
           </p>
         </div>
         <div className="flex gap-2 md:gap-3">
+          <Link href="/clients/import">
+            <Button variant="outline" size="sm" className="md:size-default">
+              <Upload className="h-4 w-4 mr-1 md:mr-2" />
+              Import
+            </Button>
+          </Link>
           {clients.length > 0 && (
             <Button variant="outline" size="sm" onClick={exportToCSV} className="md:size-default">
               <Download className="h-4 w-4 mr-1 md:mr-2" />
-              Export CSV
+              Export
             </Button>
           )}
           <Link href="/clients/new">

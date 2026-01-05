@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Filter, X } from 'lucide-react';
+import { Plus, Filter, X, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
@@ -185,6 +185,12 @@ export default function JobsPage() {
           </p>
         </div>
         <div className="flex gap-2 md:gap-3">
+          <Link href="/jobs/import">
+            <Button variant="outline" size="sm" className="md:size-default">
+              <Upload className="h-4 w-4 mr-1 md:mr-2" />
+              Import
+            </Button>
+          </Link>
           <Button
             variant="outline"
             size="sm"
