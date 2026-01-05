@@ -256,7 +256,7 @@ export default function FeedPage() {
                           variant="ghost"
                           size="sm"
                           className="h-auto py-1 px-2 text-xs"
-                          onClick={() => window.location.href = `/jobs/${activity.metadata.jobId}`}
+                          onClick={() => window.location.href = `/jobs/${activity.metadata?.jobId}`}
                         >
                           View Job
                         </Button>
