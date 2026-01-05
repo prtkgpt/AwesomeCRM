@@ -49,7 +49,9 @@ export async function sendEmail({ to, subject, html, from, type }: SendEmailPara
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to send email');
+        // Include more detailed error information
+        const errorDetails = data.message || JSON.stringify(data) || 'Failed to send email';
+        throw new Error(`Resend API error: ${errorDetails}`);
       }
 
       return { success: true, data };
