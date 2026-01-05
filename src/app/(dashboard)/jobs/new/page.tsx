@@ -56,6 +56,13 @@ export default function NewJobPage() {
   // Add-ons (selected or not)
   const [addons, setAddons] = useState<Record<string, boolean>>({});
 
+  // Carpet shampooing (special add-on with pricing)
+  const [carpetShampooing, setCarpetShampooing] = useState({
+    bedrooms: 0,
+    staircases: 0,
+    livingRooms: 0,
+  });
+
   const [formData, setFormData] = useState({
     clientId: preselectedClientId || '',
     addressId: '',
@@ -123,6 +130,13 @@ export default function NewJobPage() {
         }
       }
     });
+
+    // Add carpet shampooing minutes
+    // Pricing: $50/bedroom, $25/staircase, $60/living room
+    // At $50/hr: bedroom=60min, staircase=30min, livingRoom=72min
+    totalMinutes += carpetShampooing.bedrooms * 60;
+    totalMinutes += carpetShampooing.staircases * 30;
+    totalMinutes += carpetShampooing.livingRooms * 72;
 
     // Convert to hours
     const totalHours = totalMinutes / 60;
@@ -531,6 +545,105 @@ export default function NewJobPage() {
                       </label>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <span className="text-xl">🧹</span>
+                  Carpet Shampooing
+                </h3>
+                <p className="text-xs text-gray-600">$50/bedroom, $25/staircase, $60/living room</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 border rounded-md">
+                    <div>
+                      <p className="text-sm font-medium">Bedrooms</p>
+                      <p className="text-xs text-gray-500">$50 each</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, bedrooms: Math.max(0, prev.bedrooms - 1) }))}
+                        disabled={carpetShampooing.bedrooms === 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center font-medium">{carpetShampooing.bedrooms}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, bedrooms: prev.bedrooms + 1 }))}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 border rounded-md">
+                    <div>
+                      <p className="text-sm font-medium">Staircases</p>
+                      <p className="text-xs text-gray-500">$25 each</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, staircases: Math.max(0, prev.staircases - 1) }))}
+                        disabled={carpetShampooing.staircases === 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center font-medium">{carpetShampooing.staircases}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, staircases: prev.staircases + 1 }))}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 border rounded-md">
+                    <div>
+                      <p className="text-sm font-medium">Living Rooms</p>
+                      <p className="text-xs text-gray-500">$60 each</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, livingRooms: Math.max(0, prev.livingRooms - 1) }))}
+                        disabled={carpetShampooing.livingRooms === 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center font-medium">{carpetShampooing.livingRooms}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, livingRooms: prev.livingRooms + 1 }))}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {(carpetShampooing.bedrooms > 0 || carpetShampooing.staircases > 0 || carpetShampooing.livingRooms > 0) && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+                      <p className="text-xs font-medium text-blue-900 dark:text-blue-100">Carpet Shampooing Total:</p>
+                      <p className="text-base font-bold text-blue-700 dark:text-blue-400">
+                        ${(carpetShampooing.bedrooms * 50 + carpetShampooing.staircases * 25 + carpetShampooing.livingRooms * 60).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
