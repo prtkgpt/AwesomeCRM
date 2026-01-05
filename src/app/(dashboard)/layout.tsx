@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { Sidebar } from '@/components/layout/sidebar';
+import { AIChatWidget } from '@/components/ai';
 
 export default async function DashboardLayout({
   children,
@@ -29,6 +30,9 @@ export default async function DashboardLayout({
 
       {/* Mobile Bottom Nav */}
       <MobileNav />
+
+      {/* AI Chat Widget */}
+      <AIChatWidget />
     </div>
   );
 }
