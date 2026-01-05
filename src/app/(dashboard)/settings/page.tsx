@@ -19,9 +19,15 @@ import {
   Phone,
   Key,
   Briefcase,
+  Upload,
+  Download,
+  FileText,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
 } from 'lucide-react';
 
-type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about';
+type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import';
 
 interface UserProfile {
   id: string;
@@ -81,6 +87,18 @@ export default function SettingsPage() {
     twilioPhoneNumber: '',
     resendApiKey: '',
   });
+
+  // Import data state
+  const [importType, setImportType] = useState<'clients' | 'bookings'>('clients');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState<{
+    success: boolean;
+    message: string;
+    imported: number;
+    failed: number;
+    errors?: string[];
+  } | null>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -218,12 +236,79 @@ export default function SettingsPage() {
     signOut({ callbackUrl: '/login' });
   };
 
+  const handleImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!importFile) {
+      alert('Please select a file to import');
+      return;
+    }
+
+    setImporting(true);
+    setImportResults(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('type', importType);
+
+      const response = await fetch('/api/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      setImportResults(data);
+
+      if (data.success) {
+        setImportFile(null);
+        // Reset file input
+        const fileInput = document.getElementById('import-file') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      setImportResults({
+        success: false,
+        message: 'Failed to import data. Please try again.',
+        imported: 0,
+        failed: 0,
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadSampleCSV = (type: 'clients' | 'bookings') => {
+    let csvContent = '';
+    let filename = '';
+
+    if (type === 'clients') {
+      csvContent = `name,email,phone,street,city,state,zip,hasInsurance,insuranceProvider,copayAmount\nJohn Doe,john@example.com,(555) 123-4567,123 Main St,Los Angeles,CA,90001,true,Helper Bees,25\nJane Smith,jane@example.com,(555) 987-6543,456 Oak Ave,Los Angeles,CA,90002,false,,`;
+      filename = 'clients_sample.csv';
+    } else {
+      csvContent = `clientEmail,date,serviceType,status,price\njohn@example.com,2026-01-15,Regular Cleaning,SCHEDULED,150\njane@example.com,2026-01-16,Deep Cleaning,SCHEDULED,300`;
+      filename = 'bookings_sample.csv';
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const userRole = (session?.user as any)?.role;
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Lock },
     ...(userRole === 'OWNER' || userRole === 'ADMIN'
-      ? [{ id: 'company', label: 'Company', icon: Building2 }]
+      ? [
+          { id: 'company', label: 'Company', icon: Building2 },
+          { id: 'import', label: 'Import Data', icon: Upload },
+        ]
       : []),
     { id: 'preferences', label: 'Preferences', icon: Bell },
     { id: 'about', label: 'About', icon: Info },
@@ -786,6 +871,203 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </div>
+            </Card>
+          )}
+
+          {/* Import Data Tab */}
+          {activeTab === 'import' && (
+            <Card className="p-6">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold">Import Data</h2>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  Bulk import clients and bookings from CSV files
+                </p>
+              </div>
+
+              <form onSubmit={handleImport} className="space-y-6">
+                {/* Import Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium mb-3">
+                    What would you like to import?
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setImportType('clients')}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        importType === 'clients'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <User className="h-6 w-6 mb-2 text-blue-600" />
+                      <p className="font-semibold">Clients</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Import client information and addresses
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImportType('bookings')}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        importType === 'bookings'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <FileText className="h-6 w-6 mb-2 text-blue-600" />
+                      <p className="font-semibold">Bookings</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Import job bookings and schedules
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Download Sample CSV */}
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Download className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-blue-900 dark:text-blue-100">
+                        Need a template?
+                      </p>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        Download a sample CSV file to see the required format for importing{' '}
+                        {importType}.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => downloadSampleCSV(importType)}
+                        className="mt-3"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Sample CSV
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* File Upload */}
+                <div>
+                  <label htmlFor="import-file" className="block text-sm font-medium mb-2">
+                    Select CSV File
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                    <Upload className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                    <Input
+                      id="import-file"
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                      className="max-w-xs mx-auto"
+                    />
+                    {importFile && (
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-2">
+                        Selected: {importFile.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* CSV Format Guide */}
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    CSV Format Requirements
+                  </h3>
+                  {importType === 'clients' ? (
+                    <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                      <p><strong>Required columns:</strong> name, phone, street, city, state, zip</p>
+                      <p><strong>Optional columns:</strong> email, hasInsurance, insuranceProvider, copayAmount, cleaningObservations</p>
+                      <p className="text-xs mt-2">Note: Email addresses must be unique. Duplicate emails will be skipped.</p>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                      <p><strong>Required columns:</strong> clientEmail, date, serviceType, status, price</p>
+                      <p><strong>Date format:</strong> YYYY-MM-DD (e.g., 2026-01-15)</p>
+                      <p><strong>Valid statuses:</strong> SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED</p>
+                      <p className="text-xs mt-2">Note: Client must exist before importing their bookings.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Import Results */}
+                {importResults && (
+                  <div
+                    className={`rounded-lg p-4 border-2 ${
+                      importResults.success
+                        ? 'bg-green-50 dark:bg-green-950 border-green-500'
+                        : 'bg-red-50 dark:bg-red-950 border-red-500'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      {importResults.success ? (
+                        <CheckCircle className="h-6 w-6 text-green-600 mt-0.5" />
+                      ) : (
+                        <XCircle className="h-6 w-6 text-red-600 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-semibold">
+                          {importResults.message}
+                        </p>
+                        <div className="mt-2 text-sm">
+                          <p>
+                            ✓ Successfully imported: <strong>{importResults.imported}</strong>
+                          </p>
+                          {importResults.failed > 0 && (
+                            <p className="text-red-600 dark:text-red-400">
+                              ✗ Failed: <strong>{importResults.failed}</strong>
+                            </p>
+                          )}
+                        </div>
+                        {importResults.errors && importResults.errors.length > 0 && (
+                          <div className="mt-3 text-xs">
+                            <p className="font-medium mb-1">Errors:</p>
+                            <ul className="list-disc list-inside space-y-1 max-h-32 overflow-y-auto">
+                              {importResults.errors.map((error, idx) => (
+                                <li key={idx}>{error}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Import Button */}
+                <Button
+                  type="submit"
+                  disabled={!importFile || importing}
+                  className="w-full"
+                  size="lg"
+                >
+                  <Upload className="h-5 w-5 mr-2" />
+                  {importing
+                    ? 'Importing...'
+                    : `Import ${importType === 'clients' ? 'Clients' : 'Bookings'}`}
+                </Button>
+
+                {/* Warning */}
+                <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                      <p className="font-medium">Important Notes:</p>
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>CSV file must be UTF-8 encoded</li>
+                        <li>Maximum file size: 5MB</li>
+                        <li>Duplicate entries (by email) will be skipped</li>
+                        <li>All imported data is scoped to your company</li>
+                        <li>This action cannot be undone - please verify your CSV before importing</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </form>
             </Card>
           )}
 
