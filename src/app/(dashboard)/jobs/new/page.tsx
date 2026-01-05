@@ -299,10 +299,14 @@ export default function NewJobPage() {
     if (!formData.scheduledTime) missingFields.push('Time');
 
     if (missingFields.length > 0) {
-      setError(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+      setError(`❌ Missing Required Fields: ${missingFields.join(', ')}. Scroll up and fill them in, then try again.`);
       setLoading(false);
       // Scroll to top to show error message
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Also log to console for debugging
+      console.error('Form validation failed. Missing fields:', missingFields);
+      console.error('Current form data:', formData);
       return;
     }
 
@@ -415,6 +419,7 @@ export default function NewJobPage() {
                 onChange={handleChange}
                 required
               >
+                <option value="">Select an address...</option>
                 {selectedClient.addresses.map((address) => (
                   <option key={address.id} value={address.id}>
                     {address.street}, {address.city}
