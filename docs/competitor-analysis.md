@@ -54,6 +54,107 @@ This analysis compares CleanDayCRM ($10/month) with three major competitors:
 
 ---
 
+## 📣 MARKETING CAMPAIGN TOOLS (Deep Dive)
+
+### What Competitors Offer
+
+#### ZenMaid Marketing Features
+| Feature | Description |
+|---------|-------------|
+| **Comeback Emails** | Auto-sent when customer hasn't booked in X days |
+| **Appointment Follow-ups** | Automatic post-cleaning feedback requests |
+| **Review Request Automation** | Ask for Google/Yelp reviews after X cleanings |
+| **Email Templates** | Pre-built templates with {{wildcards}} personalization |
+| **Lead Source Tracking** | Track if client came from referral, website, phone, email |
+| **Mailchimp Integration** | Newsletter sign-ups, drip campaigns |
+| **Property Manager Templates** | Specialized B2B outreach templates |
+| **Real Estate Agent Templates** | Target move-in/move-out cleaning market |
+
+#### Jobber Marketing Suite ($29/mo add-on)
+| Feature | Description |
+|---------|-------------|
+| **AI Campaign Generator** | Enter description → AI writes subject, body, CTA |
+| **Audience Segmentation** | Filter by last job date, service type, location |
+| **Email Campaign Builder** | Drag-and-drop professional templates |
+| **Performance Analytics** | Opens, clicks, jobs created, revenue generated |
+| **Automated Review Requests** | Auto-request Google reviews post-job |
+| **Referral Program** | Automated tracking, discounts for successful referrals |
+| **Re-engagement Campaigns** | Target lapsed clients (no job in 6+ months) |
+| **Upsell Campaigns** | Promote add-on services to existing clients |
+
+#### BookingKoala Campaign Module (Premium)
+| Feature | Description |
+|---------|-------------|
+| **Manual Email Campaigns** | Send immediately or schedule for later |
+| **Manual SMS Campaigns** | Bulk text message blasts |
+| **Automated Email Campaigns** | Trigger-based (abandoned cart, post-service, etc.) |
+| **Automated SMS Campaigns** | Same triggers for text messages |
+| **Pre-built SMS Templates** | 7 ready-to-use promotional templates |
+| **Coupon System** | Fixed or % discounts, frequency limits, date ranges |
+| **New vs Existing Customer Coupons** | Target acquisition or retention |
+| **Mailing List Management** | Segment and manage contact lists |
+| **Abandoned Cart Recovery** | Auto-email if booking not completed |
+| **Exclude Active Bookings** | Don't send promos to already-booked clients |
+
+---
+
+### 🎯 Marketing Features We Should Add
+
+#### Priority 1: Foundation (Must Have)
+| Feature | Effort | Impact |
+|---------|--------|--------|
+| **Email Campaign Builder** | Medium | High - Core marketing capability |
+| **SMS Campaign Builder** | Medium | High - 98% open rate vs 20% email |
+| **Coupon/Promo Code System** | Low | High - Drives conversions |
+| **Automated Review Requests** | Low | High - Builds reputation |
+
+#### Priority 2: Automation (Competitive Parity)
+| Feature | Effort | Impact |
+|---------|--------|--------|
+| **Win-back Campaigns** | Medium | High - Re-activate lapsed clients |
+| **Abandoned Estimate Recovery** | Low | Medium - Convert pending quotes |
+| **Post-Cleaning Follow-up Sequence** | Low | High - Reviews + rebooking |
+| **Birthday/Anniversary Campaigns** | Low | Medium - Personal touch |
+
+#### Priority 3: Intelligence (Differentiation)
+| Feature | Effort | Impact |
+|---------|--------|--------|
+| **AI-Generated Campaign Copy** | High | High - Major time saver |
+| **Campaign Performance Dashboard** | Medium | Medium - ROI visibility |
+| **Audience Segmentation** | Medium | High - Targeted messaging |
+| **A/B Testing** | High | Medium - Optimize over time |
+
+---
+
+### Campaign Templates We Should Include
+
+**Acquisition:**
+- Welcome series (3-email drip)
+- Abandoned estimate follow-up
+- First-time customer discount
+
+**Retention:**
+- Post-cleaning thank you + review request
+- Comeback email (no booking in 30/60/90 days)
+- Loyalty milestone (10th cleaning celebration)
+
+**Upsell:**
+- Deep clean promotion to standard customers
+- Add-on services (fridge, oven, windows)
+- Recurring upgrade (one-time → weekly)
+
+**Seasonal:**
+- Spring cleaning special
+- Holiday prep cleaning
+- Move-in/move-out season
+
+**B2B:**
+- Property manager outreach
+- Real estate agent partnerships
+- Airbnb/VRBO host targeting
+
+---
+
 ## 🚀 KILLER FEATURES TO ADD (Prioritized)
 
 ### Tier 1: Game Changers (Add ASAP)
@@ -228,7 +329,12 @@ EFFORT                  │                   EFFORT
 
 - [ZenMaid Features](https://get.zenmaid.com/)
 - [ZenMaid Reviews - Capterra](https://www.capterra.com/p/133875/ZenMaid-Software/)
+- [ZenMaid Email Templates](https://answers.zenmaid.com/en/articles/370971-email-templates-in-zenmaid)
 - [BookingKoala Pricing](https://www.bookingkoala.com/pricing/)
 - [BookingKoala Features - GetApp](https://www.getapp.com/operations-management-software/a/bookingkoala/)
+- [BookingKoala Campaign Module](https://help.bookingkoala.com/help/campaign-module-overview)
+- [BookingKoala Coupons](https://help.bookingkoala.com/help/coupons)
 - [Jobber Features](https://www.getjobber.com/features/)
+- [Jobber Marketing Suite](https://www.getjobber.com/features/marketing-suite/)
+- [Jobber Campaigns](https://www.getjobber.com/features/marketing-tools/campaigns/)
 - [Jobber Review](https://connecteam.com/reviews/jobber/)
