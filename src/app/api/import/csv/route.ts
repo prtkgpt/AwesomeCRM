@@ -84,22 +84,31 @@ async function importBookings(
 ): Promise<number> {
   let imported = 0;
 
-  // Map common header variations
+  // Map common header variations (including Launch27/booking software exports)
   const headerMap: Record<string, string[]> = {
-    date: ["date", "scheduled_date", "booking_date", "appointment_date", "service_date"],
-    client_name: ["client_name", "client", "customer", "customer_name", "name"],
-    address: ["address", "street", "street_address"],
+    date: ["date", "scheduled_date", "booking_date", "appointment_date", "service_date", "booking start date time"],
+    client_name: ["client_name", "client", "customer", "customer_name", "name", "full name", "full_name"],
+    first_name: ["first_name", "first name", "firstname"],
+    last_name: ["last_name", "last name", "lastname"],
+    email: ["email", "email_address", "email address", "e-mail"],
+    phone: ["phone", "phone_number", "phone number", "telephone", "mobile"],
+    address: ["address", "street", "street_address", "street address"],
+    apt: ["apt", "apt.", "apt. no.", "apartment", "unit"],
     city: ["city"],
     state: ["state", "st"],
-    zip: ["zip", "zipcode", "zip_code", "postal"],
-    service_type: ["service_type", "type", "service", "cleaning_type"],
-    price: ["price", "amount", "total", "cost", "rate"],
-    status: ["status", "booking_status"],
-    cleaner: ["cleaner", "assigned_to", "team_member", "provider"],
-    duration: ["duration", "hours", "time"],
+    zip: ["zip", "zipcode", "zip_code", "postal", "zip/postal code", "zip/postal_code"],
+    service_type: ["service_type", "type", "service", "cleaning_type", "frequency"],
+    price: ["price", "amount", "total", "cost", "rate", "final amount (usd)", "final_amount", "service total (usd)"],
+    status: ["status", "booking_status", "booking status"],
+    cleaner: ["cleaner", "assigned_to", "team_member", "provider", "provider/team", "provider/team (without ids)", "provider details"],
+    duration: ["duration", "hours", "time", "estimated job length (hh:mm)"],
     bedrooms: ["bedrooms", "beds", "br"],
     bathrooms: ["bathrooms", "baths", "ba"],
-    notes: ["notes", "note", "comments", "description"],
+    sqft: ["sqft", "sq ft", "square_feet", "squarefeet", "house sq ft"],
+    notes: ["notes", "note", "comments", "description", "booking note", "private customer note"],
+    frequency: ["frequency", "occurrence"],
+    tip: ["tip", "tip (usd)"],
+    extras: ["extras"],
   };
 
   const getColumnIndex = (field: string): number => {
@@ -123,8 +132,19 @@ async function importBookings(
         return index >= 0 ? (values[index] || "").trim() : "";
       };
 
-      const clientName = getValue("client_name");
+      // Get client name - try full name first, then combine first + last
+      let clientName = getValue("client_name");
+      if (!clientName) {
+        const firstName = getValue("first_name");
+        const lastName = getValue("last_name");
+        if (firstName || lastName) {
+          clientName = `${firstName} ${lastName}`.trim();
+        }
+      }
+
       const address = getValue("address");
+      const apt = getValue("apt");
+      const fullAddress = apt ? `${address} ${apt}`.trim() : address;
       const dateStr = getValue("date");
       const priceStr = getValue("price");
 
@@ -165,24 +185,26 @@ async function importBookings(
 
       // Find or create address
       let addressRecord = null;
-      if (address) {
+      if (fullAddress) {
         addressRecord = await prisma.address.findFirst({
           where: {
             clientId: client.id,
-            street: { equals: address, mode: "insensitive" },
+            street: { equals: fullAddress, mode: "insensitive" },
           },
         });
 
         if (!addressRecord) {
+          const sqftStr = getValue("sqft");
           addressRecord = await prisma.address.create({
             data: {
               clientId: client.id,
-              street: address,
+              street: fullAddress,
               city: getValue("city") || "Unknown",
-              state: getValue("state") || "TX",
+              state: getValue("state") || "CA",
               zip: getValue("zip") || "00000",
               bedrooms: parseInt(getValue("bedrooms")) || null,
               bathrooms: parseFloat(getValue("bathrooms")) || null,
+              squareFootage: sqftStr ? parseInt(sqftStr.replace(/,/g, "")) : null,
             },
           });
         }
@@ -258,16 +280,22 @@ async function importClients(
 ): Promise<number> {
   let imported = 0;
 
+  // Map common header variations (including Launch27/booking software exports)
   const headerMap: Record<string, string[]> = {
-    name: ["name", "client_name", "customer_name", "full_name"],
-    email: ["email", "email_address", "e-mail"],
-    phone: ["phone", "phone_number", "telephone", "mobile"],
+    name: ["name", "client_name", "customer_name", "full_name", "full name"],
+    first_name: ["first_name", "first name", "firstname"],
+    last_name: ["last_name", "last name", "lastname"],
+    email: ["email", "email_address", "email address", "e-mail"],
+    phone: ["phone", "phone_number", "phone number", "telephone", "mobile"],
     address: ["address", "street", "street_address"],
+    apt: ["apt", "apt.", "apt. no.", "apartment", "unit"],
     city: ["city"],
     state: ["state", "st"],
-    zip: ["zip", "zipcode", "zip_code", "postal"],
+    zip: ["zip", "zipcode", "zip_code", "postal", "zip/postal code"],
     tags: ["tags", "labels", "categories"],
     notes: ["notes", "note", "comments"],
+    status: ["status"],
+    num_bookings: ["number of bookings", "num_bookings", "bookings"],
   };
 
   const getColumnIndex = (field: string): number => {
@@ -291,7 +319,16 @@ async function importClients(
         return index >= 0 ? (values[index] || "").trim() : "";
       };
 
-      const name = getValue("name");
+      // Get name - try full name first, then combine first + last
+      let name = getValue("name");
+      if (!name) {
+        const firstName = getValue("first_name");
+        const lastName = getValue("last_name");
+        if (firstName || lastName) {
+          name = `${firstName} ${lastName}`.trim();
+        }
+      }
+
       if (!name) {
         errors.push(`Row ${i + 2}: Missing required field (name)`);
         continue;
