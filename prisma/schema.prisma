@@ -51,6 +51,7 @@ model Company {
   invoices            Invoice[]
   teamMembers         TeamMember[]
   invitations         Invitation[]
+  cleaningReviews     CleaningReview[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -91,6 +92,9 @@ model User {
 
   // Invitations sent
   sentInvitations Invitation[] @relation("InvitationSender")
+
+  // Reviews authored
+  cleaningReviews CleaningReview[]
 
   // Password reset
   resetToken       String?
@@ -323,6 +327,47 @@ model Booking {
   @@index([status])
   @@index([estimateToken])
   @@index([scheduledDate])
+
+  reviews               CleaningReview[]
+}
+
+// ============================================
+// CLEANING REVIEWS
+// ============================================
+
+model CleaningReview {
+  id                  String    @id @default(cuid())
+
+  // Multi-tenancy
+  companyId           String
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Booking reference
+  bookingId           String
+  booking             Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Reviewer (cleaner or office staff)
+  reviewerId          String
+  reviewer            User      @relation(fields: [reviewerId], references: [id])
+
+  // Rating categories (1-5 stars)
+  houseConditionRating   Int?   // How messy/clean was the house
+  customerRating         Int?   // How was the customer
+  tipRating              Int?   // Tip quality (0 = no tip, 5 = great tip)
+  overallRating          Int    // Overall experience
+
+  // Notes
+  notes               String?   // Short description/comments
+
+  // Photos (optional - for before/after)
+  photoUrls           String[]  @default([])
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([bookingId])
+  @@index([reviewerId])
+  @@index([companyId])
 }
 
 // ============================================
