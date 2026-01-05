@@ -300,6 +300,11 @@ model Booking {
   confirmationSent      Boolean             @default(false)
   reminderSent          Boolean             @default(false)
 
+  // Estimate (for sharing with potential customers)
+  estimateToken         String?             @unique
+  estimateAccepted      Boolean             @default(false)
+  estimateAcceptedAt    DateTime?
+
   messages              Message[]
   invoice               Invoice?
 
@@ -312,6 +317,7 @@ model Booking {
   @@index([assignedTo])
   @@index([customerId])
   @@index([status])
+  @@index([estimateToken])
   @@index([scheduledDate])
 }
 
