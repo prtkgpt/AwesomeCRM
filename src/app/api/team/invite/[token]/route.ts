@@ -1,17 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Helper function to generate slug from company name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
+
 // GET /api/team/invite/[token] - Get invitation details
 export async function GET(
   request: NextRequest,
   { params }: { params: { token: string } }
 ) {
   try {
+    console.log(`🔍 Looking up invitation with token: ${params.token}`);
+
     const invitation = await prisma.invitation.findUnique({
       where: { token: params.token },
       include: {
         company: {
           select: {
+            id: true,
             name: true,
             slug: true,
           },
@@ -20,14 +33,20 @@ export async function GET(
     });
 
     if (!invitation) {
+      console.error(`❌ Invitation not found for token: ${params.token}`);
       return NextResponse.json(
         { error: 'Invitation not found' },
         { status: 404 }
       );
     }
 
+    console.log(`✅ Found invitation for: ${invitation.email}, status: ${invitation.status}`);
+
     // Check if expired
-    if (new Date() > new Date(invitation.expiresAt)) {
+    const now = new Date();
+    const expiresAt = new Date(invitation.expiresAt);
+    if (now > expiresAt) {
+      console.error(`⏰ Invitation expired. Now: ${now.toISOString()}, Expires: ${expiresAt.toISOString()}`);
       return NextResponse.json(
         { error: 'Invitation has expired' },
         { status: 400 }
@@ -36,10 +55,25 @@ export async function GET(
 
     // Check if already accepted
     if (invitation.status !== 'PENDING') {
+      console.error(`🚫 Invitation already used. Status: ${invitation.status}`);
       return NextResponse.json(
         { error: 'Invitation has already been used' },
         { status: 400 }
       );
+    }
+
+    console.log(`✨ Invitation valid for: ${invitation.email}`);
+
+    // Generate slug from company name if not exists
+    const slug = invitation.company.slug || generateSlug(invitation.company.name);
+
+    // Update company with generated slug if it was null
+    if (!invitation.company.slug) {
+      console.log(`📝 Updating company with generated slug: ${slug}`);
+      await prisma.company.update({
+        where: { id: invitation.company.id },
+        data: { slug },
+      });
     }
 
     return NextResponse.json({
@@ -48,12 +82,15 @@ export async function GET(
         id: invitation.id,
         email: invitation.email,
         role: invitation.role,
-        company: invitation.company,
+        company: {
+          name: invitation.company.name,
+          slug,
+        },
         expiresAt: invitation.expiresAt,
       },
     });
   } catch (error) {
-    console.error('GET /api/team/invite/[token] error:', error);
+    console.error('❌ GET /api/team/invite/[token] error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch invitation' },
       { status: 500 }

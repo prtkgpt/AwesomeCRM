@@ -36,16 +36,22 @@ export default function AcceptInvitePage({ params }: { params: { token: string }
 
   const fetchInvitation = async () => {
     try {
+      console.log('🔍 Fetching invitation for token:', params.token);
       const res = await fetch(`/api/team/invite/${params.token}`);
       const data = await res.json();
 
+      console.log('📨 Invitation response:', { status: res.status, data });
+
       if (res.ok) {
+        console.log('✅ Invitation loaded successfully');
         setInvitation(data.data);
       } else {
+        console.error('❌ Invitation fetch failed:', data);
         setError(data.error || 'Invalid or expired invitation');
       }
     } catch (err) {
-      setError('Failed to load invitation');
+      console.error('❌ Invitation fetch error:', err);
+      setError('Failed to load invitation. Please check the invitation link.');
     } finally {
       setLoading(false);
     }
