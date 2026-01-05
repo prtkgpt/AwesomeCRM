@@ -69,7 +69,24 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ req, token }) => {
+        const path = req.nextUrl.pathname;
+
+        // Allow public routes without authentication
+        if (
+          path.startsWith('/login') ||
+          path.startsWith('/signup') ||
+          path.startsWith('/invite') ||
+          path.startsWith('/estimate/') ||
+          path.startsWith('/api/public/') ||
+          path.startsWith('/api/auth/')
+        ) {
+          return true;
+        }
+
+        // Require authentication for all other routes
+        return !!token;
+      },
     },
   }
 );
