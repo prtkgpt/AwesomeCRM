@@ -58,7 +58,11 @@ export default function AcceptInvitePage({ params }: { params: { token: string }
         setInvitation(data.data);
       } else {
         console.error('❌ Invitation fetch failed:', data);
-        setError(data.error || 'Invalid or expired invitation');
+        // Show detailed error message if available
+        const errorMessage = data.details
+          ? `${data.error}: ${data.details}`
+          : data.error || 'Invalid or expired invitation';
+        setError(errorMessage);
       }
     } catch (err) {
       console.error('❌ Invitation fetch error:', err);
