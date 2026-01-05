@@ -143,9 +143,16 @@ const primaryAddress = client.addresses[0];
             <Link key={client.id} href={`/clients/${client.id}`}>
               <Card className="p-4 md:p-5 hover:shadow-lg transition-shadow h-full">
                 <div className="flex flex-col h-full">
-                  <h3 className="font-semibold text-lg md:text-xl mb-2 hover:text-blue-600 dark:hover:text-blue-400">
-                    {client.name}
-                  </h3>
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-lg md:text-xl hover:text-blue-600 dark:hover:text-blue-400">
+                      {client.name}
+                    </h3>
+                    {client.hasInsurance && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-500 text-white rounded-full text-xs font-semibold shrink-0 ml-2">
+                        ✓ Insurance
+                      </span>
+                    )}
+                  </div>
 
                   <div className="space-y-1 mb-3">
                     {client.email && (

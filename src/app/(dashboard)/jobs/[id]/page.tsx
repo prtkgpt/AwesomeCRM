@@ -677,13 +677,18 @@ export default function JobDetailPage() {
 
       {/* Insurance Documentation - Only show if client has insurance */}
       {job.client.hasInsurance && (
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Insurance Documentation
-          </h2>
-          <p className="text-sm text-gray-600">
-            Document cleaning details and observations for insurance billing and records.
+        <Card className="p-6 space-y-4 bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-300 dark:border-blue-700">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-full text-sm font-bold">
+              <FileText className="h-4 w-4" />
+              ✓ INSURANCE
+            </span>
+            <h2 className="font-bold text-xl text-blue-900 dark:text-blue-100">
+              Insurance Documentation
+            </h2>
+          </div>
+          <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+            📋 Document cleaning details and observations for insurance billing and records.
           </p>
 
           <div className="space-y-4">
