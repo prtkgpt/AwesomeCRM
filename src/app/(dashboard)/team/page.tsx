@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Plus, UserPlus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -146,9 +148,18 @@ export default function TeamPage() {
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Team Members</h1>
-        <Button onClick={() => setShowInviteForm(!showInviteForm)}>
-          {showInviteForm ? 'Cancel' : 'Invite Team Member'}
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/team/add-cleaner">
+            <Button variant="default">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Cleaner
+            </Button>
+          </Link>
+          <Button variant="outline" onClick={() => setShowInviteForm(!showInviteForm)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            {showInviteForm ? 'Cancel' : 'Invite Member'}
+          </Button>
+        </div>
       </div>
 
       {showInviteForm && (
