@@ -6,7 +6,9 @@ interface SendEmailParams {
   subject: string;
   html: string;
   from?: string;
+  replyTo?: string;
   type?: 'estimate' | 'booking' | 'notification' | 'general';
+  apiKey?: string; // Optional company-specific API key
 }
 
 // Get the appropriate "from" address based on email type
@@ -34,23 +36,31 @@ function getFromAddress(type?: string, customFrom?: string): string {
   }
 }
 
-export async function sendEmail({ to, subject, html, from, type }: SendEmailParams) {
+export async function sendEmail({ to, subject, html, from, replyTo, type, apiKey }: SendEmailParams) {
   const fromAddress = getFromAddress(type, from);
+  const resendKey = apiKey || process.env.RESEND_API_KEY;
+
   try {
     // If using Resend
-    if (process.env.RESEND_API_KEY) {
+    if (resendKey) {
+      const emailPayload: any = {
+        from: fromAddress,
+        to: [to],
+        subject,
+        html,
+      };
+
+      if (replyTo) {
+        emailPayload.reply_to = replyTo;
+      }
+
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          Authorization: `Bearer ${resendKey}`,
         },
-        body: JSON.stringify({
-          from: fromAddress,
-          to: [to],
-          subject,
-          html,
-        }),
+        body: JSON.stringify(emailPayload),
       });
 
       const data = await response.json();

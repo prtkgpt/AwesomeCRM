@@ -46,6 +46,14 @@ model Company {
   twilioPhoneNumber   String?             // Twilio Phone Number
   resendApiKey        String?             // Resend API Key
 
+  // Reminder Settings
+  enableCustomerReminders     Boolean @default(true)
+  enableCleanerReminders      Boolean @default(true)
+  customerReminderHours       Int     @default(24)    // Hours before appointment
+  cleanerReminderHours        Int     @default(24)    // Hours before appointment
+  enableMorningOfReminder     Boolean @default(true)  // Send cleaner reminder morning of
+  morningOfReminderTime       String  @default("08:00") // Time to send morning reminder (HH:mm)
+
   // Subscription
   plan                String   @default("FREE")  // FREE, BASIC, PRO
   subscriptionStatus  String   @default("ACTIVE")
@@ -312,8 +320,11 @@ model Booking {
   internalNotes         String?             // Private notes
 
   // Automation tracking
-  confirmationSent      Boolean             @default(false)
-  reminderSent          Boolean             @default(false)
+  confirmationSent          Boolean             @default(false)
+  reminderSent              Boolean             @default(false)
+  customerReminderSentAt    DateTime?
+  cleanerReminderSentAt     DateTime?
+  morningOfReminderSentAt   DateTime?
 
   // Estimate (for sharing with potential customers)
   estimateToken         String?             @unique
