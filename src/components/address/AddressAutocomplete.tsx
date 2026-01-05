@@ -95,10 +95,13 @@ export default function AddressAutocomplete({
       return;
     }
 
-    const getComponent = (types: string[]) => {
+    const getComponent = (types: string[], useShortName = false) => {
       const component = place.address_components?.find((c: any) =>
         types.some((type) => c.types.includes(type))
       );
+      if (useShortName) {
+        return component?.short_name || component?.long_name || '';
+      }
       return component?.long_name || component?.short_name || '';
     };
 
@@ -106,7 +109,7 @@ export default function AddressAutocomplete({
     const route = getComponent(['route']);
     const selectedStreet = `${streetNumber} ${route}`.trim();
     const selectedCity = getComponent(['locality', 'sublocality']);
-    const selectedState = getComponent(['administrative_area_level_1']);
+    const selectedState = getComponent(['administrative_area_level_1'], true); // Use short_name for state (e.g., "CA" instead of "California")
     const selectedZip = getComponent(['postal_code']);
 
     setStreet(selectedStreet);
