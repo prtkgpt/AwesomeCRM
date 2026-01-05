@@ -172,9 +172,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('POST /api/clients error:', error);
 
+    // Handle Zod validation errors
     if (error instanceof Error && error.name === 'ZodError') {
       const zodError = error as any;
       const fieldErrors = zodError.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      console.error('🔴 Validation errors:', fieldErrors);
       return NextResponse.json(
         {
           success: false,
@@ -185,8 +187,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle Prisma errors
+    if (error instanceof Error && error.message) {
+      console.error('🔴 Error message:', error.message);
+      console.error('🔴 Error stack:', error.stack);
+
+      // Check for specific Prisma errors
+      if (error.message.includes('Unique constraint')) {
+        return NextResponse.json(
+          { success: false, error: 'A client with this email or phone already exists' },
+          { status: 400 }
+        );
+      }
+
+      if (error.message.includes('Foreign key constraint')) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid company or user reference' },
+          { status: 400 }
+        );
+      }
+
+      // Return the actual error message for debugging
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to create client: ${error.message}`,
+          details: error.stack
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Failed to create client' },
+      { success: false, error: 'Failed to create client. Please try again.' },
       { status: 500 }
     );
   }
