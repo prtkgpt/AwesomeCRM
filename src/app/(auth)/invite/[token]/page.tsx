@@ -48,20 +48,30 @@ export default function AcceptInvitePage({ params }: { params: { token: string }
   const fetchInvitation = async () => {
     try {
       console.log('🔍 Fetching invitation for token:', token);
+      console.log('🔍 Token length:', token?.length);
+      console.log('🔍 Full URL:', `/api/team/invite/${token}`);
+
       const res = await fetch(`/api/team/invite/${token}`);
       const data = await res.json();
 
       console.log('📨 Invitation response:', { status: res.status, data });
+      console.log('📨 Response status:', res.status);
+      console.log('📨 Response data:', JSON.stringify(data, null, 2));
 
       if (res.ok) {
         console.log('✅ Invitation loaded successfully');
         setInvitation(data.data);
       } else {
         console.error('❌ Invitation fetch failed:', data);
+        console.error('❌ Error field:', data.error);
+        console.error('❌ Details field:', data.details);
+
         // Show detailed error message if available
         const errorMessage = data.details
           ? `${data.error}: ${data.details}`
           : data.error || 'Invalid or expired invitation';
+
+        console.error('❌ Final error message:', errorMessage);
         setError(errorMessage);
       }
     } catch (err) {
@@ -135,10 +145,19 @@ export default function AcceptInvitePage({ params }: { params: { token: string }
 
   if (error && !invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <Card className="p-8 max-w-md w-full">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Invalid Invitation</h1>
           <p className="text-gray-600 mb-6">{error}</p>
+
+          {/* Debug info */}
+          <div className="mb-6 p-3 bg-gray-100 rounded text-xs text-gray-600 space-y-1">
+            <p><strong>Debug Info:</strong></p>
+            <p>Token: {token?.substring(0, 20)}...</p>
+            <p>Token Length: {token?.length}</p>
+            <p className="text-red-600 mt-2">Check browser console (F12) for detailed logs</p>
+          </div>
+
           <Button onClick={() => router.push('/login')}>Go to Login</Button>
         </Card>
       </div>
