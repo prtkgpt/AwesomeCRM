@@ -992,6 +992,576 @@ At 100 active companies, cost per company: **$0.80-2.70/mo**
 
 ---
 
+### AI Features by User Role
+
+This section details how the AI Copilot serves each user type in CleanDayCRM.
+
+---
+
+## 🎯 AI for Admin Users (Owners & Office Staff)
+
+Admins are the primary beneficiaries of AI features. They're juggling scheduling, marketing, billing, and team management—often while still cleaning themselves.
+
+### Daily Dashboard AI Assistant
+
+**What It Does:**
+When an admin opens CleanDayCRM, the AI greets them with a personalized briefing.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🤖 Good morning, Sarah! Here's your Tuesday briefing:         │
+│                                                                 │
+│  📅 TODAY: 8 jobs scheduled ($1,240 revenue)                   │
+│     • Maria has 3 jobs (on track)                              │
+│     • James has 2 jobs (running 15 min late)                   │
+│     • Unassigned: 3 jobs need cleaners                         │
+│                                                                 │
+│  ⚠️  NEEDS ATTENTION:                                          │
+│     • 4 invoices overdue ($520) → [Send Reminders]             │
+│     • Estimate for John Smith pending 5 days → [Follow Up]     │
+│     • Tomorrow: 2 jobs unassigned → [Auto-Assign]              │
+│                                                                 │
+│  💡 RECOMMENDATION:                                            │
+│     12 clients haven't booked in 30+ days.                     │
+│     → [Create Win-Back Campaign]                               │
+│                                                                 │
+│  💬 Ask me anything: "Which cleaner should I assign to..." │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**How It Helps:**
+- Saves 15-20 minutes of morning prep checking various screens
+- Surfaces problems proactively (overdue invoices, unassigned jobs)
+- Suggests actions with one-click execution
+- Reduces cognitive load of remembering follow-ups
+
+---
+
+### Conversational Queries for Admins
+
+**Natural Language Questions Admins Can Ask:**
+
+| Question | AI Response |
+|----------|-------------|
+| "How did we do last month?" | Revenue summary, job count, comparison to previous month, top performers |
+| "Who are my VIP customers?" | List of highest-revenue clients with booking frequency and lifetime value |
+| "Why is revenue down this week?" | Analysis of cancellations, fewer bookings, seasonal patterns |
+| "Which cleaner should I assign to the Smith job?" | Recommendation based on location, availability, client history, and ratings |
+| "What should I charge for a 4BR deep clean in [zip]?" | Price suggestion based on market rates and historical data |
+| "Draft an email to win back lapsed customers" | Ready-to-send campaign copy with subject line and body |
+| "Show me Maria's performance this month" | Jobs completed, ratings, on-time %, revenue generated |
+| "When should I hire another cleaner?" | Analysis of capacity utilization and growth projections |
+
+**Example Interaction:**
+
+```
+Admin: "We're getting too many cancellations. What's going on?"
+
+AI: "I analyzed your last 30 days of data. Here's what I found:
+
+📊 Cancellation Rate: 12% (up from 7% last month)
+
+Top Reasons:
+1. Client-initiated (6 cancellations) - "scheduling conflict" most common
+2. Weather-related (3 cancellations) - snow days on Jan 15-16
+3. Cleaner no-show (2 cancellations) - both from James
+
+🔍 Pattern Detected: 4 of 6 client cancellations were from first-time
+customers who booked via website. They may need a confirmation call.
+
+💡 Recommendations:
+1. Add a confirmation call for first-time online bookings → [Create Automation]
+2. Review James's schedule - he may be overbooked → [View James's Calendar]
+3. Consider offering reschedule incentive instead of cancellation → [Draft Policy]
+
+Would you like me to implement any of these?"
+```
+
+---
+
+### Smart Scheduling Assistant
+
+**Problem:** Admins spend hours each week playing Tetris with schedules.
+
+**AI Solution:**
+
+```
+Admin clicks "Auto-Schedule" for tomorrow's unassigned jobs:
+
+AI: "I've analyzed tomorrow's 5 unassigned jobs. Here's my recommendation:
+
+Job 1: Johnson Deep Clean (9am, Downtown)
+→ Assign to Maria
+  ✓ She's 5 min from location
+  ✓ She's done deep cleans for Johnsons before (5-star rating)
+  ✓ Fits her 9am-12pm availability
+
+Job 2: Smith Standard (10am, Suburbs)
+→ Assign to James
+  ✓ Already has a 1pm job nearby (saves 20 min drive time)
+  ⚠️ Note: James was late to last Smith job - want me to send early reminder?
+
+Job 3: New Client - Garcia Move-Out (2pm, East Side)
+→ Assign to Maria + James (team job)
+  ✓ Move-outs need 2 cleaners
+  ✓ Both available after 1pm
+  ✓ Route optimized: Maria finishes downtown → drives east
+
+[Accept All] [Modify] [Schedule Manually]
+```
+
+**Time Saved:** 30-45 minutes per day of manual scheduling
+
+---
+
+### AI-Powered Pricing
+
+**Scenario:** New lead requests a quote for a 2,500 sq ft, 4BR/3BA home.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🏠 New Estimate: Garcia Residence                              │
+│                                                                 │
+│  Property: 2,500 sq ft | 4 BR | 3 BA | House                   │
+│  Service: Deep Clean                                            │
+│  Location: 90210                                                │
+│                                                                 │
+│  💡 AI PRICE RECOMMENDATION                                    │
+│  ──────────────────────────────────────────────────────────────│
+│  Suggested Price: $245 - $275                                  │
+│  Confidence: 89%                                                │
+│                                                                 │
+│  Based on:                                                      │
+│  • Your avg deep clean price: $185 (but smaller homes)         │
+│  • Market rate for 90210: $220-$280                            │
+│  • Similar jobs you've done: $240 (2,400 sq ft), $260 (2,600)  │
+│  • This is a new customer (consider 10% first-time discount)   │
+│                                                                 │
+│  💰 Upsell Opportunities:                                      │
+│  • Inside fridge: +$35 (you include this 60% of the time)      │
+│  • Inside oven: +$30                                           │
+│  • Windows (interior): +$45                                    │
+│                                                                 │
+│  [Use $260] [Use $245 + Upsells] [Enter Custom Price]          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Impact:**
+- Reduces underpricing by 15-20%
+- Increases upsell attachment rate
+- Builds confidence for new business owners
+
+---
+
+### Marketing Campaign AI
+
+**Scenario:** Admin wants to run a spring cleaning promotion.
+
+```
+Admin: "Create a spring cleaning campaign"
+
+AI: "I'll help you create a spring cleaning campaign. Let me ask a few questions:
+
+1. Target audience?
+   ○ All clients
+   ○ Lapsed clients (no booking in 30+ days) ← 47 clients
+   ○ One-time customers only ← 23 clients
+   ○ Recurring customers
+
+2. Offer type?
+   ○ Percentage discount (e.g., 15% off)
+   ○ Fixed discount (e.g., $25 off)
+   ○ Free add-on (e.g., free fridge cleaning)
+   ○ No discount, just reminder
+
+3. Channel?
+   ☑️ Email
+   ☑️ SMS
+   ○ Email only
+   ○ SMS only"
+
+[After selections]
+
+AI: "Here's your campaign:
+
+SUBJECT LINE OPTIONS:
+1. 🌸 Spring is here! Time for a fresh, clean home
+2. Your home deserves a spring refresh - 15% off
+3. [First Name], spring cleaning made easy
+
+EMAIL BODY:
+─────────────────────────────────
+Hi {{firstName}},
+
+Spring has arrived, and there's no better time to give your
+home a deep refresh!
+
+We're offering 15% off any deep cleaning booked this month.
+Whether it's clearing out winter dust or getting ready for
+guests, we've got you covered.
+
+🌷 Book your spring clean: [Book Now Button]
+
+Use code: SPRING15
+
+See you soon!
+{{companyName}}
+─────────────────────────────────
+
+SMS VERSION (156 chars):
+'Hi {{firstName}}! Spring cleaning time 🌸 Get 15% off deep
+cleans this month with code SPRING15. Book: {{bookingLink}}'
+
+COUPON AUTO-CREATED:
+Code: SPRING15 | 15% off | Expires: March 31 | Deep clean only
+
+[Preview] [Edit] [Schedule Send] [Send Now]"
+```
+
+---
+
+### Automated Follow-Up Sequences
+
+**AI-Managed Automations:**
+
+| Trigger | AI Action | Timing |
+|---------|-----------|--------|
+| Estimate sent, no response | Send follow-up email | 3 days |
+| Estimate sent, still no response | Send SMS reminder | 5 days |
+| First cleaning completed | Send thank you + review request | 2 hours after |
+| 5-star review received | Send referral request | 1 day after |
+| No booking in 30 days | Send win-back email | Automatic |
+| No booking in 60 days | Send win-back SMS + offer | Automatic |
+| Invoice overdue 3 days | Send payment reminder | Automatic |
+| Invoice overdue 7 days | Send urgent reminder + call alert | Automatic |
+
+**Admin Control Panel:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🤖 AI Automations                                    [+ New]   │
+├─────────────────────────────────────────────────────────────────┤
+│  ☑️ Post-cleaning follow-up          Sent: 142 | Opens: 68%    │
+│  ☑️ Review request (after 5-star)    Sent: 34  | Reviews: 12   │
+│  ☑️ Win-back (30 days)               Sent: 47  | Rebooked: 8   │
+│  ☑️ Payment reminder (3 days)        Sent: 23  | Paid: 19      │
+│  ☐ Birthday discount                 Paused                     │
+│  ☑️ Estimate follow-up               Sent: 18  | Converted: 6  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🧹 AI for Cleaners
+
+Cleaners need simple, hands-free tools. They're often wearing gloves, carrying supplies, or driving.
+
+### Voice-First Interface
+
+**How It Works:**
+Cleaner opens the app and taps the microphone (or says "Hey CleanDay").
+
+```
+Supported Voice Commands:
+─────────────────────────────────────────────────────────────────
+
+📍 NAVIGATION & STATUS
+"What's my next job?"
+→ "Your next job is at 123 Main St for Sarah Johnson at 2pm.
+   It's a standard clean, 3 bedroom. She has a dog named Max.
+   Want me to navigate there?"
+
+"I'm on my way"
+→ Sends SMS to client: "Your cleaner is on the way! ETA: 12 minutes"
+
+"I've arrived"
+→ Clocks you in, notifies office, starts job timer
+
+"I'm done" / "Job complete"
+→ Clocks you out, marks job complete, triggers follow-up sequence
+
+📝 NOTES & ISSUES
+"Add a note: refrigerator needs extra attention next time"
+→ Saves note to client profile, visible to office and future cleaners
+
+"There's a problem" / "I need help"
+→ "What's the issue?"
+→ "Client not home"
+→ Notifies office immediately, logs issue, suggests next steps
+
+"Take a photo"
+→ Opens camera, saves to job record (before/after documentation)
+
+📞 COMMUNICATION
+"Call the client"
+→ Initiates call to client's phone number
+
+"Text the office"
+→ "What do you want to say?"
+→ "Running 10 minutes late"
+→ Sends message to admin dashboard
+
+📊 INFO QUERIES
+"How many jobs do I have today?"
+→ "You have 4 jobs today. You've completed 2, next one is at 2pm."
+
+"What's the gate code?"
+→ "The gate code for 123 Main St is 4521."
+
+"Does this client have pets?"
+→ "Yes, Sarah Johnson has a dog named Max. He's friendly but
+   keep the front door closed."
+
+"Any special instructions?"
+→ "Sarah prefers eco-friendly products only. Don't vacuum the
+   home office - she works from home. Extra attention on master bath."
+```
+
+---
+
+### Cleaner Dashboard AI
+
+**When cleaner opens the app:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  👋 Good morning, Maria!                              🎤 Voice  │
+│                                                                 │
+│  TODAY: Tuesday, Jan 14                                         │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│                                                                 │
+│  ✅ 9:00 AM - Johnson (Completed)                    $150       │
+│  ✅ 11:30 AM - Williams (Completed)                  $120       │
+│                                                                 │
+│  ▶️ 2:00 PM - Sarah Johnson (NEXT)                   $175       │
+│     📍 123 Main St, Apt 4B (12 min away)                       │
+│     🏠 2BR/2BA Standard Clean                                  │
+│     🐕 Dog: Max (friendly)                                      │
+│     ⚠️ Use eco products only                                   │
+│     🔐 Gate: 4521 | Door: under mat                            │
+│                                                                 │
+│     [📍 Navigate]  [📞 Call Client]  [🚗 On My Way]            │
+│                                                                 │
+│  ⏳ 4:30 PM - Thompson                               $200       │
+│     📍 456 Oak Ave (8 min from previous)                       │
+│                                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│  Today's Earnings: $445 (3 jobs)  |  This Week: $1,840         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Smart Notifications for Cleaners
+
+**AI sends timely, contextual alerts:**
+
+| Time | Notification |
+|------|--------------|
+| 30 min before job | "Your 2pm job at Sarah Johnson's is coming up. She has a dog named Max and prefers eco products. [Navigate]" |
+| If running late | "You're running 15 min behind. Want me to notify Sarah Johnson?" |
+| After completing job | "Great job! Sarah's home is done. Your next job is at 4:30pm - you have 1.5 hours. [Take a break] [Start next job early]" |
+| End of day | "You completed 4 jobs today ($620). Great work! Tomorrow you have 3 jobs starting at 9am." |
+
+---
+
+### Cleaner Issue Resolution
+
+**Scenario:** Cleaner arrives but client isn't home.
+
+```
+Cleaner: "There's a problem"
+AI: "What's the issue?"
+Cleaner: "Client not home"
+
+AI: "I'll help you with this. Let me check a few things:
+
+📞 Attempting to reach Sarah Johnson...
+   Called: No answer
+   Texted: 'Hi Sarah, your cleaner Maria has arrived but
+           no one is home. Please let us know how to proceed.'
+
+📋 Options while we wait:
+   1. Wait 15 minutes (I'll update you)
+   2. Move to next job (Thompson at 4:30, can start early)
+   3. Call the office
+
+🏢 Office has been notified.
+
+I'll let you know when Sarah responds. In the meantime,
+you could head to your next job - it's only 8 min away."
+```
+
+---
+
+## 👤 AI for Customers
+
+Customers interact with AI primarily through the self-service portal and automated communications.
+
+### Smart Booking Experience
+
+**When customer visits booking widget:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🏠 Book Your Cleaning                                          │
+│                                                                 │
+│  Tell us about your home:                                       │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 3 bedrooms, 2 bathrooms, about 1,800 sq ft             │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  🤖 AI: "Got it! Based on your 3BR/2BA home, here's what       │
+│  I recommend:                                                   │
+│                                                                 │
+│  Standard Clean: $145 (2.5 hours)                              │
+│  ✓ All rooms dusted & vacuumed                                 │
+│  ✓ Kitchen & bathrooms sanitized                               │
+│  ✓ Floors mopped                                               │
+│                                                                 │
+│  Deep Clean: $195 (3.5 hours) ← Popular for first-time        │
+│  ✓ Everything in Standard, plus:                               │
+│  ✓ Inside appliances, baseboards, ceiling fans                │
+│                                                                 │
+│  Add-ons:                                                       │
+│  ☐ Inside fridge (+$30)                                        │
+│  ☐ Inside oven (+$25)                                          │
+│  ☐ Interior windows (+$40)                                     │
+│                                                                 │
+│  Available times:                                               │
+│  [Mon 9am] [Mon 2pm] [Tue 10am] [Tue 1pm] [Wed 9am]           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Conversational Booking (Future)
+
+**Customer can book via SMS or chat:**
+
+```
+Customer: "I need a cleaning next week"
+
+AI: "Hi! I'd be happy to help you book a cleaning.
+
+What day works best for you next week?
+• Monday
+• Tuesday
+• Wednesday
+• Thursday
+• Friday"
+
+Customer: "Tuesday afternoon"
+
+AI: "Great! I have these times available on Tuesday:
+• 1:00 PM
+• 3:00 PM
+
+Which works better?"
+
+Customer: "3pm"
+
+AI: "Perfect! I have you down for Tuesday at 3:00 PM.
+
+Just to confirm:
+📍 123 Main St, Apt 4B
+🏠 Standard Clean (3BR/2BA)
+💰 $145
+
+Reply YES to confirm, or let me know if anything needs to change."
+
+Customer: "Yes"
+
+AI: "You're all set! ✅
+
+Your cleaning is booked for Tuesday, Jan 21 at 3:00 PM.
+You'll receive a reminder the day before.
+
+Maria will be your cleaner - she has a 4.9 rating and has
+cleaned your home before.
+
+Need to reschedule? Just reply to this message anytime."
+```
+
+---
+
+### Smart Reminders & Updates
+
+**AI-Powered Customer Communications:**
+
+| Event | Message |
+|-------|---------|
+| 24 hours before | "Hi Sarah! Reminder: Your cleaning is tomorrow at 3pm. Maria will be your cleaner. Reply RESCHEDULE if you need to change." |
+| Cleaner on the way | "Your cleaner Maria is on the way! ETA: 12 minutes. 🚗" |
+| Cleaner arrived | "Maria has arrived and started cleaning. We'll let you know when she's done!" |
+| Cleaning complete | "Your home is sparkling clean! ✨ Maria finished at 5:15pm. How did we do? [⭐⭐⭐⭐⭐]" |
+| After 5-star review | "Thank you for the amazing review! 🙏 Know someone who'd love a clean home? Share your $25 referral link: [link]" |
+
+---
+
+### Self-Service Portal AI
+
+**Customer logs into their portal:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  👋 Welcome back, Sarah!                                        │
+│                                                                 │
+│  🤖 Quick Actions:                                              │
+│  ────────────────────────────────────────────────────────────  │
+│  [📅 Book a Cleaning]  [🔄 Reschedule]  [💬 Message Us]        │
+│                                                                 │
+│  📅 Upcoming:                                                   │
+│  ────────────────────────────────────────────────────────────  │
+│  Tuesday, Jan 21 at 3:00 PM                                    │
+│  Standard Clean with Maria                                      │
+│  [Reschedule] [Add Services] [Cancel]                          │
+│                                                                 │
+│  💡 AI Suggestion:                                              │
+│  "It's been 3 months since your last deep clean. Want to       │
+│  upgrade Tuesday's cleaning to a deep clean for just $50       │
+│  more? [Yes, Upgrade] [No Thanks]"                             │
+│                                                                 │
+│  📜 Past Cleanings:                                             │
+│  ────────────────────────────────────────────────────────────  │
+│  Jan 7 - Standard Clean - Maria ⭐⭐⭐⭐⭐                       │
+│  Dec 24 - Deep Clean - Maria ⭐⭐⭐⭐⭐                          │
+│  Dec 10 - Standard Clean - James ⭐⭐⭐⭐                        │
+│                                                                 │
+│  💬 "Need to change your cleaning schedule or have questions?  │
+│  Just type below and I'll help!"                               │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Ask anything...                                         │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### AI-Powered Upsells for Customers
+
+**Contextual, helpful suggestions (not pushy):**
+
+| Context | AI Suggestion |
+|---------|---------------|
+| Spring season | "Spring cleaning season! Add a deep clean to refresh your home after winter." |
+| Before holidays | "Guests coming? Add inside oven and fridge cleaning before Thanksgiving." |
+| 3 months since deep clean | "Your last deep clean was 90 days ago. Time for a refresh?" |
+| One-time customer | "Love your clean home? Set up recurring cleanings and save 10%." |
+| Booking standard | "First time? Consider a deep clean first for the best results." |
+
+---
+
+## Summary: AI Value by User
+
+| User | Top 3 AI Benefits | Time Saved |
+|------|-------------------|------------|
+| **Admin** | Morning briefing, smart scheduling, campaign generator | 1-2 hrs/day |
+| **Cleaner** | Voice commands, smart navigation, issue resolution | 30 min/day |
+| **Customer** | Easy booking, proactive updates, self-service portal | 15 min/booking |
+
+---
+
 ### Feature 6: Zapier Integration
 
 **User Stories**
