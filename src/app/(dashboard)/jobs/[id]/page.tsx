@@ -13,6 +13,9 @@ import {
   CheckCircle,
   XCircle,
   FileText,
+  Share2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,6 +34,10 @@ export default function JobDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [hasInvoice, setHasInvoice] = useState(false);
+  const [estimateUrl, setEstimateUrl] = useState<string>('');
+  const [showEstimateModal, setShowEstimateModal] = useState(false);
+  const [generatingEstimate, setGeneratingEstimate] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchJob();
@@ -90,6 +97,38 @@ export default function JobDetailPage() {
       alert('An error occurred. Please try again.');
     } finally {
       setGeneratingInvoice(false);
+    }
+  };
+
+  const handleGenerateEstimate = async () => {
+    setGeneratingEstimate(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}/generate-estimate`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setEstimateUrl(data.data.url);
+        setShowEstimateModal(true);
+      } else {
+        alert(data.error || 'Failed to generate estimate link');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setGeneratingEstimate(false);
+    }
+  };
+
+  const handleCopyEstimateLink = async () => {
+    try {
+      await navigator.clipboard.writeText(estimateUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      alert('Failed to copy link');
     }
   };
 
@@ -380,8 +419,104 @@ export default function JobDetailPage() {
               )}
             </div>
           )}
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Share Estimate
+            </label>
+            <Button
+              onClick={handleGenerateEstimate}
+              disabled={generatingEstimate}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              <Share2 className="h-4 w-4 mr-1" />
+              {generatingEstimate ? 'Generating...' : 'Generate Estimate Link'}
+            </Button>
+            <p className="text-xs text-gray-500 mt-1">
+              Share this link with customers to accept the estimate
+            </p>
+          </div>
         </div>
       </Card>
+
+      {/* Estimate Link Modal */}
+      {showEstimateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="p-6 max-w-lg w-full">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold mb-2">Estimate Link Generated</h2>
+              <p className="text-gray-600">
+                Share this link with your customer to view and accept the estimate
+              </p>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Shareable Link
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={estimateUrl}
+                  readOnly
+                  className="flex-1 border rounded-lg px-3 py-2 bg-gray-50 text-sm"
+                  onClick={(e) => e.currentTarget.select()}
+                />
+                <Button
+                  onClick={handleCopyEstimateLink}
+                  size="sm"
+                  variant={copied ? 'default' : 'outline'}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-4 w-4 mr-1" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>What happens next:</strong>
+                <br />
+                1. Customer clicks the link and views the estimate
+                <br />
+                2. Customer can accept the estimate (optionally creating an account)
+                <br />
+                3. You'll see the estimate status updated in this job
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowEstimateModal(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  handleCopyEstimateLink();
+                  setShowEstimateModal(false);
+                }}
+                className="flex-1"
+              >
+                Copy & Close
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
