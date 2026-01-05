@@ -194,3 +194,68 @@ export async function DELETE(
     );
   }
 }
+
+// PATCH /api/bookings/[id] - Partial update (for documentation fields)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Verify ownership
+    const existingBooking = await prisma.booking.findFirst({
+      where: {
+        id: params.id,
+        companyId: user.companyId,
+      },
+    });
+
+    if (!existingBooking) {
+      return NextResponse.json(
+        { success: false, error: 'Booking not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update booking with partial data
+    const booking = await prisma.booking.update({
+      where: { id: params.id },
+      data: {
+        ...(body.insuranceDocumentation !== undefined && { insuranceDocumentation: body.insuranceDocumentation }),
+        ...(body.cleaningObservations !== undefined && { cleaningObservations: body.cleaningObservations }),
+      },
+      include: {
+        client: true,
+        address: true,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: booking,
+      message: 'Documentation updated successfully',
+    });
+  } catch (error) {
+    console.error('PATCH /api/bookings/[id] error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update documentation' },
+      { status: 500 }
+    );
+  }
+}

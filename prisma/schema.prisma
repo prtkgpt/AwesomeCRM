@@ -370,6 +370,10 @@ model Booking {
   notes                 String?             // Customer-facing notes
   internalNotes         String?             // Private notes
 
+  // Insurance Documentation (for clients with insurance)
+  insuranceDocumentation String?            // Documentation for insurance billing
+  cleaningObservations   String?            // Observations and notes from cleaning
+
   // Automation tracking
   confirmationSent          Boolean             @default(false)
   reminderSent              Boolean             @default(false)
