@@ -18,6 +18,7 @@ export default function NewJobPage() {
 
   const [clients, setClients] = useState<ClientWithAddresses[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientWithAddresses | null>(null);
+  const [cleaners, setCleaners] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,6 +31,7 @@ export default function NewJobPage() {
     serviceType: 'STANDARD',
     price: '80',
     notes: '',
+    assignedTo: '',
     isRecurring: false,
     recurrenceFrequency: 'NONE',
     recurrenceEndDate: '',
@@ -37,7 +39,25 @@ export default function NewJobPage() {
 
   useEffect(() => {
     fetchClients();
+    fetchCleaners();
   }, []);
+
+  const fetchCleaners = async () => {
+    try {
+      const response = await fetch('/api/team/members');
+      const data = await response.json();
+
+      if (data.success) {
+        // Filter only active cleaners
+        const activeCleaners = data.data.filter(
+          (member: any) => member.isActive && member.user.role === 'CLEANER'
+        );
+        setCleaners(activeCleaners);
+      }
+    } catch (error) {
+      console.error('Failed to fetch cleaners:', error);
+    }
+  };
 
   useEffect(() => {
     if (formData.clientId) {
@@ -100,6 +120,7 @@ export default function NewJobPage() {
         serviceType: formData.serviceType,
         price: parseFloat(formData.price),
         notes: formData.notes || undefined,
+        assignedTo: formData.assignedTo || undefined,
         isRecurring: formData.isRecurring,
         recurrenceFrequency: formData.isRecurring
           ? formData.recurrenceFrequency
@@ -257,6 +278,39 @@ export default function NewJobPage() {
               <option value="MOVE_IN">Move-In Clean</option>
               <option value="MOVE_OUT">Move-Out Clean</option>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="assignedTo">Assign to Cleaner</Label>
+            <Select
+              id="assignedTo"
+              name="assignedTo"
+              value={formData.assignedTo}
+              onChange={handleChange}
+            >
+              <option value="">Not Assigned</option>
+              {cleaners.map((cleaner) => (
+                <option key={cleaner.id} value={cleaner.id}>
+                  {cleaner.user.name || cleaner.user.email}
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">
+              {cleaners.length === 0 ? (
+                <>
+                  No cleaners available.{' '}
+                  <button
+                    type="button"
+                    onClick={() => router.push('/team')}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Add team members
+                  </button>
+                </>
+              ) : (
+                'Optional: Assign this job to a specific cleaner'
+              )}
+            </p>
           </div>
 
           <div>

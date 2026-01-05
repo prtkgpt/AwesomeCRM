@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
         price: validatedData.price,
         notes: validatedData.notes,
         internalNotes: validatedData.internalNotes,
+        assignedTo: validatedData.assignedTo || null,
         isRecurring: validatedData.isRecurring,
         recurrenceFrequency: validatedData.recurrenceFrequency,
         recurrenceEndDate: validatedData.recurrenceEndDate,
