@@ -136,6 +136,75 @@ export async function PUT(
   }
 }
 
+// PATCH /api/clients/[id] - Partial update client (e.g., notes only)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Verify ownership
+    const existingClient = await prisma.client.findFirst({
+      where: {
+        id: params.id,
+        companyId: user.companyId,
+      },
+    });
+
+    if (!existingClient) {
+      return NextResponse.json(
+        { success: false, error: 'Client not found' },
+        { status: 404 }
+      );
+    }
+
+    // Build update data object with only provided fields
+    const updateData: any = {};
+    if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.email !== undefined) updateData.email = body.email || null;
+    if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.tags !== undefined) updateData.tags = body.tags;
+
+    // Update client
+    const client = await prisma.client.update({
+      where: { id: params.id },
+      data: updateData,
+      include: {
+        addresses: true,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: client,
+      message: 'Client updated successfully',
+    });
+  } catch (error) {
+    console.error('PATCH /api/clients/[id] error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update client' },
+      { status: 500 }
+    );
+  }
+}
+
 // DELETE /api/clients/[id] - Delete client
 export async function DELETE(
   request: NextRequest,
