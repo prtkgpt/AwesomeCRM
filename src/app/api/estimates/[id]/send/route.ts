@@ -168,8 +168,9 @@ export async function POST(
     );
   } catch (error) {
     console.error('Send estimate error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send estimate';
     return NextResponse.json(
-      { success: false, error: 'Failed to send estimate' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }
