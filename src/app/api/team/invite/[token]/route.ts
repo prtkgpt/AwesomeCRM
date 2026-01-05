@@ -48,21 +48,39 @@ export async function GET(
 
     if (!invitation) {
       console.error(`❌ Invitation not found for token: ${token}`);
+      console.error(`❌ Database returned null for invitation lookup`);
+
+      // Check if ANY invitation exists in the database
+      const invitationCount = await prisma.invitation.count();
+      console.error(`📊 Total invitations in database: ${invitationCount}`);
+
       return NextResponse.json(
-        { error: 'Invitation not found' },
+        {
+          error: 'Invitation not found',
+          details: 'No invitation exists with this token. The link may be incorrect or the invitation may have been deleted.'
+        },
         { status: 404 }
       );
     }
 
     console.log(`✅ Found invitation for: ${invitation.email}, status: ${invitation.status}`);
+    console.log(`📅 Invitation created at: ${invitation.createdAt}`);
+    console.log(`📅 Invitation expires at: ${invitation.expiresAt}`);
+    console.log(`🏢 Company: ${invitation.company.name} (ID: ${invitation.company.id})`);
 
     // Check if expired
     const now = new Date();
     const expiresAt = new Date(invitation.expiresAt);
     if (now > expiresAt) {
-      console.error(`⏰ Invitation expired. Now: ${now.toISOString()}, Expires: ${expiresAt.toISOString()}`);
+      console.error(`⏰ Invitation expired.`);
+      console.error(`⏰ Current time: ${now.toISOString()}`);
+      console.error(`⏰ Expires at: ${expiresAt.toISOString()}`);
+      console.error(`⏰ Time difference: ${(now.getTime() - expiresAt.getTime()) / (1000 * 60 * 60)} hours ago`);
       return NextResponse.json(
-        { error: 'Invitation has expired' },
+        {
+          error: 'Invitation has expired',
+          details: `This invitation expired on ${expiresAt.toLocaleDateString()}. Please request a new invitation.`
+        },
         { status: 400 }
       );
     }
@@ -71,7 +89,10 @@ export async function GET(
     if (invitation.status !== 'PENDING') {
       console.error(`🚫 Invitation already used. Status: ${invitation.status}`);
       return NextResponse.json(
-        { error: 'Invitation has already been used' },
+        {
+          error: 'Invitation has already been used',
+          details: `This invitation was ${invitation.status.toLowerCase()} and cannot be used again.`
+        },
         { status: 400 }
       );
     }
