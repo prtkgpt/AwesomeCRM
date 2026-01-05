@@ -17,6 +17,9 @@ import {
   Copy,
   Check,
   Star,
+  Edit,
+  Save,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -46,6 +49,14 @@ export default function JobDetailPage() {
   const [insuranceDocumentation, setInsuranceDocumentation] = useState('');
   const [cleaningObservations, setCleaningObservations] = useState('');
   const [savingDocumentation, setSavingDocumentation] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    scheduledDate: '',
+    duration: '',
+    serviceType: '',
+    price: '',
+    notes: '',
+  });
 
   useEffect(() => {
     fetchJob();
@@ -62,6 +73,17 @@ export default function JobDetailPage() {
         setJob(data.data);
         setInsuranceDocumentation(data.data.insuranceDocumentation || '');
         setCleaningObservations(data.data.cleaningObservations || '');
+
+        // Populate edit form
+        const scheduledDate = new Date(data.data.scheduledDate);
+        const formattedDate = scheduledDate.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+        setEditForm({
+          scheduledDate: formattedDate,
+          duration: data.data.duration.toString(),
+          serviceType: data.data.serviceType,
+          price: data.data.price.toString(),
+          notes: data.data.notes || '',
+        });
       } else {
         router.push('/jobs');
       }
@@ -206,6 +228,62 @@ export default function JobDetailPage() {
     }
   };
 
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleStartEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    if (!job) return;
+
+    // Reset form to current job values
+    const scheduledDate = new Date(job.scheduledDate);
+    const formattedDate = scheduledDate.toISOString().slice(0, 16);
+    setEditForm({
+      scheduledDate: formattedDate,
+      duration: job.duration.toString(),
+      serviceType: job.serviceType,
+      price: job.price.toString(),
+      notes: job.notes || '',
+    });
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scheduledDate: new Date(editForm.scheduledDate),
+          duration: parseInt(editForm.duration),
+          serviceType: editForm.serviceType,
+          price: parseFloat(editForm.price),
+          notes: editForm.notes,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setJob(data.data);
+        setIsEditing(false);
+        alert('Job updated successfully!');
+      } else {
+        alert(data.error || 'Failed to update job');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleSaveDocumentation = async () => {
     setSavingDocumentation(true);
     try {
@@ -293,104 +371,234 @@ export default function JobDetailPage() {
             <p className="text-sm text-gray-500">ID: {job.id.slice(0, 8)}</p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="text-red-600 hover:text-red-700"
-        >
-          <Trash2 className="h-4 w-4 mr-1" />
-          {deleting ? 'Deleting...' : 'Delete'}
-        </Button>
+        <div className="flex gap-2">
+          {!isEditing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleStartEdit}
+            >
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+            disabled={deleting || isEditing}
+            className="text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </div>
       </div>
 
       <Card className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <Link
-              href={`/clients/${job.client.id}`}
-              className="text-xl font-semibold hover:underline"
-            >
-              {job.client.name}
-            </Link>
-            {job.client.phone && (
-              <p className="text-sm text-gray-600">
-                <a href={`tel:${job.client.phone}`} className="hover:underline">
-                  {job.client.phone}
-                </a>
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-sm px-3 py-1 rounded-full ${getStatusColor(job.status)}`}>
-              {job.status}
-            </span>
-            {job.isRecurring && (
-              <span className="text-sm px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
-                Recurring {job.recurrenceFrequency}
-              </span>
-            )}
-          </div>
-        </div>
+        {isEditing ? (
+          /* Edit Mode */
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Edit Job
+            </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
-          <div className="flex items-start gap-3">
-            <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
-            <div>
-              <div className="text-sm font-medium text-gray-500">Date & Time</div>
-              <div className="text-sm">{formatDateTime(job.scheduledDate)}</div>
-            </div>
-          </div>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="scheduledDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  Date & Time *
+                </label>
+                <input
+                  type="datetime-local"
+                  id="scheduledDate"
+                  name="scheduledDate"
+                  value={editForm.scheduledDate}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
 
-          <div className="flex items-start gap-3">
-            <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
-            <div>
-              <div className="text-sm font-medium text-gray-500">Duration</div>
-              <div className="text-sm">{job.duration} minutes</div>
-            </div>
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">
+                    Duration (minutes) *
+                  </label>
+                  <input
+                    type="number"
+                    id="duration"
+                    name="duration"
+                    value={editForm.duration}
+                    onChange={handleEditChange}
+                    min="15"
+                    step="15"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
 
-          <div className="flex items-start gap-3">
-            <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
-            <div>
-              <div className="text-sm font-medium text-gray-500">Address</div>
-              <div className="text-sm">
-                {job.address.street}
-                <br />
-                {job.address.city}, {job.address.state} {job.address.zip}
+                <div>
+                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+                    Price ($) *
+                  </label>
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    value={editForm.price}
+                    onChange={handleEditChange}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="serviceType" className="block text-sm font-medium text-gray-700 mb-1">
+                  Service Type *
+                </label>
+                <select
+                  id="serviceType"
+                  name="serviceType"
+                  value={editForm.serviceType}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="STANDARD">Standard Clean</option>
+                  <option value="DEEP">Deep Clean</option>
+                  <option value="MOVE_OUT">Move Out Clean</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  value={editForm.notes}
+                  onChange={handleEditChange}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Add any special notes or instructions..."
+                />
               </div>
             </div>
-          </div>
 
-          <div className="flex items-start gap-3">
-            <DollarSign className="h-5 w-5 text-gray-400 mt-0.5" />
-            <div>
-              <div className="text-sm font-medium text-gray-500">Price</div>
-              <div className="text-lg font-bold">{formatCurrency(job.price)}</div>
-              {job.isPaid ? (
-                <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                  Paid
-                </span>
-              ) : (
-                <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
-                  Unpaid
-                </span>
-              )}
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                onClick={handleSaveEdit}
+                disabled={updating}
+                className="flex-1"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {updating ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCancelEdit}
+                disabled={updating}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
             </div>
           </div>
-        </div>
+        ) : (
+          /* View Mode */
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <Link
+                  href={`/clients/${job.client.id}`}
+                  className="text-xl font-semibold hover:underline"
+                >
+                  {job.client.name}
+                </Link>
+                {job.client.phone && (
+                  <p className="text-sm text-gray-600">
+                    <a href={`tel:${job.client.phone}`} className="hover:underline">
+                      {job.client.phone}
+                    </a>
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm px-3 py-1 rounded-full ${getStatusColor(job.status)}`}>
+                  {job.status}
+                </span>
+                {job.isRecurring && (
+                  <span className="text-sm px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
+                    Recurring {job.recurrenceFrequency}
+                  </span>
+                )}
+              </div>
+            </div>
 
-        <div className="pt-2 border-t">
-          <div className="text-sm font-medium text-gray-500 mb-1">Service Type</div>
-          <div className="text-sm">{job.serviceType.replace('_', ' ')}</div>
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-gray-500">Date & Time</div>
+                  <div className="text-sm">{formatDateTime(job.scheduledDate)}</div>
+                </div>
+              </div>
 
-        {job.notes && (
-          <div className="pt-2 border-t">
-            <div className="text-sm font-medium text-gray-500 mb-1">Notes</div>
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">{job.notes}</p>
-          </div>
+              <div className="flex items-start gap-3">
+                <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-gray-500">Duration</div>
+                  <div className="text-sm">{job.duration} minutes</div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-gray-500">Address</div>
+                  <div className="text-sm">
+                    {job.address.street}
+                    <br />
+                    {job.address.city}, {job.address.state} {job.address.zip}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <DollarSign className="h-5 w-5 text-gray-400 mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-gray-500">Price</div>
+                  <div className="text-lg font-bold">{formatCurrency(job.price)}</div>
+                  {job.isPaid ? (
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                      Paid
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
+                      Unpaid
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t">
+              <div className="text-sm font-medium text-gray-500 mb-1">Service Type</div>
+              <div className="text-sm">{job.serviceType.replace('_', ' ')}</div>
+            </div>
+
+            {job.notes && (
+              <div className="pt-2 border-t">
+                <div className="text-sm font-medium text-gray-500 mb-1">Notes</div>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{job.notes}</p>
+              </div>
+            )}
+          </>
         )}
       </Card>
 
