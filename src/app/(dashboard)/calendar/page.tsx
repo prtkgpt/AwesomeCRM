@@ -27,7 +27,7 @@ interface Booking {
     street: string;
     city: string;
   };
-  assignedTeamMember?: {
+  assignee?: {
     id: string;
     user: {
       name: string | null;
@@ -105,7 +105,7 @@ export default function CalendarPage() {
 
     bookings.forEach((booking) => {
       const bookingDate = new Date(booking.scheduledDate);
-      const cleanerId = booking.assignedTeamMember?.id;
+      const cleanerId = booking.assignee?.id;
 
       if (!cleanerId) return;
 
@@ -154,7 +154,7 @@ export default function CalendarPage() {
       const bookingDate = new Date(booking.scheduledDate);
       const cleanerMatch =
         selectedCleaners.length === 0 ||
-        (booking.assignedTeamMember && selectedCleaners.includes(booking.assignedTeamMember.id));
+        (booking.assignee && selectedCleaners.includes(booking.assignee.id));
 
       return (
         bookingDate.getDate() === date.getDate() &&
@@ -211,7 +211,7 @@ export default function CalendarPage() {
           <div className="space-y-1">
             {dayBookings.slice(0, 3).map((booking) => {
               const cleaner = cleaners.find(
-                (c) => c.id === booking.assignedTeamMember?.id
+                (c) => c.id === booking.assignee?.id
               );
               return (
                 <Link key={booking.id} href={`/jobs/${booking.id}`}>
@@ -222,8 +222,8 @@ export default function CalendarPage() {
                       color: 'white',
                     }}
                     title={`${booking.client.name} - ${booking.serviceType}${
-                      booking.assignedTeamMember
-                        ? ` - ${booking.assignedTeamMember.user.name}`
+                      booking.assignee
+                        ? ` - ${booking.assignee.user.name}`
                         : ''
                     }`}
                   >
@@ -263,8 +263,8 @@ export default function CalendarPage() {
     const filteredBookings = bookings.filter((booking) => {
       const cleanerMatch =
         selectedCleaners.length === 0 ||
-        (booking.assignedTeamMember &&
-          selectedCleaners.includes(booking.assignedTeamMember.id));
+        (booking.assignee &&
+          selectedCleaners.includes(booking.assignee.id));
 
       return cleanerMatch;
     });
@@ -281,7 +281,7 @@ export default function CalendarPage() {
         ) : (
           sortedBookings.map((booking) => {
             const cleaner = cleaners.find(
-              (c) => c.id === booking.assignedTeamMember?.id
+              (c) => c.id === booking.assignee?.id
             );
             return (
               <Link key={booking.id} href={`/jobs/${booking.id}`}>
@@ -323,11 +323,11 @@ export default function CalendarPage() {
                         <p>
                           {booking.address.street}, {booking.address.city}
                         </p>
-                        {booking.assignedTeamMember && (
+                        {booking.assignee && (
                           <p>
                             Assigned to:{' '}
-                            {booking.assignedTeamMember.user.name ||
-                              booking.assignedTeamMember.user.email}
+                            {booking.assignee.user.name ||
+                              booking.assignee.user.email}
                           </p>
                         )}
                       </div>
@@ -355,7 +355,7 @@ export default function CalendarPage() {
     cleaner.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const unassignedCount = bookings.filter((b) => !b.assignedTeamMember).length;
+  const unassignedCount = bookings.filter((b) => !b.assignee).length;
 
   return (
     <div className="p-4 md:p-8">

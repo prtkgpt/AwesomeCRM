@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt } from 'lucide-react';
+import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -12,6 +12,11 @@ const ownerAdminNavItems = [
     href: '/dashboard',
     label: 'Dashboard',
     icon: Home,
+  },
+  {
+    href: '/feed',
+    label: 'Feed',
+    icon: Activity,
   },
   {
     href: '/calendar',

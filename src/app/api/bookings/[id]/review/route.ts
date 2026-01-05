@@ -20,8 +20,8 @@ export async function GET(
 
     const user = session.user as any;
 
-    // Fetch booking to verify access
-    const booking = await prisma.booking.findUnique({
+    // Fetch booking to verify access - use findFirst for multi-tenant check
+    const booking = await prisma.booking.findFirst({
       where: {
         id: params.id,
         companyId: user.companyId,
@@ -110,8 +110,8 @@ export async function POST(
       );
     }
 
-    // Fetch booking to verify it exists and is completed
-    const booking = await prisma.booking.findUnique({
+    // Fetch booking to verify it exists and is completed - use findFirst for multi-tenant check
+    const booking = await prisma.booking.findFirst({
       where: {
         id: params.id,
         companyId: user.companyId,
