@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     const estimateToken = crypto.randomBytes(16).toString('hex');
 
     // Determine service type enum value
-    let serviceTypeEnum = 'STANDARD';
+    let serviceTypeEnum: 'STANDARD' | 'DEEP' | 'MOVE_OUT' = 'STANDARD';
     if (serviceType.includes('DEEP')) {
       serviceTypeEnum = 'DEEP';
     } else if (serviceType.includes('MOVE')) {
