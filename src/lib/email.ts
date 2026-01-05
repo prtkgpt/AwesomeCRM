@@ -271,3 +271,101 @@ export function getBookingConfirmationEmailTemplate(data: {
 </html>
   `;
 }
+
+export function getTeamInvitationEmailTemplate(data: {
+  invitedEmail: string;
+  companyName: string;
+  role: string;
+  invitedByName: string;
+  inviteLink: string;
+  expiresAt: Date;
+}) {
+  const roleDisplay = data.role === 'ADMIN' ? 'Administrator' : 'Cleaner';
+  const daysUntilExpiry = Math.ceil((data.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Invitation</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #2563eb; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 28px;">🎉 You're Invited!</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px;">Join ${data.companyName} on CleanDay CRM</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Hi there!</p>
+
+    <p style="font-size: 16px;">${data.invitedByName} has invited you to join <strong>${data.companyName}</strong> as a <strong>${roleDisplay}</strong> on CleanDay CRM.</p>
+
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
+      <h2 style="margin-top: 0; color: #2563eb; font-size: 20px;">Invitation Details</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Company:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${data.companyName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Role:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${roleDisplay}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Invited by:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${data.invitedByName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0;"><strong>Your email:</strong></td>
+          <td style="padding: 10px 0; text-align: right;">${data.invitedEmail}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${data.inviteLink}" style="display: inline-block; background-color: #2563eb; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold;">Accept Invitation</a>
+    </div>
+
+    <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+      <p style="margin: 0; color: #92400e;"><strong>⏰ Important:</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #92400e;">
+        This invitation expires in <strong>${daysUntilExpiry} days</strong> (${data.expiresAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}). Make sure to accept it before it expires!
+      </p>
+    </div>
+
+    <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+      <p style="margin: 0; color: #1e40af;"><strong>What's CleanDay CRM?</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #1e40af;">
+        CleanDay CRM is a comprehensive cleaning business management system. ${
+          data.role === 'ADMIN'
+            ? "As an Administrator, you'll have access to manage clients, bookings, team members, and company settings."
+            : "As a Cleaner, you'll be able to view your schedule, track jobs, and manage your assignments."
+        }
+      </p>
+    </div>
+
+    <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+      If you're unable to click the button above, copy and paste this link into your browser:<br>
+      <a href="${data.inviteLink}" style="color: #2563eb; word-break: break-all;">${data.inviteLink}</a>
+    </p>
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Questions? Contact ${data.invitedByName} or reply to this email.
+    </p>
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Best regards,<br>
+      <strong>${data.companyName}</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p style="margin: 5px 0;">If you weren't expecting this invitation, you can safely ignore this email.</p>
+    <p style="margin: 5px 0;">© ${new Date().getFullYear()} CleanDay CRM. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}

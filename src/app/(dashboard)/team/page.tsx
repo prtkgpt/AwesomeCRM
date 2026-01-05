@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, UserPlus, DollarSign } from 'lucide-react';
+import { Plus, UserPlus, DollarSign, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -136,6 +136,30 @@ export default function TeamPage() {
     }
   };
 
+  const handleDeleteInvitation = async (invitationId: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete the invitation for ${email}?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/team/invitations/${invitationId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert('Invitation deleted successfully');
+        fetchTeamData(); // Refresh the lists
+      } else {
+        alert(data.error || 'Failed to delete invitation');
+      }
+    } catch (error) {
+      console.error('Delete invitation error:', error);
+      alert('Failed to delete invitation');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8">
@@ -257,21 +281,40 @@ export default function TeamPage() {
             <h2 className="text-xl font-semibold">Pending Invitations</h2>
           </div>
           <div className="divide-y">
-            {invitations.map((invite) => (
-              <div key={invite.id} className="p-6 hover:bg-gray-50">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">{invite.email}</p>
-                    <p className="text-sm text-gray-600">
-                      Role: {invite.role} • Status: {invite.status}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Expires: {new Date(invite.expiresAt).toLocaleDateString()}
-                    </p>
+            {invitations.map((invite) => {
+              const isExpired = new Date(invite.expiresAt) < new Date();
+              return (
+                <div key={invite.id} className="p-6 hover:bg-gray-50">
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{invite.email}</p>
+                        {isExpired && (
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                            Expired
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Role: {invite.role} • Status: {invite.status}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Expires: {new Date(invite.expiresAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteInvitation(invite.id, invite.email)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}
