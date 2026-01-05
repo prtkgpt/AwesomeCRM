@@ -17,11 +17,12 @@ interface InvitationData {
   expiresAt: string;
 }
 
-export default function AcceptInvitePage({ params }: { params: { token: string } }) {
+export default function AcceptInvitePage({ params }: { params: { token: string } | Promise<{ token: string }> }) {
   const router = useRouter();
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [token, setToken] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     password: '',
@@ -31,13 +32,23 @@ export default function AcceptInvitePage({ params }: { params: { token: string }
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchInvitation();
-  }, [params.token]);
+    const loadParams = async () => {
+      const resolvedParams = await Promise.resolve(params);
+      setToken(resolvedParams.token);
+    };
+    loadParams();
+  }, [params]);
+
+  useEffect(() => {
+    if (token) {
+      fetchInvitation();
+    }
+  }, [token]);
 
   const fetchInvitation = async () => {
     try {
-      console.log('🔍 Fetching invitation for token:', params.token);
-      const res = await fetch(`/api/team/invite/${params.token}`);
+      console.log('🔍 Fetching invitation for token:', token);
+      const res = await fetch(`/api/team/invite/${token}`);
       const data = await res.json();
 
       console.log('📨 Invitation response:', { status: res.status, data });
@@ -78,7 +89,7 @@ export default function AcceptInvitePage({ params }: { params: { token: string }
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token: params.token,
+          token: token,
           name: formData.name,
           password: formData.password,
           phone: formData.phone,

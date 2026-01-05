@@ -14,13 +14,27 @@ function generateSlug(name: string): string {
 // GET /api/team/invite/[token] - Get invitation details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  context: { params: { token: string } | Promise<{ token: string }> }
 ) {
   try {
-    console.log(`🔍 Looking up invitation with token: ${params.token}`);
+    // Handle both sync and async params (Next.js 14/15 compatibility)
+    const params = await Promise.resolve(context.params);
+    const token = params.token;
+
+    console.log(`🔍 Looking up invitation with token: ${token}`);
+    console.log(`🔍 Full params:`, params);
+    console.log(`🔍 Request URL:`, request.url);
+
+    if (!token) {
+      console.error(`❌ No token provided in params`);
+      return NextResponse.json(
+        { error: 'Invalid invitation link' },
+        { status: 400 }
+      );
+    }
 
     const invitation = await prisma.invitation.findUnique({
-      where: { token: params.token },
+      where: { token },
       include: {
         company: {
           select: {
@@ -33,7 +47,7 @@ export async function GET(
     });
 
     if (!invitation) {
-      console.error(`❌ Invitation not found for token: ${params.token}`);
+      console.error(`❌ Invitation not found for token: ${token}`);
       return NextResponse.json(
         { error: 'Invitation not found' },
         { status: 404 }
