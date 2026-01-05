@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 interface TeamMember {
   id: string;
@@ -155,25 +157,23 @@ export default function TeamPage() {
           <form onSubmit={handleInvite} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
-              <input
+              <Input
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
                 placeholder="team@example.com"
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Role</label>
-              <select
+              <Select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as 'ADMIN' | 'CLEANER')}
-                className="w-full border rounded-lg px-3 py-2"
               >
                 <option value="CLEANER">Cleaner</option>
                 <option value="ADMIN">Admin / Office Staff</option>
-              </select>
+              </Select>
             </div>
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Sending...' : 'Send Invitation'}

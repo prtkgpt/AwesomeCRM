@@ -105,17 +105,22 @@ export async function POST(
         type: 'estimate',
       });
 
-      // Update booking to track that estimate was sent
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          internalNotes: {
-            ...((booking.internalNotes as any) || {}),
-            estimateSentVia: 'email',
-            estimateSentAt: new Date().toISOString(),
+      // Update booking to track that estimate was sent (non-blocking)
+      try {
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            internalNotes: {
+              ...((booking.internalNotes as any) || {}),
+              estimateSentVia: 'email',
+              estimateSentAt: new Date().toISOString(),
+            },
           },
-        },
-      });
+        });
+      } catch (updateError) {
+        // Log but don't fail the request - email was already sent
+        console.error('Failed to update booking metadata:', updateError);
+      }
 
       return NextResponse.json({
         success: true,
@@ -144,17 +149,22 @@ export async function POST(
         message: smsMessage,
       });
 
-      // Update booking to track that estimate was sent
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          internalNotes: {
-            ...((booking.internalNotes as any) || {}),
-            estimateSentVia: 'sms',
-            estimateSentAt: new Date().toISOString(),
+      // Update booking to track that estimate was sent (non-blocking)
+      try {
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            internalNotes: {
+              ...((booking.internalNotes as any) || {}),
+              estimateSentVia: 'sms',
+              estimateSentAt: new Date().toISOString(),
+            },
           },
-        },
-      });
+        });
+      } catch (updateError) {
+        // Log but don't fail the request - SMS was already sent
+        console.error('Failed to update booking metadata:', updateError);
+      }
 
       return NextResponse.json({
         success: true,
@@ -168,8 +178,9 @@ export async function POST(
     );
   } catch (error) {
     console.error('Send estimate error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send estimate';
     return NextResponse.json(
-      { success: false, error: 'Failed to send estimate' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

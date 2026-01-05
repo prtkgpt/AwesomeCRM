@@ -13,17 +13,24 @@ interface SendEmailParams {
 function getFromAddress(type?: string, customFrom?: string): string {
   if (customFrom) return customFrom;
 
-  const domain = process.env.EMAIL_DOMAIN || 'cleandaycrm.com';
+  // Use Resend's default domain if custom domain is not verified
+  // Once you verify cleandaycrm.com in Resend, update EMAIL_DOMAIN in env vars
+  const domain = process.env.EMAIL_DOMAIN || 'resend.dev';
+  const useDefaultDomain = domain === 'resend.dev';
 
   switch (type) {
     case 'estimate':
-      return process.env.EMAIL_FROM_ESTIMATES || `estimates@${domain}`;
+      return process.env.EMAIL_FROM_ESTIMATES ||
+             (useDefaultDomain ? 'estimates@resend.dev' : `estimates@${domain}`);
     case 'booking':
-      return process.env.EMAIL_FROM_BOOKINGS || `bookings@${domain}`;
+      return process.env.EMAIL_FROM_BOOKINGS ||
+             (useDefaultDomain ? 'bookings@resend.dev' : `bookings@${domain}`);
     case 'notification':
-      return process.env.EMAIL_FROM_NOTIFICATIONS || `notifications@${domain}`;
+      return process.env.EMAIL_FROM_NOTIFICATIONS ||
+             (useDefaultDomain ? 'notifications@resend.dev' : `notifications@${domain}`);
     default:
-      return process.env.EMAIL_FROM || `noreply@${domain}`;
+      return process.env.EMAIL_FROM ||
+             (useDefaultDomain ? 'onboarding@resend.dev' : `noreply@${domain}`);
   }
 }
 
@@ -49,7 +56,9 @@ export async function sendEmail({ to, subject, html, from, type }: SendEmailPara
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to send email');
+        // Include more detailed error information
+        const errorDetails = data.message || JSON.stringify(data) || 'Failed to send email';
+        throw new Error(`Resend API error: ${errorDetails}`);
       }
 
       return { success: true, data };

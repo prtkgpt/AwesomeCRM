@@ -16,12 +16,15 @@ import {
   Share2,
   Copy,
   Check,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { formatDateTime, formatCurrency } from '@/lib/utils';
 import type { BookingWithRelations } from '@/types';
+import { ReviewModal } from '@/components/reviews/ReviewModal';
+import { ReviewDisplay } from '@/components/reviews/ReviewDisplay';
 
 export default function JobDetailPage() {
   const router = useRouter();
@@ -38,10 +41,13 @@ export default function JobDetailPage() {
   const [showEstimateModal, setShowEstimateModal] = useState(false);
   const [generatingEstimate, setGeneratingEstimate] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
 
   useEffect(() => {
     fetchJob();
     checkInvoice();
+    fetchReviews();
   }, [jobId]);
 
   const fetchJob = async () => {
@@ -72,6 +78,19 @@ export default function JobDetailPage() {
       }
     } catch (error) {
       console.error('Failed to check invoice:', error);
+    }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      const response = await fetch(`/api/bookings/${jobId}/review`);
+      const data = await response.json();
+
+      if (data.success) {
+        setReviews(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error);
     }
   };
 
@@ -392,32 +411,52 @@ export default function JobDetailPage() {
           )}
 
           {job.status === 'COMPLETED' && (
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Invoice
-              </label>
-              {hasInvoice ? (
+            <>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Invoice
+                </label>
+                {hasInvoice ? (
+                  <Button
+                    onClick={() => router.push('/invoices')}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    View Invoice
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleGenerateInvoice}
+                    disabled={generatingInvoice}
+                    size="sm"
+                    className="w-full"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    {generatingInvoice ? 'Generating...' : 'Generate Invoice'}
+                  </Button>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Cleaning Review
+                </label>
                 <Button
-                  onClick={() => router.push('/invoices')}
+                  onClick={() => setShowReviewModal(true)}
                   variant="outline"
                   size="sm"
                   className="w-full"
                 >
-                  <FileText className="h-4 w-4 mr-1" />
-                  View Invoice
+                  <Star className="h-4 w-4 mr-1" />
+                  {reviews.length > 0 ? 'Add Another Review' : 'Add Review'}
                 </Button>
-              ) : (
-                <Button
-                  onClick={handleGenerateInvoice}
-                  disabled={generatingInvoice}
-                  size="sm"
-                  className="w-full"
-                >
-                  <FileText className="h-4 w-4 mr-1" />
-                  {generatingInvoice ? 'Generating...' : 'Generate Invoice'}
-                </Button>
-              )}
-            </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Rate house condition, customer, tip & overall experience
+                </p>
+              </div>
+            </>
           )}
 
           <div>
@@ -515,6 +554,26 @@ export default function JobDetailPage() {
               </Button>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {showReviewModal && job && (
+        <ReviewModal
+          bookingId={job.id}
+          clientName={job.client.name}
+          onClose={() => setShowReviewModal(false)}
+          onSuccess={() => {
+            fetchReviews();
+            fetchJob();
+          }}
+        />
+      )}
+
+      {/* Display Reviews */}
+      {reviews.length > 0 && (
+        <div className="mt-6">
+          <ReviewDisplay reviews={reviews} />
         </div>
       )}
     </div>
