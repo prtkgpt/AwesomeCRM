@@ -67,6 +67,7 @@ model Company {
   teamMembers         TeamMember[]
   invitations         Invitation[]
   cleaningReviews     CleaningReview[]
+  payLogs             PayLog[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -140,12 +141,24 @@ model TeamMember {
   emergencyPhone    String?
   photo             String?           // Profile photo URL
 
+  // Address
+  street            String?
+  city              String?
+  state             String?
+  zip               String?
+
   // Work Info
   specialties       String[]          // ["Deep Clean", "Move-out"]
   availability      Json?             // Weekly schedule
+  experience        String?           // Years of experience or description
+  speed             String?           // Fast, Medium, Thorough, etc.
+  serviceAreas      String[]          // Zip codes or city names they can service
 
   // Assignment
   assignedBookings  Booking[]         @relation("AssignedCleaner")
+
+  // Pay logs
+  payLogs           PayLog[]
 
   isActive          Boolean   @default(true)
 
@@ -562,4 +575,44 @@ model Invoice {
   @@index([clientId])
   @@index([status])
   @@index([invoiceNumber])
+}
+
+model PayLog {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  // Payment details
+  type            PayLogType    // PAYCHECK, SUPPLIES_REIMBURSEMENT, GAS_REIMBURSEMENT
+  amount          Float
+  date            DateTime
+  description     String?
+  notes           String?
+
+  // For paychecks
+  hoursWorked     Float?
+  hourlyRate      Float?
+  periodStart     DateTime?
+  periodEnd       DateTime?
+
+  // For reimbursements
+  receiptUrl      String?       // URL to uploaded receipt image
+
+  createdBy       String        // User ID who created this log
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([teamMemberId])
+  @@index([type])
+  @@index([date])
+}
+
+enum PayLogType {
+  PAYCHECK
+  SUPPLIES_REIMBURSEMENT
+  GAS_REIMBURSEMENT
 }

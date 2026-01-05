@@ -6,11 +6,26 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
 const createCleanerSchema = z.object({
+  // User fields
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.literal('CLEANER'),
+
+  // TeamMember fields
+  street: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  emergencyPhone: z.string().optional(),
+  hourlyRate: z.number().optional(),
+  employeeId: z.string().optional(),
+  experience: z.string().optional(),
+  speed: z.string().optional(),
+  serviceAreas: z.array(z.string()).optional(),
+  specialties: z.array(z.string()).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -65,12 +80,28 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create team member profile
+      // Create team member profile with all details
       const teamMember = await tx.teamMember.create({
         data: {
           userId: newUser.id,
           companyId: currentUser.companyId,
           isActive: true,
+          // Address
+          street: validatedData.street,
+          city: validatedData.city,
+          state: validatedData.state,
+          zip: validatedData.zip,
+          // Emergency contact
+          emergencyContact: validatedData.emergencyContact,
+          emergencyPhone: validatedData.emergencyPhone,
+          // Employment
+          hourlyRate: validatedData.hourlyRate,
+          employeeId: validatedData.employeeId,
+          // Work details
+          experience: validatedData.experience,
+          speed: validatedData.speed,
+          serviceAreas: validatedData.serviceAreas || [],
+          specialties: validatedData.specialties || [],
         },
       });
 

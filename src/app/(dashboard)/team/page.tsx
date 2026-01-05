@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, UserPlus } from 'lucide-react';
+import { Plus, UserPlus, DollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -228,13 +228,21 @@ export default function TeamPage() {
                         )}
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeactivate(member.id)}
-                    >
-                      Deactivate
-                    </Button>
+                    <div className="flex gap-2">
+                      <Link href={`/team/${member.id}/pay-logs`}>
+                        <Button variant="outline" size="sm">
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          Pay Logs
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeactivate(member.id)}
+                      >
+                        Deactivate
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
