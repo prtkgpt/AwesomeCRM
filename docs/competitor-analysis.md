@@ -656,45 +656,339 @@ Automation Triggers:
 - As an owner, I want AI to suggest optimal pricing for new jobs
 - As an owner, I want AI to identify upsell opportunities
 - As an owner, I want AI to help me write marketing emails
+- As an owner, I want to ask questions about my business in plain English
+- As a cleaner, I want to use voice commands to complete tasks hands-free
 
-**Technical Requirements**
+---
+
+#### What Jobber Copilot Does (Competitive Intelligence)
+
+Jobber launched their AI Copilot in October 2024 as a free beta for all US/Canadian customers. It serves as:
+
+| Role | Capabilities |
+|------|--------------|
+| **Business Coach** | Personalized guidance based on your data and goals |
+| **Data Analyst** | Analyzes operational efficiency, cash flow, workforce performance |
+| **Marketing Specialist** | Creates tailored marketing content and strategies |
+| **Product Expert** | Recommends features and helps optimize Jobber usage |
+
+**Key Differentiators:**
+- Trained on 10+ years of Jobber's knowledge base (podcasts, articles, support videos)
+- Voice commands in mobile app (hands-free while in the field)
+- Chat interface on web and mobile
+- Embedded support videos in answers
+- Runs automations automatically (drafting quotes, flagging high-value leads)
+
+---
+
+#### Our AI Copilot Strategy
+
+**Positioning:** First AI-powered copilot built specifically for cleaning businesses
+
+**Advantage:** While Jobber serves all field services (lawn, HVAC, plumbing, etc.), we can train specifically on cleaning industry data, pricing, and best practices.
+
+---
+
+#### AI Feature Breakdown
+
+##### 1. Smart Pricing Engine
+
+**Problem:** Cleaning business owners struggle to price jobs profitably. They either underprice (losing money) or overprice (losing customers).
+
+**Solution:** AI analyzes property details and suggests optimal pricing.
 
 ```
-AI Features:
-1. Pricing Suggestions
-   - Input: Property details, service type, location, historical data
-   - Output: Recommended price range with confidence score
-   - Model: Fine-tuned on cleaning industry pricing data
+Input:
+- Property type (house, apartment, condo)
+- Square footage
+- Number of bedrooms/bathrooms
+- Service type (standard, deep, move-out)
+- Location (zip code → local market rates)
+- Historical data (what similar jobs were priced at)
+- Client history (new vs. repeat customer)
 
-2. Campaign Copy Generation
-   - Input: Campaign goal, audience, tone
-   - Output: Subject line, body, CTA
-   - Model: Claude API with cleaning-specific prompts
+Output:
+- Recommended price range ($150-$180)
+- Confidence score (87%)
+- Reasoning ("Similar 3BR homes in this area average $165")
+- Upsell suggestions ("Consider adding fridge cleaning +$25")
 
-3. Schedule Optimization
-   - Input: Jobs for the day, cleaner locations, traffic data
-   - Output: Optimized route order
-   - Model: OR-Tools or Google Routes API
-
-4. Business Insights
-   - Input: Historical booking/revenue data
-   - Output: Trends, anomalies, recommendations
-   - Model: Statistical analysis + LLM interpretation
-
-API Endpoints:
-- POST /api/ai/suggest-price
-- POST /api/ai/generate-campaign
-- POST /api/ai/optimize-schedule
-- GET /api/ai/insights
-
-Integration:
-- Anthropic Claude API for text generation
-- Historical data aggregation pipeline
-- Rate limiting and cost tracking
+Technical Implementation:
+- Train regression model on anonymized pricing data
+- Factor in: sqft, rooms, service type, location, seasonality
+- A/B test AI suggestions vs. manual pricing to measure impact
+- Show comparison to market rates
 ```
+
+**API Endpoint:** `POST /api/ai/suggest-price`
+
+---
+
+##### 2. Campaign Copy Generator
+
+**Problem:** Owners don't have time or skills to write marketing emails/SMS.
+
+**Solution:** AI generates ready-to-send campaign content.
+
+```
+Input:
+- Campaign goal (win-back, upsell, seasonal promo)
+- Target audience (lapsed clients, one-time customers, etc.)
+- Tone (professional, friendly, urgent)
+- Special offer (optional: $20 off, 15% discount)
+
+Output:
+- Subject line (3 options)
+- Email body with personalization variables
+- SMS version (160 chars)
+- Call-to-action button text
+- Suggested send time
+
+Example Prompt to LLM:
+"Write a win-back email for a cleaning business targeting customers
+who haven't booked in 60+ days. Tone: friendly but urgent.
+Include a $20 off offer. Keep it under 150 words."
+
+Technical Implementation:
+- Claude API with cleaning-specific system prompt
+- Template library for common campaigns
+- Variable insertion ({{firstName}}, {{lastCleaningDate}})
+- Compliance check (CAN-SPAM, unsubscribe link)
+```
+
+**API Endpoint:** `POST /api/ai/generate-campaign`
+
+---
+
+##### 3. Conversational Business Insights
+
+**Problem:** Owners don't have time to dig through reports or understand their data.
+
+**Solution:** Ask questions in plain English, get actionable answers.
+
+```
+Example Queries:
+- "How's my business doing this month?"
+- "Who are my best customers?"
+- "Why did revenue drop last week?"
+- "Which cleaner has the best reviews?"
+- "When should I hire another cleaner?"
+
+Example Response:
+Q: "How's my business doing this month?"
+A: "Revenue is up 12% vs. last month ($8,400 → $9,408). You've
+completed 47 jobs with 3 cancellations. Your top performer is
+Maria with 18 jobs and a 4.9 rating. One concern: 5 overdue
+invoices totaling $680. Would you like me to send payment
+reminders?"
+
+Technical Implementation:
+- Natural language query parser
+- Data aggregation pipeline (pre-compute common metrics)
+- Claude API for interpretation and response generation
+- Action suggestions with one-click execution
+```
+
+**API Endpoint:** `GET /api/ai/insights?query=...`
+
+---
+
+##### 4. Schedule Optimization
+
+**Problem:** Inefficient routing wastes cleaner time and fuel costs.
+
+**Solution:** AI optimizes daily routes for minimum drive time.
+
+```
+Input:
+- List of jobs for the day (addresses, time windows)
+- Cleaner start location (home or office)
+- Job durations
+- Traffic patterns (via Google Maps API)
+
+Output:
+- Optimized job order
+- Estimated total drive time
+- Comparison to original order
+- Map visualization
+
+Technical Implementation:
+- Google Routes API or OR-Tools for optimization
+- Consider: traffic, time windows, cleaner preferences
+- Re-optimize when new jobs added or cancelled
+- Push notifications to cleaners when route changes
+```
+
+**API Endpoint:** `POST /api/ai/optimize-schedule`
+
+---
+
+##### 5. Voice Assistant (Mobile)
+
+**Problem:** Cleaners can't use their phones while working.
+
+**Solution:** Voice commands for common tasks.
+
+```
+Supported Commands:
+- "I'm on my way to [client name]"
+- "I've arrived at [address]"
+- "Mark this job as complete"
+- "What's my next job?"
+- "Call [client name]"
+- "Add a note: [note text]"
+- "How many jobs do I have today?"
+
+Technical Implementation:
+- Web Speech API for voice recognition
+- Intent classification (what action to take)
+- Entity extraction (client name, address, etc.)
+- Text-to-speech for responses
+- Works offline with sync when connected
+```
+
+**API Endpoint:** `POST /api/ai/voice-command`
+
+---
+
+##### 6. Automated Recommendations
+
+**Problem:** Owners miss opportunities because they're too busy.
+
+**Solution:** AI proactively suggests actions.
+
+```
+Trigger-Based Recommendations:
+
+| Trigger | Recommendation |
+|---------|----------------|
+| Client hasn't booked in 45 days | "Send win-back campaign to 12 lapsed clients?" |
+| Quote pending for 3+ days | "Follow up on estimate for John Smith?" |
+| Cleaner consistently late | "Review scheduling for Maria - 3 late arrivals this week" |
+| Revenue down 20% vs. last month | "Consider a promotional campaign to boost bookings" |
+| High-value lead from website | "Priority: New lead from booking widget - $300 deep clean" |
+| 5-star review received | "Ask Sarah Johnson for a referral?" |
+
+Technical Implementation:
+- Background jobs checking for trigger conditions
+- Priority scoring for recommendations
+- Dismissable with "Don't show again" option
+- Action buttons for one-click execution
+- Daily digest email option
+```
+
+---
+
+#### Data Requirements
+
+| Feature | Data Needed | Minimum for Accuracy |
+|---------|-------------|---------------------|
+| Smart Pricing | Historical bookings with prices | 100+ completed jobs |
+| Business Insights | Revenue, jobs, clients | 30+ days of data |
+| Schedule Optimization | Addresses, job times | 3+ jobs per day |
+| Recommendations | All business data | 30+ days active use |
+
+---
+
+#### AI Infrastructure
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      User Interface                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ Chat Widget │  │ Voice Input │  │ Recommendation Feed │  │
+│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
+└─────────┼────────────────┼────────────────────┼─────────────┘
+          │                │                    │
+          ▼                ▼                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     API Gateway                              │
+│         /api/ai/chat  /api/ai/voice  /api/ai/insights       │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    AI Orchestrator                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ Intent      │  │ Context     │  │ Response            │  │
+│  │ Classifier  │  │ Builder     │  │ Generator           │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          ▼               ▼               ▼
+┌─────────────────┐ ┌───────────┐ ┌─────────────────┐
+│ Claude API      │ │ Pricing   │ │ Google Routes   │
+│ (Text Gen)      │ │ Model     │ │ (Optimization)  │
+└─────────────────┘ └───────────┘ └─────────────────┘
+          │               │               │
+          └───────────────┼───────────────┘
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Data Layer                                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ Bookings    │  │ Clients     │  │ Analytics Cache     │  │
+│  │ (Prisma)    │  │ (Prisma)    │  │ (Redis)             │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Cost Estimation
+
+| Component | Provider | Cost Model | Est. Monthly Cost |
+|-----------|----------|------------|-------------------|
+| Text Generation | Anthropic Claude | $3/M input, $15/M output tokens | $50-200 |
+| Voice Recognition | Web Speech API | Free (browser) | $0 |
+| Route Optimization | Google Routes API | $5/1000 requests | $20-50 |
+| Analytics Cache | Redis (Upstash) | $0.2/100K commands | $10-20 |
+| **Total** | | | **$80-270/mo** |
+
+At 100 active companies, cost per company: **$0.80-2.70/mo**
+
+---
+
+#### Competitive Differentiation
+
+| Feature | Jobber | ZenMaid | BookingKoala | **CleanDayCRM** |
+|---------|--------|---------|--------------|-----------------|
+| AI Chat | ✅ | ❌ | ❌ | 🎯 Planned |
+| Voice Commands | ✅ | ❌ | ❌ | 🎯 Planned |
+| Smart Pricing | ❌ | ❌ | ❌ | 🎯 **Unique** |
+| Campaign Generator | ✅ | ❌ | ❌ | 🎯 Planned |
+| Route Optimization | ✅ | ❌ | ❌ | 🎯 Planned |
+| Cleaning-Specific Training | ❌ | ❌ | ❌ | 🎯 **Unique** |
+
+**Our Unique Advantages:**
+1. **Smart Pricing** - Neither Jobber nor competitors offer AI pricing suggestions
+2. **Cleaning-Specific** - Train on cleaning industry data, not generic field services
+3. **Price** - Include AI in base $10/mo vs. Jobber's $25+ (AI is free but requires paid plan)
+
+---
+
+#### Implementation Phases
+
+**Phase 1: Foundation (Weeks 1-3)**
+- Set up Claude API integration
+- Build AI chat interface (web)
+- Implement basic insights queries
+- Create analytics caching layer
+
+**Phase 2: Core Features (Weeks 4-6)**
+- Smart Pricing Engine
+- Campaign Copy Generator
+- Automated Recommendations feed
+
+**Phase 3: Advanced (Weeks 7-8)**
+- Voice commands (mobile)
+- Schedule Optimization
+- Proactive notifications
+
+---
 
 **Effort Estimate:** 6-8 weeks
-**Dependencies:** Sufficient historical data
+**Dependencies:** Sufficient historical data, Claude API access
 
 ---
 
