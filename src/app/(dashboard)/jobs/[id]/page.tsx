@@ -43,6 +43,9 @@ export default function JobDetailPage() {
   const [copied, setCopied] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [insuranceDocumentation, setInsuranceDocumentation] = useState('');
+  const [cleaningObservations, setCleaningObservations] = useState('');
+  const [savingDocumentation, setSavingDocumentation] = useState(false);
 
   useEffect(() => {
     fetchJob();
@@ -57,6 +60,8 @@ export default function JobDetailPage() {
 
       if (data.success) {
         setJob(data.data);
+        setInsuranceDocumentation(data.data.insuranceDocumentation || '');
+        setCleaningObservations(data.data.cleaningObservations || '');
       } else {
         router.push('/jobs');
       }
@@ -198,6 +203,33 @@ export default function JobDetailPage() {
       alert('An error occurred. Please try again.');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleSaveDocumentation = async () => {
+    setSavingDocumentation(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insuranceDocumentation,
+          cleaningObservations,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setJob(data.data);
+        alert('Documentation saved successfully!');
+      } else {
+        alert(data.error || 'Failed to save documentation');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSavingDocumentation(false);
     }
   };
 
@@ -361,6 +393,57 @@ export default function JobDetailPage() {
           </div>
         )}
       </Card>
+
+      {/* Insurance Documentation - Only show if client has insurance */}
+      {job.client.hasInsurance && (
+        <Card className="p-4 space-y-4">
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Insurance Documentation
+          </h2>
+          <p className="text-sm text-gray-600">
+            Document cleaning details and observations for insurance billing and records.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="insuranceDocumentation" className="block text-sm font-medium text-gray-700 mb-2">
+                Insurance Documentation
+              </label>
+              <textarea
+                id="insuranceDocumentation"
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Document cleaning details, areas serviced, time spent, etc. for insurance billing..."
+                value={insuranceDocumentation}
+                onChange={(e) => setInsuranceDocumentation(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="cleaningObservations" className="block text-sm font-medium text-gray-700 mb-2">
+                Observations & Notes
+              </label>
+              <textarea
+                id="cleaningObservations"
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Note any observations, issues found, client feedback, or special considerations..."
+                value={cleaningObservations}
+                onChange={(e) => setCleaningObservations(e.target.value)}
+              />
+            </div>
+
+            <Button
+              onClick={handleSaveDocumentation}
+              disabled={savingDocumentation}
+              className="w-full"
+            >
+              {savingDocumentation ? 'Saving...' : 'Save Documentation'}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-4 space-y-4">
         <h2 className="font-semibold text-lg">Actions</h2>
