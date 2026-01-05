@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, MapPin, DollarSign, CheckCircle, Building2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Calendar, Clock, MapPin, DollarSign, CheckCircle, Building2, Lock, CreditCard } from 'lucide-react';
 
 interface EstimateData {
   id: string;
@@ -38,10 +40,37 @@ export default function PublicEstimatePage({ params }: { params: { token: string
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [accepting, setAccepting] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    createAccount: false,
+    // Payment fields
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
+    billingZip: '',
+  });
 
   useEffect(() => {
     fetchEstimate();
   }, [params.token]);
+
+  useEffect(() => {
+    if (estimate) {
+      // Pre-fill form with estimate data
+      setFormData(prev => ({
+        ...prev,
+        name: estimate.clientName,
+        email: estimate.clientEmail,
+        phone: estimate.clientPhone || '',
+      }));
+    }
+  }, [estimate]);
 
   const fetchEstimate = async () => {
     try {
@@ -60,29 +89,65 @@ export default function PublicEstimatePage({ params }: { params: { token: string
     }
   };
 
-  const handleAccept = async () => {
-    if (!confirm('Accept this estimate and create an account?')) return;
+  const handleSubmitBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Validate required fields
+    if (!formData.name || !formData.email || !formData.phone) {
+      setError('Please fill in all contact information');
+      return;
+    }
+
+    if (!formData.cardNumber || !formData.expiryDate || !formData.cvv || !formData.billingZip) {
+      setError('Please fill in all payment information');
+      return;
+    }
+
+    if (formData.createAccount && !formData.password) {
+      setError('Please provide a password to create an account');
+      return;
+    }
 
     setAccepting(true);
+
     try {
-      const res = await fetch(`/api/public/estimate/${params.token}/accept`, {
+      const res = await fetch(`/api/public/estimate/${params.token}/book`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.createAccount ? formData.password : null,
+          createAccount: formData.createAccount,
+          payment: {
+            cardNumber: formData.cardNumber,
+            expiryDate: formData.expiryDate,
+            cvv: formData.cvv,
+            billingZip: formData.billingZip,
+          },
+        }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        // Redirect to signup with pre-filled data
-        const signupUrl = new URL('/signup', window.location.origin);
-        signupUrl.searchParams.set('email', estimate!.clientEmail);
-        signupUrl.searchParams.set('name', estimate!.clientName);
-        signupUrl.searchParams.set('estimateToken', params.token);
-        router.push(signupUrl.toString());
+        // Show success message
+        alert('Booking confirmed! Check your email for confirmation details.');
+
+        // Redirect to login if account was created
+        if (formData.createAccount) {
+          router.push('/login?message=account_created');
+        } else {
+          // Redirect to a thank you page or home
+          router.push('/');
+        }
       } else {
-        alert(data.error || 'Failed to accept estimate');
+        setError(data.error || 'Failed to process booking');
       }
     } catch (err) {
-      alert('Failed to accept estimate');
+      setError('Failed to process booking. Please try again.');
     } finally {
       setAccepting(false);
     }
@@ -225,26 +290,215 @@ export default function PublicEstimatePage({ params }: { params: { token: string
           </div>
         </Card>
 
-        {/* Actions */}
-        <Card className="p-6">
-          <div className="text-center">
-            <h3 className="text-xl font-semibold mb-4">Ready to get started?</h3>
-            <p className="text-gray-600 mb-6">
-              Accept this estimate and create an account to schedule your service
-            </p>
-            <div className="flex gap-4 justify-center">
-              <Button onClick={handleAccept} size="lg" disabled={accepting}>
-                {accepting ? 'Processing...' : 'Accept Estimate & Sign Up'}
-              </Button>
-              <Button variant="outline" size="lg" onClick={() => window.print()}>
-                Print Estimate
-              </Button>
+        {/* Booking Form */}
+        {!showPaymentForm ? (
+          <Card className="p-6">
+            <div className="text-center">
+              <h3 className="text-xl font-semibold mb-4">Ready to get started?</h3>
+              <p className="text-gray-600 mb-6">
+                Book your appointment and pay securely online
+              </p>
+              <div className="flex gap-4 justify-center">
+                <Button onClick={() => setShowPaymentForm(true)} size="lg">
+                  Book & Pay Now
+                </Button>
+                <Button variant="outline" size="lg" onClick={() => window.print()}>
+                  Print Estimate
+                </Button>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-4">
-              By accepting, you'll create a customer account to manage your services
-            </p>
-          </div>
-        </Card>
+          </Card>
+        ) : (
+          <Card className="p-6">
+            <form onSubmit={handleSubmitBooking}>
+              <h3 className="text-xl font-semibold mb-6">Complete Your Booking</h3>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg mb-6 text-sm">
+                  {error}
+                </div>
+              )}
+
+              {/* Contact Information */}
+              <div className="mb-6">
+                <h4 className="font-semibold mb-4 flex items-center">
+                  Contact Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="phone">Phone *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      required
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              <div className="mb-6">
+                <h4 className="font-semibold mb-4 flex items-center">
+                  <Lock className="h-4 w-4 mr-2" />
+                  Secure Payment Information
+                </h4>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <Label htmlFor="cardNumber">Card Number *</Label>
+                    <div className="relative">
+                      <Input
+                        id="cardNumber"
+                        type="text"
+                        value={formData.cardNumber}
+                        onChange={(e) => setFormData({ ...formData, cardNumber: e.target.value })}
+                        required
+                        placeholder="4242 4242 4242 4242"
+                        maxLength={19}
+                      />
+                      <CreditCard className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="expiryDate">Expiry *</Label>
+                      <Input
+                        id="expiryDate"
+                        type="text"
+                        value={formData.expiryDate}
+                        onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                        required
+                        placeholder="MM/YY"
+                        maxLength={5}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cvv">CVV *</Label>
+                      <Input
+                        id="cvv"
+                        type="text"
+                        value={formData.cvv}
+                        onChange={(e) => setFormData({ ...formData, cvv: e.target.value })}
+                        required
+                        placeholder="123"
+                        maxLength={4}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="billingZip">Billing ZIP *</Label>
+                      <Input
+                        id="billingZip"
+                        type="text"
+                        value={formData.billingZip}
+                        onChange={(e) => setFormData({ ...formData, billingZip: e.target.value })}
+                        required
+                        placeholder="12345"
+                        maxLength={5}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 flex items-center">
+                  <Lock className="h-3 w-3 mr-1" />
+                  Your payment information is encrypted and secure
+                </p>
+              </div>
+
+              {/* Account Creation (Optional) */}
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.createAccount}
+                    onChange={(e) => setFormData({ ...formData, createAccount: e.target.checked })}
+                    className="mt-1 mr-3"
+                  />
+                  <div>
+                    <p className="font-medium text-blue-900">Create an account (optional)</p>
+                    <p className="text-sm text-blue-700">
+                      Track your bookings, view invoices, and manage future appointments
+                    </p>
+                  </div>
+                </label>
+
+                {formData.createAccount && (
+                  <div className="mt-4">
+                    <Label htmlFor="password">Create Password *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Min 8 characters"
+                      minLength={8}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Summary */}
+              <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">Service Total:</span>
+                  <span className="text-2xl font-bold text-blue-600">
+                    {formatCurrency(estimate?.price || 0)}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Payment will be processed immediately upon confirmation
+                </p>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowPaymentForm(false)}
+                  className="flex-1"
+                  disabled={accepting}
+                >
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  disabled={accepting}
+                >
+                  {accepting ? 'Processing...' : `Confirm & Pay ${formatCurrency(estimate?.price || 0)}`}
+                </Button>
+              </div>
+
+              <p className="text-xs text-gray-500 text-center mt-4">
+                By confirming, you agree to the service terms and authorize the charge
+              </p>
+            </form>
+          </Card>
+        )}
 
         {/* Contact Info */}
         <div className="text-center mt-6 text-gray-600">
