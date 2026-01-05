@@ -1,4 +1,4 @@
-import { Booking, Client, Address, Message, MessageTemplate, User } from '@prisma/client';
+import { Booking, Client, Address, Message, MessageTemplate, User, TeamMember } from '@prisma/client';
 
 // Extended types with relations
 export type ClientWithAddresses = Client & {
@@ -10,9 +10,14 @@ export type ClientWithRelations = Client & {
   bookings: Booking[];
 };
 
+export type TeamMemberWithUser = TeamMember & {
+  user: User;
+};
+
 export type BookingWithRelations = Booking & {
   client: Client;
   address: Address;
+  assignee?: TeamMemberWithUser | null;
 };
 
 export type BookingWithMessages = Booking & {

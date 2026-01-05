@@ -381,6 +381,11 @@ model Booking {
   cleanerReminderSentAt     DateTime?
   morningOfReminderSentAt   DateTime?
 
+  // Cleaner workflow tracking
+  onMyWaySentAt             DateTime?           // When cleaner clicked "On My Way"
+  clockedInAt               DateTime?           // When cleaner started the job
+  clockedOutAt              DateTime?           // When cleaner finished the job
+
   // Estimate (for sharing with potential customers)
   estimateToken         String?             @unique
   estimateAccepted      Boolean             @default(false)
