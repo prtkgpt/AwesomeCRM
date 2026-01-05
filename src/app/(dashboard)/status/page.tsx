@@ -11,6 +11,8 @@ interface ServiceStatus {
   status: 'operational' | 'degraded' | 'down' | 'checking';
   responseTime?: number;
   description: string;
+  statusCode?: number;
+  error?: string;
 }
 
 export default function StatusPage() {
@@ -55,21 +57,34 @@ export default function StatusPage() {
       const response = await fetch(service.url, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for auth
       });
       const responseTime = Date.now() - startTime;
 
-      if (response.ok || response.status === 401) {
-        // 401 is OK for protected routes - means API is working
+      // 200-299 (success), 401 (auth required - means API is up), 403 (forbidden - means API is up)
+      if (response.ok || response.status === 401 || response.status === 403) {
         return {
           ...service,
-          status: responseTime < 1000 ? 'operational' : 'degraded',
-          responseTime
+          status: responseTime < 2000 ? 'operational' : 'degraded',
+          responseTime,
+          statusCode: response.status
         };
       } else {
-        return { ...service, status: 'down', responseTime };
+        return {
+          ...service,
+          status: 'down',
+          responseTime,
+          statusCode: response.status,
+          error: `HTTP ${response.status}`
+        };
       }
-    } catch (error) {
-      return { ...service, status: 'down', responseTime: Date.now() - startTime };
+    } catch (error: any) {
+      return {
+        ...service,
+        status: 'down',
+        responseTime: Date.now() - startTime,
+        error: error.message || 'Network error'
+      };
     }
   };
 
@@ -177,6 +192,12 @@ export default function StatusPage() {
                 {service.responseTime !== undefined && (
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     {service.responseTime}ms
+                    {service.statusCode && ` • HTTP ${service.statusCode}`}
+                  </div>
+                )}
+                {service.error && (
+                  <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+                    {service.error}
                   </div>
                 )}
               </div>
