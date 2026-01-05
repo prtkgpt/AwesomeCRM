@@ -19,9 +19,14 @@ import {
   Phone,
   Key,
   Briefcase,
+  Upload,
+  FileSpreadsheet,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 
-type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about';
+type TabType = 'profile' | 'security' | 'company' | 'import' | 'preferences' | 'about';
 
 interface UserProfile {
   id: string;
@@ -218,12 +223,99 @@ export default function SettingsPage() {
     signOut({ callbackUrl: '/login' });
   };
 
+  // CSV Import handlers
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportFile(file);
+    setImportResult(null);
+
+    // Parse CSV preview
+    const text = await file.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    setImportHeaders(headers);
+
+    // Get first 5 rows for preview
+    const previewData = lines.slice(1, 6).map(line => {
+      const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+      const row: Record<string, string> = {};
+      headers.forEach((h, i) => {
+        row[h] = values[i] || '';
+      });
+      return row;
+    });
+    setImportPreview(previewData);
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('type', importType);
+
+      const response = await fetch('/api/import/csv', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setImportResult({
+          success: true,
+          imported: data.imported,
+          errors: data.errors || [],
+        });
+        // Clear file after successful import
+        setImportFile(null);
+        setImportPreview([]);
+        setImportHeaders([]);
+      } else {
+        setImportResult({
+          success: false,
+          imported: 0,
+          errors: [data.error || 'Import failed'],
+        });
+      }
+    } catch (error) {
+      setImportResult({
+        success: false,
+        imported: 0,
+        errors: ['An error occurred during import'],
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Import state
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importType, setImportType] = useState<'bookings' | 'clients'>('bookings');
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importHeaders, setImportHeaders] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    success: boolean;
+    imported: number;
+    errors: string[];
+  } | null>(null);
+
   const userRole = (session?.user as any)?.role;
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Lock },
     ...(userRole === 'OWNER' || userRole === 'ADMIN'
-      ? [{ id: 'company', label: 'Company', icon: Building2 }]
+      ? [
+          { id: 'company', label: 'Company', icon: Building2 },
+          { id: 'import', label: 'Import Data', icon: Upload },
+        ]
       : []),
     { id: 'preferences', label: 'Preferences', icon: Bell },
     { id: 'about', label: 'About', icon: Info },
@@ -694,6 +786,208 @@ export default function SettingsPage() {
                   </Button>
                 </form>
               )}
+            </Card>
+          )}
+
+          {/* Import Tab */}
+          {activeTab === 'import' && (
+            <Card className="p-6">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold">Import Data</h2>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  Upload CSV files to import historical data for AI training
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Import Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    What are you importing?
+                  </label>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setImportType('bookings')}
+                      className={`flex-1 p-4 rounded-lg border-2 transition-colors ${
+                        importType === 'bookings'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <FileSpreadsheet className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="font-medium">Bookings / Jobs</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Historical cleaning jobs with dates, prices, addresses
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => setImportType('clients')}
+                      className={`flex-1 p-4 rounded-lg border-2 transition-colors ${
+                        importType === 'clients'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <User className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="font-medium">Clients</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Customer list with names, emails, phones, addresses
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* File Upload */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Upload CSV File
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="csv-upload"
+                    />
+                    <label htmlFor="csv-upload" className="cursor-pointer">
+                      <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      {importFile ? (
+                        <div>
+                          <p className="font-medium text-primary">{importFile.name}</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {(importFile.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="font-medium">Click to upload or drag and drop</p>
+                          <p className="text-sm text-gray-500 mt-1">CSV files only</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                {importPreview.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Preview (first 5 rows)</h3>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-900">
+                          <tr>
+                            {importHeaders.map((header, i) => (
+                              <th key={i} className="px-3 py-2 text-left font-medium">
+                                {header}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importPreview.map((row, i) => (
+                            <tr key={i} className="border-t">
+                              {importHeaders.map((header, j) => (
+                                <td key={j} className="px-3 py-2 truncate max-w-[150px]">
+                                  {row[header]}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Found {importHeaders.length} columns
+                    </p>
+                  </div>
+                )}
+
+                {/* Import Result */}
+                {importResult && (
+                  <div
+                    className={`p-4 rounded-lg ${
+                      importResult.success
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-red-50 border border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      {importResult.success ? (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                      )}
+                      <p className={`font-medium ${importResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                        {importResult.success
+                          ? `Successfully imported ${importResult.imported} records!`
+                          : 'Import failed'}
+                      </p>
+                    </div>
+                    {importResult.errors.length > 0 && (
+                      <ul className="text-sm text-red-700 list-disc list-inside">
+                        {importResult.errors.slice(0, 5).map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                        {importResult.errors.length > 5 && (
+                          <li>...and {importResult.errors.length - 5} more errors</li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                {/* Import Button */}
+                <Button
+                  onClick={handleImport}
+                  disabled={!importFile || importing}
+                  className="w-full"
+                >
+                  {importing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import {importType === 'bookings' ? 'Bookings' : 'Clients'}
+                    </>
+                  )}
+                </Button>
+
+                {/* Help Section */}
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">
+                    CSV Format Tips
+                  </h4>
+                  <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                    {importType === 'bookings' ? (
+                      <>
+                        <p>Expected columns for bookings:</p>
+                        <code className="block bg-blue-100 dark:bg-blue-900 p-2 rounded mt-1 text-xs">
+                          date, client_name, address, city, state, zip, service_type, price, status, cleaner
+                        </code>
+                      </>
+                    ) : (
+                      <>
+                        <p>Expected columns for clients:</p>
+                        <code className="block bg-blue-100 dark:bg-blue-900 p-2 rounded mt-1 text-xs">
+                          name, email, phone, address, city, state, zip, tags
+                        </code>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Google Sheets Note */}
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <strong>Using Google Sheets?</strong> Go to File → Download → CSV (.csv)
+                    to export your spreadsheet, then upload it here.
+                  </p>
+                </div>
+              </div>
             </Card>
           )}
 
