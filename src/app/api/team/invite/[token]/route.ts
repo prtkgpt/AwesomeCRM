@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Helper function to generate slug from company name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
+
 // GET /api/team/invite/[token] - Get invitation details
 export async function GET(
   request: NextRequest,
@@ -54,6 +64,18 @@ export async function GET(
 
     console.log(`✨ Invitation valid for: ${invitation.email}`);
 
+    // Generate slug from company name if not exists
+    const slug = invitation.company.slug || generateSlug(invitation.company.name);
+
+    // Update company with generated slug if it was null
+    if (!invitation.company.slug) {
+      console.log(`📝 Updating company with generated slug: ${slug}`);
+      await prisma.company.update({
+        where: { id: invitation.company.id },
+        data: { slug },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -62,7 +84,7 @@ export async function GET(
         role: invitation.role,
         company: {
           name: invitation.company.name,
-          slug: invitation.company.slug || invitation.company.id, // Fallback to ID if slug is null
+          slug,
         },
         expiresAt: invitation.expiresAt,
       },
