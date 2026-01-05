@@ -74,6 +74,7 @@ export default withAuth(
 
         // Allow public routes without authentication
         if (
+          path === '/' || // Homepage
           path.startsWith('/login') ||
           path.startsWith('/signup') ||
           path.startsWith('/invite') ||
