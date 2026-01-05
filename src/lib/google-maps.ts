@@ -73,10 +73,13 @@ export async function verifyAddress(
     const components = result.address_components;
 
     // Extract address components
-    const getComponent = (types: string[]) => {
+    const getComponent = (types: string[], useShortName = false) => {
       const component = components.find((c: AddressComponent) =>
         types.some((type) => c.types.includes(type))
       );
+      if (useShortName) {
+        return component?.short_name || component?.long_name || '';
+      }
       return component?.long_name || component?.short_name || '';
     };
 
@@ -84,7 +87,7 @@ export async function verifyAddress(
     const route = getComponent(['route']);
     const verifiedStreet = `${streetNumber} ${route}`.trim();
     const verifiedCity = getComponent(['locality', 'sublocality']);
-    const verifiedState = getComponent(['administrative_area_level_1']);
+    const verifiedState = getComponent(['administrative_area_level_1'], true); // Use short_name for state (e.g., "CA" instead of "California")
     const verifiedZip = getComponent(['postal_code']);
 
     return {
