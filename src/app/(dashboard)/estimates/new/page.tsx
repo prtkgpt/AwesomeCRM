@@ -105,6 +105,12 @@ export default function NewEstimatePage() {
     livingRooms: 0,
   });
 
+  // Booking adjustments
+  const [adjustPrice, setAdjustPrice] = useState(false);
+  const [adjustTime, setAdjustTime] = useState(false);
+  const [manualPrice, setManualPrice] = useState(0);
+  const [manualDuration, setManualDuration] = useState(0);
+
   // Scheduling
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
@@ -229,8 +235,8 @@ export default function NewEstimatePage() {
         customerNotes,
         internalNotes,
         providerNotes,
-        price: calculatedPrice,
-        duration: breakdown ? parseFloat(breakdown.totalHours) * 60 : 0,
+        price: adjustPrice ? manualPrice : calculatedPrice,
+        duration: adjustTime ? manualDuration : (breakdown ? parseFloat(breakdown.totalHours) * 60 : 0),
         excludeCancellationFee,
         excludeCustomerNotification,
         excludeProviderNotification,
@@ -775,6 +781,99 @@ export default function NewEstimatePage() {
                     <span className="text-blue-600">${calculatedPrice.toFixed(2)}</span>
                   </div>
                 </div>
+              </Card>
+
+              {/* Booking Adjustments */}
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold mb-4">Booking Adjustments</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Override calculated values if needed
+                </p>
+
+                <div className="space-y-4">
+                  {/* Adjust Price */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="adjustPrice"
+                        checked={adjustPrice}
+                        onChange={(e) => {
+                          setAdjustPrice(e.target.checked);
+                          if (!e.target.checked) {
+                            setManualPrice(0);
+                          } else {
+                            setManualPrice(calculatedPrice);
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <label htmlFor="adjustPrice" className="cursor-pointer font-medium">
+                        Do you want to adjust price?
+                      </label>
+                    </div>
+                    {adjustPrice && (
+                      <div className="pl-6">
+                        <label className="block text-sm font-medium mb-1">Custom Price ($)</label>
+                        <Input
+                          type="number"
+                          value={manualPrice}
+                          onChange={(e) => setManualPrice(parseFloat(e.target.value) || 0)}
+                          placeholder="Enter custom price"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Adjust Time */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="adjustTime"
+                        checked={adjustTime}
+                        onChange={(e) => {
+                          setAdjustTime(e.target.checked);
+                          if (!e.target.checked) {
+                            setManualDuration(0);
+                          } else {
+                            setManualDuration(breakdown ? parseFloat(breakdown.totalHours) * 60 : 0);
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <label htmlFor="adjustTime" className="cursor-pointer font-medium">
+                        Do you want to adjust time?
+                      </label>
+                    </div>
+                    {adjustTime && (
+                      <div className="pl-6">
+                        <label className="block text-sm font-medium mb-1">Custom Duration (minutes)</label>
+                        <Input
+                          type="number"
+                          value={manualDuration}
+                          onChange={(e) => setManualDuration(parseFloat(e.target.value) || 0)}
+                          placeholder="Enter custom duration"
+                          min="15"
+                          step="15"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {(adjustPrice || adjustTime) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4">
+                    <p className="text-sm text-amber-800">
+                      <strong>Note:</strong> Manual adjustments will override automatic calculations.
+                      {adjustPrice && ` Price: $${manualPrice.toFixed(2)}`}
+                      {adjustPrice && adjustTime && ' | '}
+                      {adjustTime && ` Duration: ${manualDuration} min`}
+                    </p>
+                  </div>
+                )}
               </Card>
 
               {/* Options */}

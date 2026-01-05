@@ -58,6 +58,12 @@ export default function NewJobPage() {
   const [error, setError] = useState('');
   const [useDetailedPricing, setUseDetailedPricing] = useState(false);
 
+  // Booking adjustments
+  const [adjustPrice, setAdjustPrice] = useState(false);
+  const [adjustTime, setAdjustTime] = useState(false);
+  const [manualPrice, setManualPrice] = useState('');
+  const [manualDuration, setManualDuration] = useState('');
+
   // Service areas (count of each)
   const [serviceAreas, setServiceAreas] = useState<Record<string, number>>({});
 
@@ -169,16 +175,29 @@ export default function NewJobPage() {
 
   const { total: calculatedPrice, breakdown } = useDetailedPricing ? calculateDetailedPrice() : { total: 0, breakdown: null };
 
-  // Auto-update price and duration when using detailed pricing
+  // Auto-update price and duration when using detailed pricing (unless manually adjusted)
   useEffect(() => {
     if (useDetailedPricing && breakdown) {
-      setFormData(prev => ({
-        ...prev,
-        price: calculatedPrice.toFixed(2),
-        duration: breakdown.totalMinutes.toString(),
-      }));
+      const updates: any = {};
+
+      // Only update price if not manually adjusted
+      if (!adjustPrice) {
+        updates.price = calculatedPrice.toFixed(2);
+      }
+
+      // Only update duration if not manually adjusted
+      if (!adjustTime) {
+        updates.duration = breakdown.totalMinutes.toString();
+      }
+
+      if (Object.keys(updates).length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          ...updates,
+        }));
+      }
     }
-  }, [calculatedPrice, breakdown, useDetailedPricing]);
+  }, [calculatedPrice, breakdown, useDetailedPricing, adjustPrice, adjustTime]);
 
   useEffect(() => {
     if (formData.clientId) {
@@ -671,6 +690,110 @@ export default function NewJobPage() {
                   </div>
                 </div>
               )}
+
+              {/* Booking Adjustments */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-semibold text-base">Booking Adjustments</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Override calculated values if needed
+                </p>
+
+                <div className="space-y-3">
+                  {/* Adjust Price */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="adjustPrice"
+                        checked={adjustPrice}
+                        onChange={(e) => {
+                          setAdjustPrice(e.target.checked);
+                          if (!e.target.checked) {
+                            // Reset to calculated price when unchecked
+                            setManualPrice('');
+                            if (breakdown) {
+                              setFormData(prev => ({ ...prev, price: calculatedPrice.toFixed(2) }));
+                            }
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="adjustPrice" className="cursor-pointer font-medium">
+                        Do you want to adjust price?
+                      </Label>
+                    </div>
+                    {adjustPrice && (
+                      <div className="pl-6">
+                        <Label htmlFor="manualPrice" className="text-sm">Custom Price ($)</Label>
+                        <Input
+                          id="manualPrice"
+                          type="number"
+                          value={adjustPrice ? formData.price : manualPrice}
+                          onChange={(e) => {
+                            setManualPrice(e.target.value);
+                            setFormData(prev => ({ ...prev, price: e.target.value }));
+                          }}
+                          placeholder="Enter custom price"
+                          min="0"
+                          step="0.01"
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Adjust Time */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="adjustTime"
+                        checked={adjustTime}
+                        onChange={(e) => {
+                          setAdjustTime(e.target.checked);
+                          if (!e.target.checked) {
+                            // Reset to calculated duration when unchecked
+                            setManualDuration('');
+                            if (breakdown) {
+                              setFormData(prev => ({ ...prev, duration: breakdown.totalMinutes.toString() }));
+                            }
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="adjustTime" className="cursor-pointer font-medium">
+                        Do you want to adjust time?
+                      </Label>
+                    </div>
+                    {adjustTime && (
+                      <div className="pl-6">
+                        <Label htmlFor="manualDuration" className="text-sm">Custom Duration (minutes)</Label>
+                        <Input
+                          id="manualDuration"
+                          type="number"
+                          value={adjustTime ? formData.duration : manualDuration}
+                          onChange={(e) => {
+                            setManualDuration(e.target.value);
+                            setFormData(prev => ({ ...prev, duration: e.target.value }));
+                          }}
+                          placeholder="Enter custom duration"
+                          min="15"
+                          step="15"
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {(adjustPrice || adjustTime) && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>Note:</strong> Manual adjustments override automatic calculations.
+                    </p>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
