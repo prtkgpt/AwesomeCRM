@@ -54,6 +54,12 @@ model Company {
   enableMorningOfReminder     Boolean @default(true)  // Send cleaner reminder morning of
   morningOfReminderTime       String  @default("08:00") // Time to send morning reminder (HH:mm)
 
+  // Customer Links & Payment Info
+  googleReviewUrl       String?             // Google Business review link
+  zelleEmail            String?             // Zelle payment email
+  venmoUsername         String?             // Venmo @username
+  cashappUsername       String?             // CashApp $username
+
   // Subscription
   plan                String   @default("FREE")  // FREE, BASIC, PRO
   subscriptionStatus  String   @default("ACTIVE")
@@ -355,6 +361,8 @@ model Booking {
   copayPaid             Boolean             @default(false)
   insurancePaidAt       DateTime?
   copayPaidAt           DateTime?
+  copayPaymentMethod    String?                            // "STRIPE", "ZELLE", "VENMO", "CASHAPP"
+  copayStripePaymentIntentId String?        @unique        // Stripe payment intent ID for copay
 
   // Stripe integration
   stripePaymentIntentId String?             @unique
@@ -391,6 +399,14 @@ model Booking {
   estimateAccepted      Boolean             @default(false)
   estimateAcceptedAt    DateTime?
 
+  // Customer feedback & tip
+  feedbackToken         String?             @unique  // Unique token for customer feedback page
+  customerRating        Int?                         // 1-5 stars from customer
+  customerFeedback      String?                      // Customer's written feedback
+  tipAmount             Float?                       // Tip amount from customer
+  tipPaidVia            String?                      // "STRIPE", "ZELLE", "VENMO", "CASHAPP", "CASH"
+  feedbackSubmittedAt   DateTime?                    // When customer submitted feedback
+
   messages              Message[]
   invoice               Invoice?
 
@@ -404,6 +420,7 @@ model Booking {
   @@index([customerId])
   @@index([status])
   @@index([estimateToken])
+  @@index([feedbackToken])
   @@index([scheduledDate])
 
   reviews               CleaningReview[]

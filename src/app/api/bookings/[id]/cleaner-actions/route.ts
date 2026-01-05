@@ -146,11 +146,71 @@ export async function POST(
           );
         }
 
+        // Generate unique feedback token if not exists
+        const feedbackToken = booking.feedbackToken || `fb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
         updateData = {
           clockedOutAt: now,
           status: 'COMPLETED', // Auto-mark as completed when clocking out
+          feedbackToken, // Add feedback token for customer review/tip
         };
         activityMessage = `${user.name || 'Cleaner'} finished cleaning at ${booking.client.name}'s property`;
+
+        // Send completion SMS to customer with links
+        if (booking.client.phone) {
+          try {
+            const baseUrl = process.env.NEXTAUTH_URL || 'https://cleandaycrm.com';
+            const feedbackUrl = `${baseUrl}/feedback/${feedbackToken}`;
+            const reviewUrl = booking.company.googleReviewUrl;
+
+            // Build message with links
+            let completionMessage = `${booking.company.name}: Thank you! Your cleaning is complete.\n\n`;
+            completionMessage += `⭐ Rate & Tip: ${feedbackUrl}\n`;
+
+            // Add copay link if client has copay
+            if (booking.copayAmount && booking.copayAmount > 0 && !booking.copayPaid) {
+              const copayUrl = `${baseUrl}/pay-copay/${feedbackToken}`;
+              completionMessage += `💳 Pay Copay ($${booking.copayAmount}): ${copayUrl}\n`;
+            }
+
+            // Add Google review link
+            if (reviewUrl) {
+              completionMessage += `📝 Leave Review: ${reviewUrl}`;
+            }
+
+            // Get company's Twilio credentials
+            const twilioOptions = booking.company.twilioAccountSid && booking.company.twilioAuthToken && booking.company.twilioPhoneNumber
+              ? {
+                  accountSid: booking.company.twilioAccountSid,
+                  authToken: booking.company.twilioAuthToken,
+                  from: booking.company.twilioPhoneNumber,
+                }
+              : undefined;
+
+            const smsResult = await sendSMS(
+              booking.client.phone,
+              completionMessage,
+              twilioOptions
+            );
+
+            // Log the message
+            await prisma.message.create({
+              data: {
+                companyId: booking.companyId,
+                userId: session.user.id,
+                bookingId: booking.id,
+                type: 'THANK_YOU',
+                to: booking.client.phone,
+                from: twilioOptions?.from || process.env.TWILIO_PHONE_NUMBER || '',
+                body: completionMessage,
+                status: smsResult.success ? 'SENT' : 'FAILED',
+              },
+            });
+          } catch (error) {
+            console.error('Failed to send completion SMS:', error);
+            // Continue anyway - don't fail the whole request
+          }
+        }
         break;
 
       default:
