@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,41 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import type { ClientWithAddresses } from '@/types';
+
+// Pricing configuration
+const HOURLY_RATE = 50.00;
+
+const SERVICE_TYPES = [
+  { value: 'STANDARD', label: 'Standard Clean', multiplier: 1.00 },
+  { value: 'DEEP', label: 'Deep Clean', multiplier: 1.20 },
+  { value: 'MOVE_OUT', label: 'Move Out Clean', multiplier: 1.20 },
+];
+
+const SERVICE_AREAS = [
+  { id: 'fullBathroom', label: 'Full Bathroom', minutes: 40, icon: '🛁' },
+  { id: 'halfBathroom', label: 'Half Bathroom', minutes: 20, icon: '🚽' },
+  { id: 'bedroom', label: 'Bedroom', minutes: 30, icon: '🛏️' },
+  { id: 'office', label: 'Office', minutes: 20, icon: '💼' },
+  { id: 'kitchen', label: 'Kitchen', minutes: 45, icon: '🍳' },
+  { id: 'livingArea', label: 'Living Area', minutes: 45, icon: '🛋️' },
+];
+
+const ADDONS = [
+  { id: 'oven', label: 'Oven Cleaning', minutes: 45, icon: '🔥' },
+  { id: 'fridge', label: 'Fridge Cleaning', minutes: 30, icon: '🧊' },
+  { id: 'lightFixtures', label: 'Light Fixtures', minutes: 30, icon: '💡' },
+  { id: 'cabinets', label: 'Inside Cabinets', minutes: 30, icon: '🗄️' },
+  { id: 'baseboards', label: 'Baseboards', minutes: 60, icon: '📏' },
+  { id: 'interiorWindows', label: 'Interior Windows', minutes: 10, icon: '🪟' },
+  { id: 'stairs', label: 'Stairs', minutes: 30, icon: '🪜' },
+  { id: 'garage2Car', label: 'Garage - 2 Car (Reg)', minutes: 60, icon: '🚗' },
+  { id: 'pets', label: 'Pets', minutes: 30, icon: '🐾' },
+  { id: 'greenCleaning', label: 'Green Cleaning', minutes: 0, icon: '🌿' },
+  { id: 'laundryFolding', label: 'Laundry & Folding', minutes: 45, icon: '👕' },
+  { id: 'dishes', label: 'Dishes', minutes: 20, icon: '🍽️' },
+  { id: 'insideDishwasher', label: 'Inside Dishwasher', minutes: 30, icon: '🔵' },
+  { id: 'wetWipeWindowBlinds', label: 'Wet Wipe Window Blinds', minutes: 30, icon: '🪟' },
+];
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -21,6 +56,26 @@ export default function NewJobPage() {
   const [cleaners, setCleaners] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [useDetailedPricing, setUseDetailedPricing] = useState(false);
+
+  // Booking adjustments
+  const [adjustPrice, setAdjustPrice] = useState(false);
+  const [adjustTime, setAdjustTime] = useState(false);
+  const [manualPrice, setManualPrice] = useState('');
+  const [manualDuration, setManualDuration] = useState('');
+
+  // Service areas (count of each)
+  const [serviceAreas, setServiceAreas] = useState<Record<string, number>>({});
+
+  // Add-ons (selected or not)
+  const [addons, setAddons] = useState<Record<string, boolean>>({});
+
+  // Carpet shampooing (special add-on with pricing)
+  const [carpetShampooing, setCarpetShampooing] = useState({
+    bedrooms: 0,
+    staircases: 0,
+    livingRooms: 0,
+  });
 
   const [formData, setFormData] = useState({
     clientId: preselectedClientId || '',
@@ -64,6 +119,85 @@ export default function NewJobPage() {
       console.error('Failed to fetch cleaners:', error);
     }
   };
+
+  // Calculate pricing based on service areas and addons
+  const calculateDetailedPrice = () => {
+    const selectedServiceType = SERVICE_TYPES.find(st => st.value === formData.serviceType);
+    if (!selectedServiceType) return { total: 0, breakdown: null };
+
+    let totalMinutes = 0;
+
+    // Add service area minutes
+    Object.entries(serviceAreas).forEach(([areaId, count]) => {
+      const area = SERVICE_AREAS.find(a => a.id === areaId);
+      if (area && count > 0) {
+        totalMinutes += area.minutes * count;
+      }
+    });
+
+    // Add addon minutes
+    Object.entries(addons).forEach(([addonId, selected]) => {
+      if (selected) {
+        const addon = ADDONS.find(a => a.id === addonId);
+        if (addon) {
+          totalMinutes += addon.minutes;
+        }
+      }
+    });
+
+    // Add carpet shampooing minutes
+    // Pricing: $50/bedroom, $25/staircase, $60/living room
+    // At $50/hr: bedroom=60min, staircase=30min, livingRoom=72min
+    totalMinutes += carpetShampooing.bedrooms * 60;
+    totalMinutes += carpetShampooing.staircases * 30;
+    totalMinutes += carpetShampooing.livingRooms * 72;
+
+    // Convert to hours
+    const totalHours = totalMinutes / 60;
+
+    // Calculate base price
+    const basePrice = totalHours * HOURLY_RATE;
+
+    // Apply service type multiplier
+    const finalPrice = basePrice * selectedServiceType.multiplier;
+
+    return {
+      total: finalPrice,
+      breakdown: {
+        totalMinutes,
+        totalHours: totalHours.toFixed(2),
+        basePrice: basePrice.toFixed(2),
+        multiplier: selectedServiceType.multiplier,
+        serviceType: selectedServiceType.label,
+      }
+    };
+  };
+
+  const { total: calculatedPrice, breakdown } = useDetailedPricing ? calculateDetailedPrice() : { total: 0, breakdown: null };
+
+  // Auto-update price and duration when using detailed pricing (unless manually adjusted)
+  useEffect(() => {
+    if (useDetailedPricing && breakdown) {
+      const updates: any = {};
+
+      // Only update price if not manually adjusted
+      if (!adjustPrice) {
+        updates.price = calculatedPrice.toFixed(2);
+      }
+
+      // Only update duration if not manually adjusted
+      if (!adjustTime) {
+        updates.duration = breakdown.totalMinutes.toString();
+      }
+
+      if (Object.keys(updates).length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          ...updates,
+        }));
+      }
+    }
+  }, [calculatedPrice, breakdown, useDetailedPricing, adjustPrice, adjustTime]);
 
   useEffect(() => {
     if (formData.clientId) {
@@ -136,6 +270,20 @@ export default function NewJobPage() {
       ...formData,
       [name]: type === 'checkbox' ? checked : value,
     });
+  };
+
+  const handleServiceAreaChange = (areaId: string, delta: number) => {
+    setServiceAreas(prev => ({
+      ...prev,
+      [areaId]: Math.max(0, (prev[areaId] || 0) + delta)
+    }));
+  };
+
+  const handleAddonToggle = (addonId: string) => {
+    setAddons(prev => ({
+      ...prev,
+      [addonId]: !prev[addonId]
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -287,20 +435,6 @@ export default function NewJobPage() {
               />
             </div>
           </div>
-
-          <div>
-            <Label htmlFor="duration">Duration (minutes) *</Label>
-            <Input
-              id="duration"
-              name="duration"
-              type="number"
-              value={formData.duration}
-              onChange={handleChange}
-              required
-              min="15"
-              step="15"
-            />
-          </div>
         </Card>
 
         <Card className="p-4 space-y-4">
@@ -315,10 +449,9 @@ export default function NewJobPage() {
               onChange={handleChange}
               required
             >
-              <option value="STANDARD">Standard Clean</option>
-              <option value="DEEP">Deep Clean</option>
-              <option value="MOVE_IN">Move-In Clean</option>
-              <option value="MOVE_OUT">Move-Out Clean</option>
+              {SERVICE_TYPES.map(type => (
+                <option key={type.value} value={type.value}>{type.label}</option>
+              ))}
             </Select>
           </div>
 
@@ -355,41 +488,369 @@ export default function NewJobPage() {
             </p>
           </div>
 
-          <div>
-            <Label htmlFor="price">Price ($) *</Label>
-            <Input
-              id="price"
-              name="price"
-              type="number"
-              value={formData.price}
-              onChange={handleChange}
-              required
-              min="0"
-              step="0.01"
-            />
-            {formData.hasInsuranceCoverage && (
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm space-y-1">
-                <p className="font-semibold text-blue-900">Insurance Coverage Active</p>
-                <div className="space-y-0.5 text-blue-800">
-                  <p>Insurance pays: ${parseFloat(formData.insuranceAmount).toFixed(2)}</p>
-                  {parseFloat(formData.copayDiscountApplied) > 0 ? (
-                    <>
-                      <p>Standard copay: ${parseFloat(formData.copayAmount).toFixed(2)}</p>
-                      <p>Discount applied: -${parseFloat(formData.copayDiscountApplied).toFixed(2)}</p>
-                      <p className="font-semibold">Client pays: ${parseFloat(formData.finalCopayAmount).toFixed(2)}</p>
-                    </>
-                  ) : parseFloat(formData.copayAmount) > 0 ? (
-                    <p>Client copay: ${parseFloat(formData.copayAmount).toFixed(2)}</p>
-                  ) : (
-                    <p>No copay required</p>
-                  )}
-                  <p className="pt-1 border-t border-blue-300 font-semibold">
-                    Total: ${parseFloat(formData.price).toFixed(2)}
-                  </p>
+          {/* Toggle for detailed pricing */}
+          <div className="pt-4 border-t">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="useDetailedPricing"
+                checked={useDetailedPricing}
+                onChange={(e) => setUseDetailedPricing(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="useDetailedPricing" className="cursor-pointer">
+                Use detailed pricing calculator
+              </Label>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Calculate price based on service areas and add-ons
+            </p>
+          </div>
+
+          {/* Detailed Pricing Sections */}
+          {useDetailedPricing && (
+            <>
+              <div className="space-y-3 pt-4 border-t">
+                <h3 className="font-medium text-sm">Service Areas</h3>
+                <p className="text-xs text-gray-600">Select the areas to be cleaned</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {SERVICE_AREAS.map(area => (
+                    <div key={area.id} className="flex items-center justify-between p-2 border rounded-md">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{area.icon}</span>
+                        <div>
+                          <p className="text-sm font-medium">{area.label}</p>
+                          <p className="text-xs text-gray-500">{area.minutes} min each</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleServiceAreaChange(area.id, -1)}
+                          disabled={!serviceAreas[area.id]}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-8 text-center font-medium">
+                          {serviceAreas[area.id] || 0}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleServiceAreaChange(area.id, 1)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="space-y-3 pt-4 border-t">
+                <h3 className="font-medium text-sm">Add-ons</h3>
+                <p className="text-xs text-gray-600">Select additional services</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {ADDONS.map(addon => (
+                    <div key={addon.id} className="flex items-center gap-2 p-2 border rounded-md">
+                      <input
+                        type="checkbox"
+                        id={addon.id}
+                        checked={addons[addon.id] || false}
+                        onChange={() => handleAddonToggle(addon.id)}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <label htmlFor={addon.id} className="flex-1 cursor-pointer flex items-center gap-2">
+                        <span className="text-xl">{addon.icon}</span>
+                        <div>
+                          <p className="text-sm font-medium">{addon.label}</p>
+                          <p className="text-xs text-gray-500">+{addon.minutes} min</p>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <span className="text-xl">🧹</span>
+                  Carpet Shampooing
+                </h3>
+                <p className="text-xs text-gray-600">$50/bedroom, $25/staircase, $60/living room</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 border rounded-md">
+                    <div>
+                      <p className="text-sm font-medium">Bedrooms</p>
+                      <p className="text-xs text-gray-500">$50 each</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, bedrooms: Math.max(0, prev.bedrooms - 1) }))}
+                        disabled={carpetShampooing.bedrooms === 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center font-medium">{carpetShampooing.bedrooms}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, bedrooms: prev.bedrooms + 1 }))}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 border rounded-md">
+                    <div>
+                      <p className="text-sm font-medium">Staircases</p>
+                      <p className="text-xs text-gray-500">$25 each</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, staircases: Math.max(0, prev.staircases - 1) }))}
+                        disabled={carpetShampooing.staircases === 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center font-medium">{carpetShampooing.staircases}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, staircases: prev.staircases + 1 }))}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 border rounded-md">
+                    <div>
+                      <p className="text-sm font-medium">Living Rooms</p>
+                      <p className="text-xs text-gray-500">$60 each</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, livingRooms: Math.max(0, prev.livingRooms - 1) }))}
+                        disabled={carpetShampooing.livingRooms === 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center font-medium">{carpetShampooing.livingRooms}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCarpetShampooing(prev => ({ ...prev, livingRooms: prev.livingRooms + 1 }))}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {(carpetShampooing.bedrooms > 0 || carpetShampooing.staircases > 0 || carpetShampooing.livingRooms > 0) && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+                      <p className="text-xs font-medium text-blue-900 dark:text-blue-100">Carpet Shampooing Total:</p>
+                      <p className="text-base font-bold text-blue-700 dark:text-blue-400">
+                        ${(carpetShampooing.bedrooms * 50 + carpetShampooing.staircases * 25 + carpetShampooing.livingRooms * 60).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Price Breakdown */}
+              {breakdown && breakdown.totalMinutes > 0 && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4">
+                  <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">
+                    Price Breakdown
+                  </h3>
+                  <div className="space-y-1 text-sm text-green-800 dark:text-green-200">
+                    <p>Total time: {breakdown.totalHours} hours ({breakdown.totalMinutes} minutes)</p>
+                    <p>Base price: ${breakdown.basePrice} (${HOURLY_RATE}/hr)</p>
+                    <p>Service type: {breakdown.serviceType} (×{breakdown.multiplier})</p>
+                    <p className="pt-2 border-t border-green-300 font-semibold text-base">
+                      Final price: ${calculatedPrice.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Booking Adjustments */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-semibold text-base">Booking Adjustments</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Override calculated values if needed
+                </p>
+
+                <div className="space-y-3">
+                  {/* Adjust Price */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="adjustPrice"
+                        checked={adjustPrice}
+                        onChange={(e) => {
+                          setAdjustPrice(e.target.checked);
+                          if (!e.target.checked) {
+                            // Reset to calculated price when unchecked
+                            setManualPrice('');
+                            if (breakdown) {
+                              setFormData(prev => ({ ...prev, price: calculatedPrice.toFixed(2) }));
+                            }
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="adjustPrice" className="cursor-pointer font-medium">
+                        Do you want to adjust price?
+                      </Label>
+                    </div>
+                    {adjustPrice && (
+                      <div className="pl-6">
+                        <Label htmlFor="manualPrice" className="text-sm">Custom Price ($)</Label>
+                        <Input
+                          id="manualPrice"
+                          type="number"
+                          value={adjustPrice ? formData.price : manualPrice}
+                          onChange={(e) => {
+                            setManualPrice(e.target.value);
+                            setFormData(prev => ({ ...prev, price: e.target.value }));
+                          }}
+                          placeholder="Enter custom price"
+                          min="0"
+                          step="0.01"
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Adjust Time */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="adjustTime"
+                        checked={adjustTime}
+                        onChange={(e) => {
+                          setAdjustTime(e.target.checked);
+                          if (!e.target.checked) {
+                            // Reset to calculated duration when unchecked
+                            setManualDuration('');
+                            if (breakdown) {
+                              setFormData(prev => ({ ...prev, duration: breakdown.totalMinutes.toString() }));
+                            }
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="adjustTime" className="cursor-pointer font-medium">
+                        Do you want to adjust time?
+                      </Label>
+                    </div>
+                    {adjustTime && (
+                      <div className="pl-6">
+                        <Label htmlFor="manualDuration" className="text-sm">Custom Duration (minutes)</Label>
+                        <Input
+                          id="manualDuration"
+                          type="number"
+                          value={adjustTime ? formData.duration : manualDuration}
+                          onChange={(e) => {
+                            setManualDuration(e.target.value);
+                            setFormData(prev => ({ ...prev, duration: e.target.value }));
+                          }}
+                          placeholder="Enter custom duration"
+                          min="15"
+                          step="15"
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {(adjustPrice || adjustTime) && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>Note:</strong> Manual adjustments override automatic calculations.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Manual Price Input (when not using detailed pricing) */}
+          {!useDetailedPricing && (
+            <>
+              <div>
+                <Label htmlFor="duration">Duration (minutes) *</Label>
+                <Input
+                  id="duration"
+                  name="duration"
+                  type="number"
+                  value={formData.duration}
+                  onChange={handleChange}
+                  required
+                  min="15"
+                  step="15"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="price">Price ($) *</Label>
+                <Input
+                  id="price"
+                  name="price"
+                  type="number"
+                  value={formData.price}
+                  onChange={handleChange}
+                  required
+                  min="0"
+                  step="0.01"
+                />
+                {formData.hasInsuranceCoverage && (
+                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm space-y-1">
+                    <p className="font-semibold text-blue-900">Insurance Coverage Active</p>
+                    <div className="space-y-0.5 text-blue-800">
+                      <p>Insurance pays: ${parseFloat(formData.insuranceAmount).toFixed(2)}</p>
+                      {parseFloat(formData.copayDiscountApplied) > 0 ? (
+                        <>
+                          <p>Standard copay: ${parseFloat(formData.copayAmount).toFixed(2)}</p>
+                          <p>Discount applied: -${parseFloat(formData.copayDiscountApplied).toFixed(2)}</p>
+                          <p className="font-semibold">Client pays: ${parseFloat(formData.finalCopayAmount).toFixed(2)}</p>
+                        </>
+                      ) : parseFloat(formData.copayAmount) > 0 ? (
+                        <p>Client copay: ${parseFloat(formData.copayAmount).toFixed(2)}</p>
+                      ) : (
+                        <p>No copay required</p>
+                      )}
+                      <p className="pt-1 border-t border-blue-300 font-semibold">
+                        Total: ${parseFloat(formData.price).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <div>
             <Label htmlFor="notes">Notes</Label>
