@@ -287,7 +287,7 @@ export default function SettingsPage() {
       csvContent = `name,email,phone,street,city,state,zip,hasInsurance,insuranceProvider,copayAmount\nJohn Doe,john@example.com,(555) 123-4567,123 Main St,Los Angeles,CA,90001,true,Helper Bees,25\nJane Smith,jane@example.com,(555) 987-6543,456 Oak Ave,Los Angeles,CA,90002,false,,`;
       filename = 'clients_sample.csv';
     } else {
-      csvContent = `clientEmail,date,serviceType,status,price\njohn@example.com,2026-01-15,Regular Cleaning,SCHEDULED,150\njane@example.com,2026-01-16,Deep Cleaning,SCHEDULED,300`;
+      csvContent = `clientEmail,date,serviceType,status,price\njohn@example.com,2026-01-15,STANDARD,SCHEDULED,150\njane@example.com,2026-01-16,DEEP,SCHEDULED,300`;
       filename = 'bookings_sample.csv';
     }
 
@@ -988,6 +988,7 @@ export default function SettingsPage() {
                     <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                       <p><strong>Required columns:</strong> clientEmail, date, serviceType, status, price</p>
                       <p><strong>Date format:</strong> YYYY-MM-DD (e.g., 2026-01-15)</p>
+                      <p><strong>Valid service types:</strong> STANDARD, DEEP, MOVE_OUT</p>
                       <p><strong>Valid statuses:</strong> SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED</p>
                       <p className="text-xs mt-2">Note: Client must exist before importing their bookings.</p>
                     </div>

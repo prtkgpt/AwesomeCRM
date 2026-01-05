@@ -197,6 +197,26 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
+          // Validate and map service type
+          const serviceTypeMap: Record<string, string> = {
+            'STANDARD': 'STANDARD',
+            'DEEP': 'DEEP',
+            'MOVE_OUT': 'MOVE_OUT',
+            'REGULAR CLEANING': 'STANDARD',
+            'DEEP CLEANING': 'DEEP',
+            'MOVE-OUT': 'MOVE_OUT',
+            'MOVEOUT': 'MOVE_OUT',
+          };
+
+          const normalizedServiceType = row.serviceType.toUpperCase().trim();
+          const validServiceType = serviceTypeMap[normalizedServiceType];
+
+          if (!validServiceType) {
+            errors.push(`Row ${i + 2}: Invalid service type '${row.serviceType}'. Must be one of: STANDARD, DEEP, MOVE_OUT`);
+            failed++;
+            continue;
+          }
+
           // Validate status
           const validStatuses = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
           if (!validStatuses.includes(row.status.toUpperCase())) {
@@ -229,7 +249,7 @@ export async function POST(request: NextRequest) {
               addressId: client.addresses[0].id,
               scheduledDate,
               status: row.status.toUpperCase() as any,
-              serviceType: row.serviceType,
+              serviceType: validServiceType as any,
               price,
               createdBy: session.user.id,
             },
