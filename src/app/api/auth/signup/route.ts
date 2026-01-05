@@ -168,13 +168,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Return the actual error message in development
-      if (process.env.NODE_ENV === 'development') {
-        return NextResponse.json(
-          { success: false, error: 'Failed to create account', details: error.message },
-          { status: 500 }
-        );
-      }
+      // TODO: Remove this after debugging - temporarily showing errors in production
+      // Return the actual error message for debugging
+      return NextResponse.json(
+        { success: false, error: 'Failed to create account', details: error.message },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(
