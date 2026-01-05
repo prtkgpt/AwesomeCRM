@@ -14,10 +14,20 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const invoice = await prisma.invoice.findFirst({
       where: {
         id: params.id,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
       include: {
         client: {
@@ -82,11 +92,21 @@ export async function PATCH(
     const body = await request.json();
     const { status, lineItems, tax, notes, terms, sentTo } = body;
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Verify ownership
     const existingInvoice = await prisma.invoice.findFirst({
       where: {
         id: params.id,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 

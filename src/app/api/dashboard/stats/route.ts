@@ -11,19 +11,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
     // Get total clients
     const totalClients = await prisma.client.count({
-      where: { userId: session.user.id },
+      where: { companyId: user.companyId },
     });
 
     // Get upcoming jobs (scheduled status, future dates)
     const upcomingJobs = await prisma.booking.count({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         status: 'SCHEDULED',
         scheduledDate: { gte: now },
       },
@@ -32,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Get completed jobs this month
     const completedThisMonth = await prisma.booking.count({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         status: 'COMPLETED',
         scheduledDate: {
           gte: startOfMonth,
@@ -44,7 +54,7 @@ export async function GET(request: NextRequest) {
     // Get revenue this month (completed and paid jobs)
     const revenueResult = await prisma.booking.aggregate({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         status: 'COMPLETED',
         isPaid: true,
         scheduledDate: {
@@ -62,7 +72,7 @@ export async function GET(request: NextRequest) {
     // Get upcoming jobs list (next 5)
     const upcomingJobsList = await prisma.booking.findMany({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         status: 'SCHEDULED',
         scheduledDate: { gte: now },
       },

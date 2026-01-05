@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText } from 'lucide-react';
+import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-const navItems = [
+const ownerAdminNavItems = [
   {
     href: '/dashboard',
     label: 'Dashboard',
@@ -29,6 +29,11 @@ const navItems = [
     icon: Users,
   },
   {
+    href: '/team',
+    label: 'Team',
+    icon: Users2,
+  },
+  {
     href: '/invoices',
     label: 'Invoices',
     icon: FileText,
@@ -40,8 +45,55 @@ const navItems = [
   },
 ];
 
+const cleanerNavItems = [
+  {
+    href: '/cleaner/dashboard',
+    label: 'My Jobs',
+    icon: Briefcase,
+  },
+  {
+    href: '/cleaner/schedule',
+    label: 'Schedule',
+    icon: Calendar,
+  },
+  {
+    href: '/cleaner/profile',
+    label: 'Profile',
+    icon: Settings,
+  },
+];
+
+const customerNavItems = [
+  {
+    href: '/customer/dashboard',
+    label: 'Dashboard',
+    icon: Home,
+  },
+  {
+    href: '/customer/bookings',
+    label: 'My Bookings',
+    icon: ClipboardList,
+  },
+  {
+    href: '/customer/invoices',
+    label: 'Invoices',
+    icon: FileText,
+  },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  const userRole = (session?.user as any)?.role as string | undefined;
+
+  // Determine which nav items to show based on role
+  let navItems = ownerAdminNavItems;
+  if (userRole === 'CLEANER') {
+    navItems = cleanerNavItems;
+  } else if (userRole === 'CUSTOMER') {
+    navItems = customerNavItems;
+  }
 
   return (
     <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-64 md:bg-white dark:md:bg-gray-900 md:border-r md:border-gray-200 dark:md:border-gray-700">
@@ -77,6 +129,9 @@ export function Sidebar() {
 
         {/* User section */}
         <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+          <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+            {userRole && <span className="font-medium">{userRole}</span>}
+          </div>
           <ThemeToggle />
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}

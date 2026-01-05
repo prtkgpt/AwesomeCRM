@@ -61,11 +61,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createBookingSchema.parse(body);
 
-    // Verify client and address belong to user
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Verify client and address belong to user's company
     const client = await prisma.client.findFirst({
       where: {
         id: validatedData.clientId,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
       include: {
         addresses: {
@@ -86,6 +96,7 @@ export async function POST(request: NextRequest) {
     // Create the main booking
     const booking = await prisma.booking.create({
       data: {
+        companyId: user.companyId,
         userId: session.user.id,
         clientId: validatedData.clientId,
         addressId: validatedData.addressId,
@@ -95,6 +106,7 @@ export async function POST(request: NextRequest) {
         price: validatedData.price,
         notes: validatedData.notes,
         internalNotes: validatedData.internalNotes,
+        assignedTo: validatedData.assignedTo || null,
         isRecurring: validatedData.isRecurring,
         recurrenceFrequency: validatedData.recurrenceFrequency,
         recurrenceEndDate: validatedData.recurrenceEndDate,
@@ -122,6 +134,7 @@ export async function POST(request: NextRequest) {
         recurringDates.map((date) =>
           prisma.booking.create({
             data: {
+              companyId: user.companyId,
               userId: session.user.id,
               clientId: validatedData.clientId,
               addressId: validatedData.addressId,

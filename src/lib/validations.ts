@@ -64,6 +64,7 @@ export const createBookingSchema = z.object({
   price: z.number().min(0, 'Price must be positive'),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),
+  assignedTo: z.string().optional(),
   isRecurring: z.boolean().default(false),
   recurrenceFrequency: z.enum(['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']).default('NONE'),
   recurrenceEndDate: z.string().or(z.date()).transform((val) => new Date(val)).optional(),
@@ -79,6 +80,7 @@ export const updateBookingSchema = z.object({
   price: z.number().min(0).optional(),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),
+  assignedTo: z.string().optional().nullable(),
   isPaid: z.boolean().optional(),
   paymentMethod: z.string().optional(),
 });

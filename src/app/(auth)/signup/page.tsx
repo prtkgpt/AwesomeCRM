@@ -43,7 +43,26 @@ export default function SignupPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Failed to create account');
+        // Show detailed error for debugging
+        let errorMsg = data.error || 'Failed to create account';
+
+        if (data.details) {
+          errorMsg += `\n\nDetails: ${data.details}`;
+        }
+        if (data.errorName) {
+          errorMsg += `\nError Type: ${data.errorName}`;
+        }
+        if (data.errorStack) {
+          errorMsg += `\n\nStack:\n${data.errorStack}`;
+        }
+        if (data.errorType) {
+          errorMsg += `\nType: ${data.errorType}`;
+        }
+
+        // Also log full response for debugging
+        console.error('Signup error response:', data);
+
+        setError(errorMsg);
         setLoading(false);
         return;
       }
@@ -80,7 +99,7 @@ export default function SignupPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md whitespace-pre-wrap">
                 {error}
               </div>
             )}
