@@ -92,6 +92,10 @@ model User {
   // Invitations sent
   sentInvitations Invitation[] @relation("InvitationSender")
 
+  // Password reset
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
