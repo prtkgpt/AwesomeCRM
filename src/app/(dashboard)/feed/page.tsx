@@ -13,7 +13,6 @@ import {
   Calendar,
   User,
   DollarSign,
-  MapPin,
   RefreshCw,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -42,7 +41,6 @@ export default function FeedPage() {
 
   useEffect(() => {
     fetchActivities();
-    // Refresh every 30 seconds
     const interval = setInterval(fetchActivities, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -121,7 +119,6 @@ export default function FeedPage() {
         </Button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="p-4">
           <div className="flex items-center justify-between">
@@ -164,7 +161,6 @@ export default function FeedPage() {
         </Card>
       </div>
 
-      {/* Filter Tabs */}
       <div className="flex gap-2 mb-6">
         <Button
           variant={filter === 'all' ? 'default' : 'outline'}
@@ -189,7 +185,6 @@ export default function FeedPage() {
         </Button>
       </div>
 
-      {/* Activity Feed */}
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading activities...</div>
       ) : filteredActivities.length === 0 ? (
@@ -210,12 +205,10 @@ export default function FeedPage() {
               className={`p-4 hover:shadow-md transition-shadow ${getPriorityColor(activity.priority)}`}
             >
               <div className="flex items-start gap-4">
-                {/* Icon */}
                 <div className="flex-shrink-0 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                   {getActivityIcon(activity.category)}
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex-1">
@@ -238,7 +231,6 @@ export default function FeedPage() {
                     </div>
                   </div>
 
-                  {/* Metadata */}
                   {activity.metadata && (
                     <div className="flex flex-wrap gap-4 mt-3 text-sm">
                       {activity.metadata.clientName && (
@@ -266,7 +258,7 @@ export default function FeedPage() {
                           className="h-auto py-1 px-2 text-xs"
                           onClick={() => window.location.href = `/jobs/${activity.metadata.jobId}`}
                         >
-                          View Job ’
+                          View Job
                         </Button>
                       )}
                       {activity.metadata.estimateId && (
@@ -276,7 +268,7 @@ export default function FeedPage() {
                           className="h-auto py-1 px-2 text-xs"
                           onClick={() => window.location.href = `/estimates`}
                         >
-                          View Estimate ’
+                          View Estimate
                         </Button>
                       )}
                     </div>
