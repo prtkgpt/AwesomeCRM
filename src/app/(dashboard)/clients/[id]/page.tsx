@@ -316,6 +316,59 @@ export default function ClientDetailPage() {
 
       </Card>
 
+      {/* Insurance Information */}
+      {client.hasInsurance && (
+        <Card className="p-4 md:p-6 space-y-3 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            Insurance Coverage
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {client.insuranceProvider && (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Provider</p>
+                <p className="font-medium">{client.insuranceProvider}</p>
+              </div>
+            )}
+            {client.helperBeesReferralId && (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Helper Bee's Referral ID</p>
+                <p className="font-medium">{client.helperBeesReferralId}</p>
+              </div>
+            )}
+            {client.insurancePaymentAmount && (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Insurance Payment Amount</p>
+                <p className="font-medium">{formatCurrency(client.insurancePaymentAmount)}</p>
+              </div>
+            )}
+            {client.standardCopayAmount && (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Standard Copay Amount</p>
+                <p className="font-medium">{formatCurrency(client.standardCopayAmount)}</p>
+              </div>
+            )}
+            {client.hasDiscountedCopay && client.copayDiscountAmount && (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Copay Discount</p>
+                <p className="font-medium">{formatCurrency(client.copayDiscountAmount)} off</p>
+              </div>
+            )}
+          </div>
+          {client.copayNotes && (
+            <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Copay Notes</p>
+              <p className="text-sm mt-1">{client.copayNotes}</p>
+            </div>
+          )}
+          <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              📋 Documentation fields will appear on each booking for insurance billing records
+            </p>
+          </div>
+        </Card>
+      )}
+
       {/* Notes Section */}
       <Card className="p-4 md:p-6 space-y-3">
         <div className="flex items-center justify-between">
