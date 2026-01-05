@@ -36,6 +36,14 @@ const ADDONS = [
   { id: 'cabinets', label: 'Inside Cabinets', minutes: 30, icon: '🗄️' },
   { id: 'baseboards', label: 'Baseboards', minutes: 60, icon: '📏' },
   { id: 'interiorWindows', label: 'Interior Windows', minutes: 10, icon: '🪟' },
+  { id: 'stairs', label: 'Stairs', minutes: 30, icon: '🪜' },
+  { id: 'garage2Car', label: 'Garage - 2 Car (Reg)', minutes: 60, icon: '🚗' },
+  { id: 'pets', label: 'Pets', minutes: 30, icon: '🐾' },
+  { id: 'greenCleaning', label: 'Green Cleaning', minutes: 0, icon: '🌿' },
+  { id: 'laundryFolding', label: 'Laundry & Folding', minutes: 45, icon: '👕' },
+  { id: 'dishes', label: 'Dishes', minutes: 20, icon: '🍽️' },
+  { id: 'insideDishwasher', label: 'Inside Dishwasher', minutes: 30, icon: '🔵' },
+  { id: 'wetWipeWindowBlinds', label: 'Wet Wipe Window Blinds', minutes: 30, icon: '🪟' },
 ];
 
 export default function NewJobPage() {

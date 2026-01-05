@@ -58,6 +58,14 @@ const ADDONS = [
   { id: 'trashDisposal', label: 'Trash Disposal', minutes: 30, icon: '🗑️' },
   { id: 'linen', label: 'Linen', minutes: 15, icon: '🧺' },
   { id: 'interiorWindows', label: 'Interior Window Cleaning', minutes: 10, icon: '🪟' },
+  { id: 'stairs', label: 'Stairs', minutes: 30, icon: '🪜' },
+  { id: 'garage2Car', label: 'Garage - 2 Car (Reg)', minutes: 60, icon: '🚗' },
+  { id: 'pets', label: 'Pets', minutes: 30, icon: '🐾' },
+  { id: 'greenCleaning', label: 'Green Cleaning', minutes: 0, icon: '🌿' },
+  { id: 'laundryFolding', label: 'Laundry & Folding', minutes: 45, icon: '👕' },
+  { id: 'dishes', label: 'Dishes', minutes: 20, icon: '🍽️' },
+  { id: 'insideDishwasher', label: 'Inside Dishwasher', minutes: 30, icon: '🔵' },
+  { id: 'wetWipeWindowBlinds', label: 'Wet Wipe Window Blinds', minutes: 30, icon: '🪟' },
 ];
 
 export default function NewEstimatePage() {
