@@ -149,18 +149,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Signup error:', error);
-    console.error('Error type:', typeof error);
-    console.error('Error stringified:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
     // Show more specific error for Zod validation
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Invalid input data', details: error.message },
+        { success: false, error: 'Invalid input data' },
         { status: 400 }
       );
     }
 
-    // Show Prisma errors for debugging
+    // Show Prisma errors for specific cases
     if (error instanceof Error) {
       // Check for unique constraint violation
       if (error.message.includes('Unique constraint')) {
@@ -169,28 +167,13 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-
-      // TODO: Remove this after debugging - temporarily showing errors in production
-      // Return the actual error message for debugging
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Failed to create account',
-          details: error.message,
-          errorName: error.name,
-          errorStack: error.stack?.split('\n').slice(0, 3).join('\n')
-        },
-        { status: 500 }
-      );
     }
 
-    // Catch-all for any other error types
+    // Generic error response without exposing internals
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to create account',
-        details: String(error),
-        errorType: typeof error
+        error: 'Failed to create account. Please try again or contact support.'
       },
       { status: 500 }
     );

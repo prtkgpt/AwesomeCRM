@@ -147,11 +147,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify ownership
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Verify ownership - use companyId for multi-tenant isolation
     const existingClient = await prisma.client.findFirst({
       where: {
         id: params.id,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 
