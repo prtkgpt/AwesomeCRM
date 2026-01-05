@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { sendEmail, getBookingConfirmationEmailTemplate } from '@/lib/email';
+import { sendSMS, getBookingConfirmationSMSMessage } from '@/lib/sms';
 
 // POST /api/public/estimate/[token]/book - Accept estimate, process payment, and create booking
 export async function POST(
@@ -127,8 +129,60 @@ export async function POST(
       };
     });
 
-    // TODO: Send confirmation email
-    // await sendBookingConfirmationEmail(result.booking, email);
+    // Send confirmation notifications
+    try {
+      // Parse service type from internal notes for better display
+      let serviceTypeDisplay = result.booking.serviceType;
+      try {
+        const notes = result.booking.internalNotes as any;
+        if (notes?.serviceType) {
+          serviceTypeDisplay = notes.serviceType;
+        }
+      } catch (e) {
+        // Use default
+      }
+
+      // Format full address
+      const fullAddress = `${booking.address.street}, ${booking.address.city}, ${booking.address.state} ${booking.address.zip}`;
+
+      // Send email confirmation
+      if (email) {
+        const emailHtml = getBookingConfirmationEmailTemplate({
+          customerName: name,
+          companyName: booking.company.name,
+          serviceType: serviceTypeDisplay,
+          scheduledDate: result.booking.scheduledDate.toISOString(),
+          address: fullAddress,
+          price: result.booking.price,
+          accountCreated: !!result.customerUser,
+        });
+
+        await sendEmail({
+          to: email,
+          subject: `Booking Confirmed - ${booking.company.name}`,
+          html: emailHtml,
+          from: booking.company.email || undefined,
+        });
+      }
+
+      // Send SMS confirmation
+      if (phone) {
+        const smsMessage = getBookingConfirmationSMSMessage({
+          customerName: name,
+          companyName: booking.company.name,
+          scheduledDate: result.booking.scheduledDate.toISOString(),
+          address: fullAddress,
+        });
+
+        await sendSMS({
+          to: phone,
+          message: smsMessage,
+        });
+      }
+    } catch (notificationError) {
+      // Log but don't fail the booking if notifications fail
+      console.error('Failed to send confirmation notifications:', notificationError);
+    }
 
     return NextResponse.json({
       success: true,

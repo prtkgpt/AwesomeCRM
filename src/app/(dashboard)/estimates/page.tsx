@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Filter, X, Copy, Check, Share2, Eye, Trash2 } from 'lucide-react';
+import { Plus, Filter, X, Copy, Check, Share2, Eye, Trash2, Send, Mail, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
@@ -40,6 +40,8 @@ export default function EstimatesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [clientSearch, setClientSearch] = useState('');
   const [copiedToken, setCopiedToken] = useState<string>('');
+  const [sendingEstimate, setSendingEstimate] = useState<string>('');
+  const [showSendMenu, setShowSendMenu] = useState<string>('');
 
   useEffect(() => {
     fetchEstimates();
@@ -87,6 +89,32 @@ export default function EstimatesPage() {
       }
     } catch (error) {
       alert('An error occurred');
+    }
+  };
+
+  const handleSendEstimate = async (id: string, method: 'email' | 'sms') => {
+    setSendingEstimate(id);
+    setShowSendMenu('');
+
+    try {
+      const response = await fetch(`/api/estimates/${id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`Estimate sent via ${method}!`);
+        fetchEstimates(); // Refresh to show updated sent status
+      } else {
+        alert(data.error || `Failed to send estimate via ${method}`);
+      }
+    } catch (error) {
+      alert('An error occurred while sending the estimate');
+    } finally {
+      setSendingEstimate('');
     }
   };
 
@@ -313,6 +341,60 @@ export default function EstimatesPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 justify-end">
+                    {/* Send Estimate Dropdown */}
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSendMenu(showSendMenu === estimate.id ? '' : estimate.id)}
+                        disabled={sendingEstimate === estimate.id || estimate.estimateAccepted}
+                        className={estimate.estimateAccepted ? 'opacity-50' : ''}
+                      >
+                        {sendingEstimate === estimate.id ? (
+                          <>Sending...</>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-1" />
+                            Send
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Dropdown menu */}
+                      {showSendMenu === estimate.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setShowSendMenu('')}
+                          />
+                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
+                            <button
+                              onClick={() => handleSendEstimate(estimate.id, 'email')}
+                              disabled={!estimate.client.email}
+                              className="w-full flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              Send via Email
+                              {!estimate.client.email && (
+                                <span className="ml-auto text-xs text-red-500">No email</span>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleSendEstimate(estimate.id, 'sms')}
+                              disabled={!estimate.client.phone}
+                              className="w-full flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-b-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Send via SMS
+                              {!estimate.client.phone && (
+                                <span className="ml-auto text-xs text-red-500">No phone</span>
+                              )}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
                     <Button
                       variant="outline"
                       size="sm"
