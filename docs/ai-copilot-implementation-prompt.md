@@ -826,17 +826,225 @@ model PricingSuggestionLog {
 
 ---
 
+## Cost-Effective Multi-Model Strategy
+
+### Why Multi-Model?
+
+Claude is expensive ($3-15/1M tokens). Use a **model router** to cut costs by 75%+ while maintaining quality.
+
+### Model Selection by Task
+
+| Task | Recommended Model | Cost | Why |
+|------|-------------------|------|-----|
+| Intent classification | GPT-4o mini | $0.15/$0.60 | Simple, high volume |
+| Entity extraction | GPT-4o mini | $0.15/$0.60 | Pattern matching |
+| Pricing suggestions | Gemini 2.0 Flash | $0.10/$0.40 | Fast, cheap |
+| Chat responses | Gemini 2.5 Pro | $1.25/$5.00 | Good balance |
+| Business insights | Gemini 2.5 Pro | $1.25/$5.00 | Analytical |
+| Campaign copy | Claude Sonnet | $3/$15 | Best writing |
+| Complex analysis | Claude Sonnet | $3/$15 | Best reasoning |
+| Voice commands | GPT-4o mini | $0.15/$0.60 | Low latency |
+
+### Model Router Implementation
+
+**File: `src/lib/ai/model-router.ts`**
+
+```typescript
+import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+type Provider = "anthropic" | "openai" | "google";
+type TaskType =
+  | "intent_classification"
+  | "entity_extraction"
+  | "pricing_suggestion"
+  | "chat_response"
+  | "business_insights"
+  | "campaign_generation"
+  | "complex_analysis"
+  | "voice_command";
+
+interface ModelConfig {
+  provider: Provider;
+  model: string;
+  costPer1MInput: number;
+  costPer1MOutput: number;
+  maxTokens: number;
+}
+
+const MODEL_ROUTING: Record<TaskType, ModelConfig> = {
+  intent_classification: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    costPer1MInput: 0.15,
+    costPer1MOutput: 0.60,
+    maxTokens: 100,
+  },
+  entity_extraction: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    costPer1MInput: 0.15,
+    costPer1MOutput: 0.60,
+    maxTokens: 200,
+  },
+  pricing_suggestion: {
+    provider: "google",
+    model: "gemini-2.0-flash",
+    costPer1MInput: 0.10,
+    costPer1MOutput: 0.40,
+    maxTokens: 500,
+  },
+  chat_response: {
+    provider: "google",
+    model: "gemini-2.5-pro",
+    costPer1MInput: 1.25,
+    costPer1MOutput: 5.00,
+    maxTokens: 1000,
+  },
+  business_insights: {
+    provider: "google",
+    model: "gemini-2.5-pro",
+    costPer1MInput: 1.25,
+    costPer1MOutput: 5.00,
+    maxTokens: 1500,
+  },
+  campaign_generation: {
+    provider: "anthropic",
+    model: "claude-sonnet-4-20250514",
+    costPer1MInput: 3.00,
+    costPer1MOutput: 15.00,
+    maxTokens: 2000,
+  },
+  complex_analysis: {
+    provider: "anthropic",
+    model: "claude-sonnet-4-20250514",
+    costPer1MInput: 3.00,
+    costPer1MOutput: 15.00,
+    maxTokens: 2000,
+  },
+  voice_command: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    costPer1MInput: 0.15,
+    costPer1MOutput: 0.60,
+    maxTokens: 200,
+  },
+};
+
+export class AIModelRouter {
+  private anthropic: Anthropic;
+  private openai: OpenAI;
+  private google: GoogleGenerativeAI;
+
+  constructor() {
+    this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    this.google = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+  }
+
+  async complete(taskType: TaskType, prompt: string, systemPrompt?: string) {
+    const config = MODEL_ROUTING[taskType];
+
+    switch (config.provider) {
+      case "openai":
+        return this.completeOpenAI(config.model, prompt, systemPrompt, config.maxTokens);
+      case "google":
+        return this.completeGoogle(config.model, prompt, systemPrompt, config.maxTokens);
+      case "anthropic":
+        return this.completeAnthropic(config.model, prompt, systemPrompt, config.maxTokens);
+    }
+  }
+
+  private async completeOpenAI(model: string, prompt: string, system?: string, maxTokens?: number) {
+    const response = await this.openai.chat.completions.create({
+      model,
+      messages: [
+        ...(system ? [{ role: "system" as const, content: system }] : []),
+        { role: "user", content: prompt },
+      ],
+      max_tokens: maxTokens,
+    });
+    return {
+      content: response.choices[0].message.content,
+      usage: response.usage,
+      provider: "openai",
+      model,
+    };
+  }
+
+  private async completeGoogle(model: string, prompt: string, system?: string, maxTokens?: number) {
+    const genModel = this.google.getGenerativeModel({ model });
+    const fullPrompt = system ? `${system}\n\n${prompt}` : prompt;
+    const result = await genModel.generateContent({
+      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+      generationConfig: { maxOutputTokens: maxTokens },
+    });
+    return {
+      content: result.response.text(),
+      usage: { /* estimate tokens */ },
+      provider: "google",
+      model,
+    };
+  }
+
+  private async completeAnthropic(model: string, prompt: string, system?: string, maxTokens?: number) {
+    const response = await this.anthropic.messages.create({
+      model,
+      max_tokens: maxTokens || 1024,
+      system,
+      messages: [{ role: "user", content: prompt }],
+    });
+    return {
+      content: response.content[0].type === "text" ? response.content[0].text : "",
+      usage: response.usage,
+      provider: "anthropic",
+      model,
+    };
+  }
+}
+```
+
+### Cost Comparison
+
+| Strategy | Monthly Cost (100 companies) | Per Company |
+|----------|------------------------------|-------------|
+| All Claude Sonnet | $204 | $2.04 |
+| All Claude Haiku | $68 | $0.68 |
+| All GPT-4o | $150 | $1.50 |
+| **Multi-Model (recommended)** | **$45** | **$0.45** |
+
+### Cost Optimization Techniques
+
+1. **Response Caching**: Cache common queries (Redis/Upstash)
+2. **Prompt Caching**: Use Claude's 90% cache discount for repeated system prompts
+3. **Batch API**: Use OpenAI's 50% batch discount for non-urgent tasks
+4. **Token Optimization**: Compress context, use JSON responses
+
+---
+
 ## Environment Variables
 
 Add to `.env`:
 
 ```bash
-# AI Configuration
+# AI Configuration - Multi-Provider
 ANTHROPIC_API_KEY=sk-ant-api03-...
-AI_MODEL_DEFAULT=claude-sonnet-4-20250514
-AI_MODEL_FAST=claude-3-5-haiku-20241022
+OPENAI_API_KEY=sk-...
+GOOGLE_AI_API_KEY=...
+
+# Model defaults (can be overridden per-task)
+AI_MODEL_COMPLEX=claude-sonnet-4-20250514
+AI_MODEL_MEDIUM=gemini-2.5-pro
+AI_MODEL_SIMPLE=gpt-4o-mini
+
+# Rate limiting
 AI_RATE_LIMIT_PER_MINUTE=50
 AI_MAX_TOKENS_PER_REQUEST=4096
+
+# Cost tracking
+AI_COST_TRACKING_ENABLED=true
+AI_MONTHLY_BUDGET_ALERT=100  # Alert when approaching $100/mo
 
 # Google APIs (for route optimization)
 GOOGLE_ROUTES_API_KEY=...
