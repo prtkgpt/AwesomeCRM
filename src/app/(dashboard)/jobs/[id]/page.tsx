@@ -677,29 +677,29 @@ export default function JobDetailPage() {
 
       {/* Insurance Documentation - Only show if client has insurance */}
       {job.client.hasInsurance && (
-        <Card className="p-6 space-y-4 bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-300 dark:border-blue-700">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-full text-sm font-bold">
-              <FileText className="h-4 w-4" />
-              ✓ INSURANCE
-            </span>
-            <h2 className="font-bold text-xl text-blue-900 dark:text-blue-100">
-              Insurance Documentation
-            </h2>
+        <Card className="p-8 space-y-6 bg-blue-600 dark:bg-blue-700 border-4 border-blue-800 shadow-2xl">
+          <div className="flex items-center gap-4">
+            <div className="text-6xl">✓</div>
+            <div className="flex-1">
+              <h2 className="text-4xl font-black text-white uppercase tracking-wide">
+                INSURANCE DOCUMENTATION
+              </h2>
+              <p className="text-blue-100 mt-2 text-lg font-bold">
+                📋 Document cleaning details and observations for insurance billing and records
+              </p>
+            </div>
+            <FileText className="h-16 w-16 text-white" />
           </div>
-          <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
-            📋 Document cleaning details and observations for insurance billing and records.
-          </p>
 
           <div className="space-y-4">
             <div>
-              <label htmlFor="insuranceDocumentation" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="insuranceDocumentation" className="block text-base font-bold text-white mb-2">
                 Insurance Documentation
               </label>
               <textarea
                 id="insuranceDocumentation"
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border-2 border-white rounded-lg focus:outline-none focus:ring-4 focus:ring-white text-lg"
                 placeholder="Document cleaning details, areas serviced, time spent, etc. for insurance billing..."
                 value={insuranceDocumentation}
                 onChange={(e) => setInsuranceDocumentation(e.target.value)}
@@ -707,13 +707,13 @@ export default function JobDetailPage() {
             </div>
 
             <div>
-              <label htmlFor="cleaningObservations" className="block text-sm font-medium text-gray-700 mb-2">
-                Observations & Notes
+              <label htmlFor="cleaningObservations" className="block text-base font-bold text-white mb-2">
+                Cleaning Observations & Notes
               </label>
               <textarea
                 id="cleaningObservations"
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border-2 border-white rounded-lg focus:outline-none focus:ring-4 focus:ring-white text-lg"
                 placeholder="Note any observations, issues found, client feedback, or special considerations..."
                 value={cleaningObservations}
                 onChange={(e) => setCleaningObservations(e.target.value)}
@@ -723,9 +723,9 @@ export default function JobDetailPage() {
             <Button
               onClick={handleSaveDocumentation}
               disabled={savingDocumentation}
-              className="w-full"
+              className="w-full bg-white text-blue-600 hover:bg-blue-50 font-black text-lg py-6 text-xl"
             >
-              {savingDocumentation ? 'Saving...' : 'Save Documentation'}
+              {savingDocumentation ? 'SAVING...' : 'SAVE DOCUMENTATION'}
             </Button>
           </div>
         </Card>

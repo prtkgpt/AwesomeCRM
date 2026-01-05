@@ -291,6 +291,21 @@ export default function NewJobPage() {
     setLoading(true);
     setError('');
 
+    // Validate required fields
+    const missingFields = [];
+    if (!formData.clientId) missingFields.push('Client');
+    if (!formData.addressId) missingFields.push('Address');
+    if (!formData.scheduledDate) missingFields.push('Date');
+    if (!formData.scheduledTime) missingFields.push('Time');
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+      setLoading(false);
+      // Scroll to top to show error message
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     try {
       const scheduledDateTime = new Date(
         `${formData.scheduledDate}T${formData.scheduledTime}`
@@ -332,9 +347,11 @@ export default function NewJobPage() {
         router.push('/jobs');
       } else {
         setError(data.error || 'Failed to create job');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -350,8 +367,9 @@ export default function NewJobPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
-          {error}
+        <div className="bg-red-100 border-2 border-red-400 text-red-800 p-4 rounded-lg text-sm font-semibold shadow-md flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div className="flex-1">{error}</div>
         </div>
       )}
 
