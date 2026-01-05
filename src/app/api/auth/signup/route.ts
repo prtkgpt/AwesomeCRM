@@ -150,15 +150,35 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Signup error:', error);
 
+    // Show more specific error for Zod validation
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Invalid input data' },
+        { success: false, error: 'Invalid input data', details: error.message },
         { status: 400 }
       );
     }
 
+    // Show Prisma errors for debugging
+    if (error instanceof Error) {
+      // Check for unique constraint violation
+      if (error.message.includes('Unique constraint')) {
+        return NextResponse.json(
+          { success: false, error: 'This email or company name is already taken' },
+          { status: 400 }
+        );
+      }
+
+      // Return the actual error message in development
+      if (process.env.NODE_ENV === 'development') {
+        return NextResponse.json(
+          { success: false, error: 'Failed to create account', details: error.message },
+          { status: 500 }
+        );
+      }
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Failed to create account' },
+      { success: false, error: 'Failed to create account. Please try again or contact support.' },
       { status: 500 }
     );
   }
