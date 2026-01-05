@@ -10,7 +10,10 @@ export default withAuth(
     if (
       path.startsWith('/login') ||
       path.startsWith('/signup') ||
-      path.startsWith('/invite')
+      path.startsWith('/invite') ||
+      path.startsWith('/estimate/') || // Public estimate acceptance pages
+      path.startsWith('/api/public/') || // Public API routes
+      path.startsWith('/api/auth/') // NextAuth API routes
     ) {
       return NextResponse.next();
     }
