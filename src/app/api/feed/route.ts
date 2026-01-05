@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       include: {
         client: true,
         address: true,
-        assignedTeamMember: {
+        assignee: {
           include: {
             user: true,
           },
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
           priority: hoursUntilStart < 1 ? 'high' : 'medium',
           metadata: {
             clientName: booking.client.name,
-            cleanerName: booking.assignedTeamMember?.user.name || 'Unassigned',
+            cleanerName: booking.assignee?.user.name || 'Unassigned',
             jobId: booking.id,
           },
         });
@@ -100,21 +100,21 @@ export async function GET(request: NextRequest) {
         scheduledDate >= now &&
         scheduledDate <= tomorrow &&
         booking.status === 'SCHEDULED' &&
-        booking.assignedTeamMember
+        booking.assignee
       ) {
         activities.push({
           id: `reminder-${booking.id}`,
           type: 'action',
           category: 'reminder_needed',
           title: 'Send reminder to cleaner',
-          description: `Remind ${booking.assignedTeamMember.user.name || booking.assignedTeamMember.user.email} about tomorrow's cleaning at ${booking.client.name}`,
+          description: `Remind ${booking.assignee.user.name || booking.assignee.user.email} about tomorrow's cleaning at ${booking.client.name}`,
           timestamp: new Date(scheduledDate.getTime() - 24 * 60 * 60 * 1000),
           priority: 'medium',
           metadata: {
             clientName: booking.client.name,
             cleanerName:
-              booking.assignedTeamMember.user.name ||
-              booking.assignedTeamMember.user.email,
+              booking.assignee.user.name ||
+              booking.assignee.user.email,
             jobId: booking.id,
           },
         });
@@ -131,14 +131,14 @@ export async function GET(request: NextRequest) {
           type: 'activity',
           category: 'cleaning_completed',
           title: 'Cleaning completed',
-          description: `${booking.assignedTeamMember?.user.name || 'Cleaner'} finished cleaning at ${booking.client.name}`,
+          description: `${booking.assignee?.user.name || 'Cleaner'} finished cleaning at ${booking.client.name}`,
           timestamp: booking.updatedAt,
           priority: 'low',
           metadata: {
             clientName: booking.client.name,
             cleanerName:
-              booking.assignedTeamMember?.user.name ||
-              booking.assignedTeamMember?.user.email ||
+              booking.assignee?.user.name ||
+              booking.assignee?.user.email ||
               'Unassigned',
             jobId: booking.id,
           },
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
           priority: 'low',
           metadata: {
             clientName: booking.client.name,
-            cleanerName: booking.assignedTeamMember?.user.name || 'Unassigned',
+            cleanerName: booking.assignee?.user.name || 'Unassigned',
             amount: booking.price,
             jobId: booking.id,
           },
