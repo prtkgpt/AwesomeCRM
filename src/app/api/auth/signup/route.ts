@@ -149,6 +149,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Signup error:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error stringified:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
     // Show more specific error for Zod validation
     if (error instanceof Error && error.name === 'ZodError') {
@@ -171,13 +173,25 @@ export async function POST(request: NextRequest) {
       // TODO: Remove this after debugging - temporarily showing errors in production
       // Return the actual error message for debugging
       return NextResponse.json(
-        { success: false, error: 'Failed to create account', details: error.message },
+        {
+          success: false,
+          error: 'Failed to create account',
+          details: error.message,
+          errorName: error.name,
+          errorStack: error.stack?.split('\n').slice(0, 3).join('\n')
+        },
         { status: 500 }
       );
     }
 
+    // Catch-all for any other error types
     return NextResponse.json(
-      { success: false, error: 'Failed to create account. Please try again or contact support.' },
+      {
+        success: false,
+        error: 'Failed to create account',
+        details: String(error),
+        errorType: typeof error
+      },
       { status: 500 }
     );
   }
