@@ -32,6 +32,7 @@ export default function NewClientPage() {
     hasDiscountedCopay: false,
     copayDiscountAmount: '',
     copayNotes: '',
+    cleaningObservations: '',
 
     // Address
     street: '',
@@ -115,6 +116,7 @@ export default function NewClientPage() {
           ? parseFloat(formData.copayDiscountAmount)
           : undefined,
         copayNotes: formData.copayNotes || undefined,
+        cleaningObservations: formData.cleaningObservations || undefined,
 
         // Address
         addresses: [
@@ -414,6 +416,18 @@ export default function NewClientPage() {
                   onChange={handleChange}
                   placeholder="Notes about copay arrangements, discounts, etc."
                   rows={2}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cleaningObservations">Cleaning Notes / Observations</Label>
+                <Textarea
+                  id="cleaningObservations"
+                  name="cleaningObservations"
+                  value={formData.cleaningObservations}
+                  onChange={handleChange}
+                  placeholder="Any special cleaning requirements, observations, or notes for insurance documentation..."
+                  rows={3}
                 />
               </div>
             </div>
