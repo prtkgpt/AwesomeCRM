@@ -79,6 +79,12 @@ export default function JobDetailPage() {
       const data = await response.json();
 
       if (data.success) {
+        console.log('🔵 JOB DETAIL - Full job data:', data.data);
+        console.log('🔵 JOB DETAIL - Client data:', data.data.client);
+        console.log('🔵 JOB DETAIL - Client hasInsurance:', data.data.client?.hasInsurance);
+        console.log('🔵 JOB DETAIL - Insurance documentation:', data.data.insuranceDocumentation);
+        console.log('🔵 JOB DETAIL - Cleaning observations:', data.data.cleaningObservations);
+
         setJob(data.data);
         setInsuranceDocumentation(data.data.insuranceDocumentation || '');
         setCleaningObservations(data.data.cleaningObservations || '');
