@@ -6,9 +6,29 @@ interface SendEmailParams {
   subject: string;
   html: string;
   from?: string;
+  type?: 'estimate' | 'booking' | 'notification' | 'general';
 }
 
-export async function sendEmail({ to, subject, html, from }: SendEmailParams) {
+// Get the appropriate "from" address based on email type
+function getFromAddress(type?: string, customFrom?: string): string {
+  if (customFrom) return customFrom;
+
+  const domain = process.env.EMAIL_DOMAIN || 'cleandaycrm.com';
+
+  switch (type) {
+    case 'estimate':
+      return process.env.EMAIL_FROM_ESTIMATES || `estimates@${domain}`;
+    case 'booking':
+      return process.env.EMAIL_FROM_BOOKINGS || `bookings@${domain}`;
+    case 'notification':
+      return process.env.EMAIL_FROM_NOTIFICATIONS || `notifications@${domain}`;
+    default:
+      return process.env.EMAIL_FROM || `noreply@${domain}`;
+  }
+}
+
+export async function sendEmail({ to, subject, html, from, type }: SendEmailParams) {
+  const fromAddress = getFromAddress(type, from);
   try {
     // If using Resend
     if (process.env.RESEND_API_KEY) {
@@ -19,7 +39,7 @@ export async function sendEmail({ to, subject, html, from }: SendEmailParams) {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: from || process.env.EMAIL_FROM || 'noreply@yourdomain.com',
+          from: fromAddress,
           to: [to],
           subject,
           html,
@@ -50,7 +70,7 @@ export async function sendEmail({ to, subject, html, from }: SendEmailParams) {
       });
 
       const info = await transporter.sendMail({
-        from: from || process.env.EMAIL_FROM || 'noreply@yourdomain.com',
+        from: fromAddress,
         to,
         subject,
         html,

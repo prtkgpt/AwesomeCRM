@@ -161,7 +161,7 @@ export async function POST(
           to: email,
           subject: `Booking Confirmed - ${booking.company.name}`,
           html: emailHtml,
-          from: booking.company.email || undefined,
+          type: 'booking',
         });
       }
 

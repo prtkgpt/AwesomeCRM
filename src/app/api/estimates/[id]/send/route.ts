@@ -102,7 +102,7 @@ export async function POST(
         to: booking.client.email,
         subject: `Your Cleaning Estimate from ${booking.company.name}`,
         html: emailHtml,
-        from: booking.company.email || undefined,
+        type: 'estimate',
       });
 
       // Update booking to track that estimate was sent
