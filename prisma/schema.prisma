@@ -68,6 +68,13 @@ model Company {
   invitations         Invitation[]
   cleaningReviews     CleaningReview[]
 
+  // AI Copilot
+  aiConversations     AIConversation[]
+  aiUsage             AIUsage[]
+  analyticsCache      AnalyticsCache[]
+  aiRecommendations   AIRecommendation[]
+  pricingSuggestions  PricingSuggestionLog[]
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -110,6 +117,9 @@ model User {
 
   // Reviews authored
   cleaningReviews CleaningReview[]
+
+  // AI Copilot
+  aiConversations AIConversation[]
 
   // Password reset
   resetToken       String?
@@ -562,4 +572,91 @@ model Invoice {
   @@index([clientId])
   @@index([status])
   @@index([invoiceNumber])
+}
+
+// ============================================
+// AI COPILOT
+// ============================================
+
+model AIConversation {
+  id         String   @id @default(cuid())
+  companyId  String
+  userId     String
+  title      String?  // Auto-generated conversation title
+  messages   Json     // Array of { role, content, timestamp }
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, userId])
+  @@index([createdAt])
+}
+
+model AIUsage {
+  id             String   @id @default(cuid())
+  companyId      String
+  feature        String   // "chat", "pricing", "campaign", "insights"
+  provider       String   // "openai", "google", "anthropic"
+  model          String   // "gpt-4o-mini", "gemini-2.0-flash", etc.
+  inputTokens    Int
+  outputTokens   Int
+  cost           Float    // USD
+  createdAt      DateTime @default(now())
+
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([feature])
+}
+
+model AnalyticsCache {
+  id          String   @id @default(cuid())
+  companyId   String
+  metricType  String   // "daily_revenue", "weekly_summary", "client_ltv", etc.
+  periodStart DateTime
+  periodEnd   DateTime
+  data        Json     // Cached metric data
+  computedAt  DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, metricType, periodStart, periodEnd])
+  @@index([companyId, metricType])
+}
+
+model AIRecommendation {
+  id           String    @id @default(cuid())
+  companyId    String
+  type         String    // "pricing", "schedule", "marketing", "retention"
+  priority     String    // "high", "medium", "low"
+  title        String
+  description  String
+  actionType   String    // "create_campaign", "adjust_price", "contact_client"
+  actionParams Json      // Parameters for the action
+  status       String    @default("pending") // "pending", "accepted", "dismissed"
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+  dismissedAt  DateTime?
+
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([type])
+}
+
+model PricingSuggestionLog {
+  id             String   @id @default(cuid())
+  companyId      String
+  input          Json     // PricingInput (bedrooms, bathrooms, sqft, etc.)
+  suggestedPrice Float
+  actualPrice    Float?   // What user chose
+  accepted       Boolean?
+  createdAt      DateTime @default(now())
+
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
 }
