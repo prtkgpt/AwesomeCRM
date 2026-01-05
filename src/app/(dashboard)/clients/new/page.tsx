@@ -158,9 +158,13 @@ export default function NewClientPage() {
         router.push(`/clients/${data.data.id}`);
       } else {
         setError(data.error || 'Failed to create client');
+        // Scroll to top to show error
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+    } catch (err: any) {
+      console.error('Client creation error:', err);
+      setError(err.message || 'An error occurred. Please try again.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
