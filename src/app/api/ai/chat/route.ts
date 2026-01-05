@@ -289,13 +289,17 @@ async function getBusinessContext(companyId: string) {
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
+  // Get today's date range
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
   const [
     totalClients,
     activeCleaners,
     thisMonthBookings,
     thisMonthRevenue,
     lastMonthRevenue,
-    upcomingToday,
+    todaysBookings,
   ] = await Promise.all([
     prisma.client.count({ where: { companyId } }),
     prisma.teamMember.count({ where: { companyId, isActive: true } }),
@@ -324,17 +328,39 @@ async function getBusinessContext(companyId: string) {
       },
       _sum: { price: true },
     }),
-    prisma.booking.count({
+    // Fetch actual today's bookings with details
+    prisma.booking.findMany({
       where: {
         companyId,
         status: "SCHEDULED",
         scheduledDate: {
-          gte: new Date(now.setHours(0, 0, 0, 0)),
-          lt: new Date(now.setHours(23, 59, 59, 999)),
+          gte: todayStart,
+          lte: todayEnd,
         },
       },
+      include: {
+        client: { select: { name: true, phone: true } },
+        address: { select: { street: true, city: true, propertyType: true, bedrooms: true, bathrooms: true } },
+        assignee: { include: { user: { select: { name: true } } } },
+      },
+      orderBy: { scheduledDate: "asc" },
     }),
   ]);
+
+  // Format today's schedule for AI
+  const todaysSchedule = todaysBookings.map((booking) => ({
+    time: booking.scheduledDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }),
+    clientName: booking.client.name,
+    clientPhone: booking.client.phone,
+    address: `${booking.address.street}, ${booking.address.city}`,
+    propertyType: booking.address.propertyType,
+    bedrooms: booking.address.bedrooms,
+    bathrooms: booking.address.bathrooms,
+    serviceType: booking.serviceType,
+    duration: booking.duration,
+    price: booking.price,
+    assignedTo: booking.assignee?.user.name || "Unassigned",
+  }));
 
   return {
     totalClients,
@@ -342,7 +368,8 @@ async function getBusinessContext(companyId: string) {
     thisMonthBookings,
     thisMonthRevenue: thisMonthRevenue._sum.price || 0,
     lastMonthRevenue: lastMonthRevenue._sum.price || 0,
-    upcomingToday,
+    upcomingToday: todaysBookings.length,
+    todaysSchedule,
   };
 }
 
@@ -351,6 +378,24 @@ function buildSystemPrompt(
   userName: string,
   context: Awaited<ReturnType<typeof getBusinessContext>>
 ) {
+  // Format today's schedule for the AI
+  let todaysScheduleText = "";
+  if (context.todaysSchedule && context.todaysSchedule.length > 0) {
+    todaysScheduleText = `\n\nToday's Schedule (${context.todaysSchedule.length} jobs):\n`;
+    context.todaysSchedule.forEach((job, index) => {
+      todaysScheduleText += `${index + 1}. ${job.time} - ${job.clientName}
+   - Address: ${job.address}
+   - Service: ${job.serviceType} (${job.duration} min)
+   - Property: ${job.propertyType || "N/A"}, ${job.bedrooms || "?"} bed / ${job.bathrooms || "?"} bath
+   - Price: $${job.price}
+   - Assigned to: ${job.assignedTo}
+   - Phone: ${job.clientPhone || "N/A"}
+`;
+    });
+  } else {
+    todaysScheduleText = "\n\nToday's Schedule: No jobs scheduled for today.";
+  }
+
   return `${SYSTEM_PROMPTS.chat}
 
 Current business context for ${companyName}:
@@ -361,6 +406,7 @@ Current business context for ${companyName}:
 - Revenue this month: $${context.thisMonthRevenue.toFixed(2)}
 - Revenue last month: $${context.lastMonthRevenue.toFixed(2)}
 - Jobs scheduled today: ${context.upcomingToday}
+${todaysScheduleText}
 
 Today's date: ${new Date().toLocaleDateString("en-US", {
     weekday: "long",
