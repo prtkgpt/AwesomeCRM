@@ -34,6 +34,16 @@ export async function GET(request: NextRequest) {
       include: {
         client: true,
         address: true,
+        assignee: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         scheduledDate: 'asc',

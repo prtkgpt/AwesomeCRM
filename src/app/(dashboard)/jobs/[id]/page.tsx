@@ -671,6 +671,15 @@ export default function JobDetailPage() {
               <div className="text-sm">{job.serviceType.replace('_', ' ')}</div>
             </div>
 
+            {job.assignee && (
+              <div className="pt-2 border-t">
+                <div className="text-sm font-medium text-gray-500 mb-1">Assigned Cleaner</div>
+                <div className="text-sm font-semibold text-blue-600">
+                  👤 {job.assignee.user.name || job.assignee.user.email}
+                </div>
+              </div>
+            )}
+
             {job.notes && (
               <div className="pt-2 border-t">
                 <div className="text-sm font-medium text-gray-500 mb-1">Notes</div>

@@ -390,6 +390,11 @@ export default function JobsPage() {
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {booking.address.street}, {booking.address.city}
                       </p>
+                      {booking.assignee && (
+                        <p className="text-sm text-blue-600 dark:text-blue-400 mt-1 font-medium">
+                          👤 {booking.assignee.user.name || 'Cleaner'}
+                        </p>
+                      )}
                       <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
                         {booking.serviceType} • {booking.duration} min
                       </p>
