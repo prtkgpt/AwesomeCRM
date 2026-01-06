@@ -164,8 +164,58 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('POST /api/estimates error:', error);
+
+    // Handle Zod validation errors
+    if (error instanceof Error && error.name === 'ZodError') {
+      const zodError = error as any;
+      const fieldErrors = zodError.errors?.map((e: any) =>
+        `${e.path.join('.')}: ${e.message}`
+      ).join(', ');
+      console.error('🔴 Validation errors:', fieldErrors);
+      return NextResponse.json({
+        success: false,
+        error: fieldErrors || 'Invalid input data',
+        details: zodError.errors
+      }, { status: 400 });
+    }
+
+    // Handle Prisma errors
+    if (error instanceof Error && error.message) {
+      console.error('🔴 Error message:', error.message);
+
+      // Check for specific Prisma errors
+      if (error.message.includes('Unique constraint')) {
+        return NextResponse.json(
+          { success: false, error: 'A client with this email or phone already exists' },
+          { status: 400 }
+        );
+      }
+
+      if (error.message.includes('Foreign key constraint')) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid reference - please check client or address selection' },
+          { status: 400 }
+        );
+      }
+
+      if (error.message.includes('Required field')) {
+        return NextResponse.json(
+          { success: false, error: 'Missing required field: ' + error.message },
+          { status: 400 }
+        );
+      }
+
+      // Return actual error message for debugging
+      return NextResponse.json({
+        success: false,
+        error: `Failed to create estimate: ${error.message}`,
+        details: error.stack
+      }, { status: 500 });
+    }
+
+    // Generic error fallback
     return NextResponse.json(
-      { success: false, error: 'Failed to create estimate' },
+      { success: false, error: 'Failed to create estimate - unknown error' },
       { status: 500 }
     );
   }
@@ -209,8 +259,18 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('GET /api/estimates error:', error);
+
+    if (error instanceof Error && error.message) {
+      console.error('🔴 Error message:', error.message);
+      return NextResponse.json({
+        success: false,
+        error: `Failed to fetch estimates: ${error.message}`,
+        details: error.stack
+      }, { status: 500 });
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch estimates' },
+      { success: false, error: 'Failed to fetch estimates - unknown error' },
       { status: 500 }
     );
   }
