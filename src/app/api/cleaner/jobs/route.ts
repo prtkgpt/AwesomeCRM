@@ -115,9 +115,20 @@ export async function GET(request: NextRequest) {
       upcomingJobs,
     });
   } catch (error) {
-    console.error('GET /api/cleaner/jobs error:', error);
+    console.error('🔴 GET /api/cleaner/jobs error:', error);
+
+    if (error instanceof Error && error.message) {
+      console.error('🔴 Error message:', error.message);
+      console.error('🔴 Error stack:', error.stack);
+      return NextResponse.json({
+        success: false,
+        error: `Failed to fetch jobs: ${error.message}`,
+        details: error.stack
+      }, { status: 500 });
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch jobs' },
+      { success: false, error: 'Failed to fetch jobs - unknown error' },
       { status: 500 }
     );
   }

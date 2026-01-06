@@ -49,9 +49,20 @@ export async function GET(request: NextRequest) {
       availability,
     });
   } catch (error) {
-    console.error('GET /api/cleaner/availability error:', error);
+    console.error('🔴 GET /api/cleaner/availability error:', error);
+
+    if (error instanceof Error && error.message) {
+      console.error('🔴 Error message:', error.message);
+      console.error('🔴 Error stack:', error.stack);
+      return NextResponse.json({
+        success: false,
+        error: `Failed to fetch availability: ${error.message}`,
+        details: error.stack
+      }, { status: 500 });
+    }
+
     return NextResponse.json(
-      { error: 'Failed to fetch availability' },
+      { success: false, error: 'Failed to fetch availability - unknown error' },
       { status: 500 }
     );
   }
@@ -130,9 +141,29 @@ export async function POST(request: NextRequest) {
       message: 'Availability updated successfully',
     });
   } catch (error) {
-    console.error('POST /api/cleaner/availability error:', error);
+    console.error('🔴 POST /api/cleaner/availability error:', error);
+
+    if (error instanceof Error && error.message) {
+      console.error('🔴 Error message:', error.message);
+      console.error('🔴 Error stack:', error.stack);
+
+      // Check for specific Prisma errors
+      if (error.message.includes('Foreign key constraint')) {
+        return NextResponse.json({
+          success: false,
+          error: 'Invalid company or user reference - please contact support'
+        }, { status: 400 });
+      }
+
+      return NextResponse.json({
+        success: false,
+        error: `Failed to update availability: ${error.message}`,
+        details: error.stack
+      }, { status: 500 });
+    }
+
     return NextResponse.json(
-      { error: 'Failed to update availability' },
+      { success: false, error: 'Failed to update availability - unknown error' },
       { status: 500 }
     );
   }

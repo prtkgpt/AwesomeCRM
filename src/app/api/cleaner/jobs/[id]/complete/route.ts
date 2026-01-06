@@ -77,9 +77,29 @@ export async function POST(
       message: 'Job marked as completed',
     });
   } catch (error) {
-    console.error('POST /api/cleaner/jobs/[id]/complete error:', error);
+    console.error('🔴 POST /api/cleaner/jobs/[id]/complete error:', error);
+
+    if (error instanceof Error && error.message) {
+      console.error('🔴 Error message:', error.message);
+      console.error('🔴 Error stack:', error.stack);
+
+      // Check for specific Prisma errors
+      if (error.message.includes('Record to update not found')) {
+        return NextResponse.json({
+          success: false,
+          error: 'Job not found or already updated'
+        }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        success: false,
+        error: `Failed to complete job: ${error.message}`,
+        details: error.stack
+      }, { status: 500 });
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Failed to complete job' },
+      { success: false, error: 'Failed to complete job - unknown error' },
       { status: 500 }
     );
   }
