@@ -103,6 +103,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If recurring and no end date specified, default to 12 months from start date
+    const calculatedEndDate = validatedData.isRecurring && !validatedData.recurrenceEndDate
+      ? new Date(new Date(validatedData.scheduledDate).setFullYear(
+          new Date(validatedData.scheduledDate).getFullYear() + 1
+        ))
+      : validatedData.recurrenceEndDate;
+
     // Create the main booking
     const booking = await prisma.booking.create({
       data: {
@@ -119,7 +126,7 @@ export async function POST(request: NextRequest) {
         assignedTo: validatedData.assignedTo || null,
         isRecurring: validatedData.isRecurring,
         recurrenceFrequency: validatedData.recurrenceFrequency,
-        recurrenceEndDate: validatedData.recurrenceEndDate,
+        recurrenceEndDate: calculatedEndDate,
         // Insurance payment tracking
         hasInsuranceCoverage: validatedData.hasInsuranceCoverage || false,
         insuranceAmount: validatedData.insuranceAmount || 0,
@@ -142,8 +149,8 @@ export async function POST(request: NextRequest) {
       const recurringDates = generateRecurringDates(
         validatedData.scheduledDate,
         validatedData.recurrenceFrequency as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY',
-        validatedData.recurrenceEndDate,
-        52 // Max 1 year of occurrences
+        calculatedEndDate,
+        52 // Max 52 occurrences (safety limit)
       );
 
       generatedBookings = await Promise.all(
