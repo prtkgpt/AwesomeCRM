@@ -189,16 +189,18 @@ export default function ClientDetailPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
-      {/* INSURANCE WARNING BANNER - AT THE TOP */}
+      {/* Insurance Banner */}
       {client.hasInsurance && (
-        <div className="bg-blue-600 text-white p-6 rounded-xl shadow-2xl border-4 border-blue-800">
-          <div className="flex items-center gap-4">
-            <div className="text-6xl">✓</div>
-            <div className="flex-1">
-              <h2 className="text-3xl font-black uppercase tracking-wide">INSURANCE COVERAGE</h2>
-              <p className="text-blue-100 mt-1 text-lg">This client has active insurance coverage</p>
+        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30">
+              <span className="text-blue-600 dark:text-blue-400 text-lg">✓</span>
             </div>
-            <FileText className="h-16 w-16" />
+            <div className="flex-1">
+              <h2 className="text-sm font-semibold text-blue-900 dark:text-blue-100">Insurance Coverage</h2>
+              <p className="text-xs text-blue-700 dark:text-blue-300">This client has active insurance coverage</p>
+            </div>
+            <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
         </div>
       )}
@@ -212,8 +214,8 @@ export default function ClientDetailPage() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl md:text-4xl font-bold">{client.name}</h1>
               {client.hasInsurance && (
-                <span className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full text-xl font-black shadow-lg border-4 border-blue-800 animate-pulse">
-                  ✓ INSURANCE
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium border border-blue-200 dark:border-blue-800">
+                  <span className="text-xs">✓</span> Insurance
                 </span>
               )}
             </div>
