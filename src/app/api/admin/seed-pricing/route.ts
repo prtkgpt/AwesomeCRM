@@ -30,23 +30,24 @@ export async function POST(request: NextRequest) {
       where: { companyId: user.companyId },
     });
 
+    // TODO: Uncomment after migration is applied
     // Update company with hourly rate and service type multipliers
-    await prisma.company.update({
-      where: { id: user.companyId },
-      data: {
-        hourlyRate: 50.00,
-        serviceTypeMultipliers: {
-          STANDARD: 1.0,           // Initial Standard - 100%
-          DEEP: 1.2,              // Initial Deep cleaning - 120%
-          MOVE_OUT: 1.2,          // Move in/Move out - 120%
-          WEEKLY: 0.75,           // Recurring weekly - 75%
-          BIWEEKLY: 0.85,         // Recurring Bi-weekly - 85%
-          MONTHLY: 0.9,           // Recurring monthly - 90%
-          POST_CONSTRUCTION: 1.3, // Post Construction - 130%
-          POST_PARTY: 1.1,        // Deep Cleaning/Post Party - 110%
-        },
-      },
-    });
+    // await prisma.company.update({
+    //   where: { id: user.companyId },
+    //   data: {
+    //     hourlyRate: 50.00,
+    //     serviceTypeMultipliers: {
+    //       STANDARD: 1.0,           // Initial Standard - 100%
+    //       DEEP: 1.2,              // Initial Deep cleaning - 120%
+    //       MOVE_OUT: 1.2,          // Move in/Move out - 120%
+    //       WEEKLY: 0.75,           // Recurring weekly - 75%
+    //       BIWEEKLY: 0.85,         // Recurring Bi-weekly - 85%
+    //       MONTHLY: 0.9,           // Recurring monthly - 90%
+    //       POST_CONSTRUCTION: 1.3, // Post Construction - 130%
+    //       POST_PARTY: 1.1,        // Deep Cleaning/Post Party - 110%
+    //     },
+    //   },
+    // });
 
     const pricingRules = [];
 
@@ -67,15 +68,16 @@ export async function POST(request: NextRequest) {
     ];
 
     for (const area of serviceAreas) {
+      const type = area.name.toLowerCase().includes('bedroom') ? 'BEDROOM' :
+                   area.name.toLowerCase().includes('bathroom') ? 'BATHROOM' :
+                   'CUSTOM';
       pricingRules.push({
         companyId: user.companyId,
-        type: area.name.toLowerCase().includes('bedroom') ? 'BEDROOM' :
-              area.name.toLowerCase().includes('bathroom') ? 'BATHROOM' :
-              'CUSTOM',
+        type: type as any,
         name: area.name,
         price: area.price,
         duration: area.duration,
-        display: 'BOTH',
+        display: 'BOTH' as any,
         sortOrder: area.sortOrder,
         isActive: true,
       });
@@ -101,11 +103,11 @@ export async function POST(request: NextRequest) {
       const price = (addon.duration / 60) * 50;
       pricingRules.push({
         companyId: user.companyId,
-        type: 'ADDON',
+        type: 'ADDON' as any,
         name: addon.name,
         price: parseFloat(price.toFixed(2)),
         duration: addon.duration,
-        display: 'BOTH',
+        display: 'BOTH' as any,
         sortOrder: addon.sortOrder,
         isActive: true,
       });
