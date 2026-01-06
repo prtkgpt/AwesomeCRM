@@ -54,13 +54,74 @@ export async function POST(request: NextRequest) {
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: validatedData.email },
+      include: { teamMember: true },
     });
 
+    // If user exists and is deactivated, reactivate them
     if (existingUser) {
-      return NextResponse.json(
-        { success: false, error: 'An account with this email already exists' },
-        { status: 400 }
-      );
+      // Check if user belongs to the same company
+      if (existingUser.companyId !== currentUser.companyId) {
+        return NextResponse.json(
+          { success: false, error: 'An account with this email already exists in another company' },
+          { status: 400 }
+        );
+      }
+
+      // If user is active, return error
+      if (existingUser.teamMember?.isActive) {
+        return NextResponse.json(
+          { success: false, error: 'An account with this email already exists and is active' },
+          { status: 400 }
+        );
+      }
+
+      // Reactivate deactivated account and update password
+      const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Update user
+        const updatedUser = await tx.user.update({
+          where: { id: existingUser.id },
+          data: {
+            name: validatedData.name,
+            phone: validatedData.phone,
+            passwordHash: hashedPassword,
+          },
+        });
+
+        // Update team member - reactivate and update details
+        const teamMember = await tx.teamMember.update({
+          where: { userId: existingUser.id },
+          data: {
+            isActive: true,
+            street: validatedData.street,
+            city: validatedData.city,
+            state: validatedData.state,
+            zip: validatedData.zip,
+            emergencyContact: validatedData.emergencyContact,
+            emergencyPhone: validatedData.emergencyPhone,
+            hourlyRate: validatedData.hourlyRate,
+            employeeId: validatedData.employeeId,
+            experience: validatedData.experience,
+            speed: validatedData.speed,
+            serviceAreas: validatedData.serviceAreas || [],
+            specialties: validatedData.specialties || [],
+          },
+        });
+
+        return { user: updatedUser, teamMember };
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          role: result.user.role,
+        },
+        message: 'Cleaner account reactivated successfully',
+      });
     }
 
     // Hash password
