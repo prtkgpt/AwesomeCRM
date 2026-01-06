@@ -144,30 +144,56 @@ export async function PATCH(
     }
 
     // Regular update without password change
-    const updated = await prisma.teamMember.update({
-      where: { id: params.id },
-      data: {
-        isActive: body.isActive,
-        hourlyRate: body.hourlyRate,
-        employeeId: body.employeeId,
-        emergencyContact: body.emergencyContact,
-        emergencyPhone: body.emergencyPhone,
-        specialties: body.specialties,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            role: true,
+    const result = await prisma.$transaction(async (tx) => {
+      // Update user fields if provided
+      if (body.name !== undefined || body.email !== undefined || body.phone !== undefined) {
+        await tx.user.update({
+          where: { id: teamMember.userId },
+          data: {
+            ...(body.name !== undefined && { name: body.name }),
+            ...(body.email !== undefined && { email: body.email }),
+            ...(body.phone !== undefined && { phone: body.phone }),
+          },
+        });
+      }
+
+      // Update team member fields
+      const updated = await tx.teamMember.update({
+        where: { id: params.id },
+        data: {
+          ...(body.isActive !== undefined && { isActive: body.isActive }),
+          ...(body.hourlyRate !== undefined && { hourlyRate: body.hourlyRate }),
+          ...(body.employeeId !== undefined && { employeeId: body.employeeId }),
+          ...(body.emergencyContact !== undefined && { emergencyContact: body.emergencyContact }),
+          ...(body.emergencyPhone !== undefined && { emergencyPhone: body.emergencyPhone }),
+          ...(body.specialties !== undefined && { specialties: body.specialties }),
+          // Address fields
+          ...(body.street !== undefined && { street: body.street }),
+          ...(body.city !== undefined && { city: body.city }),
+          ...(body.state !== undefined && { state: body.state }),
+          ...(body.zip !== undefined && { zip: body.zip }),
+          // Work details
+          ...(body.experience !== undefined && { experience: body.experience }),
+          ...(body.speed !== undefined && { speed: body.speed }),
+          ...(body.serviceAreas !== undefined && { serviceAreas: body.serviceAreas }),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              role: true,
+            },
           },
         },
-      },
+      });
+
+      return updated;
     });
 
-    return NextResponse.json({ success: true, data: updated });
+    return NextResponse.json({ success: true, data: result });
   } catch (error) {
     console.error('PATCH /api/team/members/[id] error:', error);
     return NextResponse.json(

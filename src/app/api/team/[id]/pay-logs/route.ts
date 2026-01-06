@@ -41,10 +41,10 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Only OWNER and ADMIN can view pay logs
-    if (user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    // Only OWNER can view pay logs
+    if (user.role !== 'OWNER') {
       return NextResponse.json(
-        { error: 'Only owners and admins can view pay logs' },
+        { error: 'Only the owner can view pay logs' },
         { status: 403 }
       );
     }
@@ -107,10 +107,10 @@ export async function POST(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Only OWNER and ADMIN can create pay logs
-    if (user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    // Only OWNER can create pay logs
+    if (user.role !== 'OWNER') {
       return NextResponse.json(
-        { error: 'Only owners and admins can create pay logs' },
+        { error: 'Only the owner can create pay logs' },
         { status: 403 }
       );
     }

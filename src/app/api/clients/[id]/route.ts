@@ -99,24 +99,67 @@ export async function PUT(
       );
     }
 
-    // Update client
-    const client = await prisma.client.update({
-      where: { id: params.id },
-      data: {
-        name: validatedData.name,
-        email: validatedData.email || null,
-        phone: validatedData.phone,
-        tags: validatedData.tags,
-        notes: validatedData.notes,
-      },
-      include: {
-        addresses: true,
-      },
+    // Update client and address
+    const result = await prisma.$transaction(async (tx) => {
+      // Update client
+      const client = await tx.client.update({
+        where: { id: params.id },
+        data: {
+          name: validatedData.name,
+          email: validatedData.email || null,
+          phone: validatedData.phone,
+          tags: validatedData.tags,
+          notes: validatedData.notes,
+          // Insurance fields
+          hasInsurance: body.hasInsurance,
+          helperBeesReferralId: body.helperBeesReferralId,
+          insuranceProvider: body.insuranceProvider,
+          insurancePaymentAmount: body.insurancePaymentAmount,
+          standardCopayAmount: body.standardCopayAmount,
+          hasDiscountedCopay: body.hasDiscountedCopay,
+          copayDiscountAmount: body.copayDiscountAmount,
+          copayNotes: body.copayNotes,
+        },
+      });
+
+      // Update primary address if provided
+      if (body.addressId && body.address) {
+        await tx.address.update({
+          where: { id: body.addressId },
+          data: {
+            street: body.address.street,
+            city: body.address.city,
+            state: body.address.state,
+            zip: body.address.zip,
+            googlePlaceId: body.address.googlePlaceId,
+            lat: body.address.lat,
+            lng: body.address.lng,
+            formattedAddress: body.address.formattedAddress,
+            isVerified: body.address.isVerified,
+            parkingInfo: body.address.parkingInfo,
+            gateCode: body.address.gateCode,
+            petInfo: body.address.petInfo,
+            preferences: body.address.preferences,
+            propertyType: body.address.propertyType,
+            squareFootage: body.address.squareFootage,
+            bedrooms: body.address.bedrooms,
+            bathrooms: body.address.bathrooms,
+            floors: body.address.floors,
+            yearBuilt: body.address.yearBuilt,
+          },
+        });
+      }
+
+      // Fetch updated client with addresses
+      return await tx.client.findUnique({
+        where: { id: params.id },
+        include: { addresses: true },
+      });
     });
 
     return NextResponse.json({
       success: true,
-      data: client,
+      data: result,
       message: 'Client updated successfully',
     });
   } catch (error) {

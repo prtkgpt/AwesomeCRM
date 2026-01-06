@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ArrowLeft, Plus, DollarSign, Receipt, Fuel, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -36,6 +37,7 @@ interface TeamMember {
 
 export default function PayLogsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [teamMember, setTeamMember] = useState<TeamMember | null>(null);
   const [payLogs, setPayLogs] = useState<PayLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,22 @@ export default function PayLogsPage({ params }: { params: { id: string } }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
+
+  // Permission check: Only OWNER can access pay logs
+  useEffect(() => {
+    if (status === 'loading') return;
+
+    if (status === 'unauthenticated') {
+      router.push('/login');
+      return;
+    }
+
+    if (session?.user?.role !== 'OWNER') {
+      alert('Access denied. Only the owner can view pay logs.');
+      router.push('/team');
+      return;
+    }
+  }, [status, session, router]);
 
   const [formData, setFormData] = useState({
     type: 'PAYCHECK' as 'PAYCHECK' | 'SUPPLIES_REIMBURSEMENT' | 'GAS_REIMBURSEMENT',

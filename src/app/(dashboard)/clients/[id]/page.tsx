@@ -231,16 +231,24 @@ export default function ClientDetailPage() {
             )}
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="text-red-600 hover:text-red-700 dark:text-red-400"
-        >
-          <Trash2 className="h-4 w-4 mr-1" />
-          {deleting ? 'Deleting...' : 'Delete'}
-        </Button>
+        <div className="flex gap-2">
+          <Link href={`/clients/${clientId}/edit`}>
+            <Button variant="outline" size="sm">
+              <Edit className="h-4 w-4 mr-1" />
+              Edit Profile
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-red-600 hover:text-red-700 dark:text-red-400"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </div>
       </div>
 
       {/* Job Stats */}

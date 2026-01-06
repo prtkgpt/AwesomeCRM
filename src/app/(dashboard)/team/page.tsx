@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, UserPlus, DollarSign, Trash2 } from 'lucide-react';
+import { Plus, UserPlus, DollarSign, Trash2, Edit } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,9 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'CLEANER'>('CLEANER');
   const [submitting, setSubmitting] = useState(false);
+
+  // Check if current user is OWNER (can see all hourly rates and pay logs)
+  const isOwner = session?.user?.role === 'OWNER';
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -252,19 +255,27 @@ export default function TeamPage() {
                         <p>Email: {member.user.email}</p>
                         {member.user.phone && <p>Phone: {member.user.phone}</p>}
                         {member.employeeId && <p>Employee ID: {member.employeeId}</p>}
-                        {member.hourlyRate && <p>Hourly Rate: ${member.hourlyRate}/hr</p>}
+                        {isOwner && member.hourlyRate && <p>Hourly Rate: ${member.hourlyRate}/hr</p>}
                         {member.specialties.length > 0 && (
                           <p>Specialties: {member.specialties.join(', ')}</p>
                         )}
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Link href={`/team/${member.id}/pay-logs`}>
+                      <Link href={`/team/${member.id}/edit`}>
                         <Button variant="outline" size="sm">
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          Pay Logs
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
                         </Button>
                       </Link>
+                      {isOwner && (
+                        <Link href={`/team/${member.id}/pay-logs`}>
+                          <Button variant="outline" size="sm">
+                            <DollarSign className="h-4 w-4 mr-1" />
+                            Pay Logs
+                          </Button>
+                        </Link>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
