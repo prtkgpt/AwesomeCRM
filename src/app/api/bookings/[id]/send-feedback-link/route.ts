@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { sendSMS } from '@/lib/sms';
+import { sendSMS } from '@/lib/twilio';
 import { sendEmail } from '@/lib/email';
 
 // POST /api/bookings/[id]/send-feedback-link - Manually send feedback link to customer
@@ -103,7 +103,7 @@ export async function POST(
           {
             accountSid: booking.company.twilioAccountSid,
             authToken: booking.company.twilioAuthToken,
-            fromNumber: booking.company.twilioPhoneNumber || undefined,
+            from: booking.company.twilioPhoneNumber || undefined,
           }
         );
 

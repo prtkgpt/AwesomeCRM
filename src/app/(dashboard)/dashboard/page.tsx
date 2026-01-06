@@ -117,11 +117,70 @@ export default function DashboardPage() {
     setCurrentDate(newDate);
   };
 
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(currentDate.getMonth() + (direction === 'next' ? 1 : -1));
+    setCurrentDate(newDate);
+  };
+
+  const navigateDay = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(currentDate.getDate() + (direction === 'next' ? 1 : -1));
+    setCurrentDate(newDate);
+  };
+
+  const getMonthDays = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    // First day of the month
+    const firstDay = new Date(year, month, 1);
+    const startingDayOfWeek = firstDay.getDay();
+
+    // Last day of the month
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+
+    // Days to show from previous month
+    const daysFromPrevMonth = startingDayOfWeek;
+    const prevMonth = new Date(year, month, 0);
+    const daysInPrevMonth = prevMonth.getDate();
+
+    const days: Date[] = [];
+
+    // Add days from previous month
+    for (let i = daysFromPrevMonth - 1; i >= 0; i--) {
+      days.push(new Date(year, month - 1, daysInPrevMonth - i));
+    }
+
+    // Add days from current month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(new Date(year, month, i));
+    }
+
+    // Add days from next month to complete the grid (6 weeks = 42 days)
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push(new Date(year, month + 1, i));
+    }
+
+    return days;
+  };
+
   const formatTime = (date: string) => {
     return new Date(date).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
     });
+  };
+
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+
+    if (hours === 0) return `${mins} mins`;
+    if (mins === 0) return `${hours} ${hours === 1 ? 'hr' : 'hrs'}`;
+    return `${hours} ${hours === 1 ? 'hr' : 'hrs'} ${mins} mins`;
   };
 
   const getActivityIcon = (category: string) => {
@@ -256,13 +315,19 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
                 <h2 className="text-lg font-semibold">
-                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  {viewType === 'day'
+                    ? currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                    : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </h2>
                 <div className="flex gap-1">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigateWeek('prev')}
+                    onClick={() => {
+                      if (viewType === 'month') navigateMonth('prev');
+                      else if (viewType === 'week') navigateWeek('prev');
+                      else if (viewType === 'day') navigateDay('prev');
+                    }}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -276,7 +341,11 @@ export default function DashboardPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigateWeek('next')}
+                    onClick={() => {
+                      if (viewType === 'month') navigateMonth('next');
+                      else if (viewType === 'week') navigateWeek('next');
+                      else if (viewType === 'day') navigateDay('next');
+                    }}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -301,12 +370,83 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Calendar Grid - Month View */}
+            {viewType === 'month' && (
+              <div>
+                {/* Day headers */}
+                <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 mb-px">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                    <div
+                      key={day}
+                      className="bg-gray-50 dark:bg-gray-800 px-2 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
+                    >
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar grid */}
+                <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700">
+                  {getMonthDays().map((date, index) => {
+                    const dayJobs = getJobsForDate(date);
+                    const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                    const isToday = isSameDay(date, new Date());
+                    const hasUnassignedJobs = dayJobs.some(job => !job.assignee);
+
+                    return (
+                      <div
+                        key={index}
+                        className={`bg-white dark:bg-gray-900 min-h-[100px] p-2 ${
+                          !isCurrentMonth ? 'opacity-40' : ''
+                        } ${isToday ? 'ring-2 ring-blue-500 ring-inset' : ''} ${
+                          hasUnassignedJobs ? 'bg-pink-50/50 dark:bg-pink-900/10' : ''
+                        }`}
+                      >
+                        <div className={`text-sm mb-1 ${
+                          isToday
+                            ? 'inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white font-bold'
+                            : isCurrentMonth
+                            ? 'text-gray-900 dark:text-gray-100'
+                            : 'text-gray-400 dark:text-gray-600'
+                        }`}>
+                          {date.getDate()}
+                        </div>
+
+                        <div className="space-y-1">
+                          {dayJobs.slice(0, 3).map((job) => {
+                            const isUnassigned = !job.assignee;
+                            return (
+                              <Link key={job.id} href={`/jobs/${job.id}`}>
+                                <div className={`text-[10px] px-1.5 py-1 rounded truncate cursor-pointer transition-colors ${
+                                  isUnassigned
+                                    ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-900 dark:text-pink-100 border border-pink-200 dark:border-pink-800 hover:bg-pink-200 dark:hover:bg-pink-900/60'
+                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 hover:bg-blue-200 dark:hover:bg-blue-900/50'
+                                }`}>
+                                  {formatTime(job.scheduledDate)} {job.client.name}
+                                </div>
+                              </Link>
+                            );
+                          })}
+                          {dayJobs.length > 3 && (
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400 px-1.5">
+                              +{dayJobs.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Calendar Grid - Week View */}
             {viewType === 'week' && (
               <div className="grid grid-cols-7 gap-2">
                 {getWeekDays().map((date, index) => {
                   const dayJobs = getJobsForDate(date);
                   const isToday = isSameDay(date, new Date());
+                  const hasUnassignedJobs = dayJobs.some(job => !job.assignee);
 
                   return (
                     <div
@@ -314,6 +454,8 @@ export default function DashboardPage() {
                       className={`border rounded-lg p-3 min-h-[150px] ${
                         isToday
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10'
+                          : hasUnassignedJobs
+                          ? 'border-pink-200 bg-pink-50/50 dark:border-pink-900 dark:bg-pink-900/10'
                           : 'border-gray-200 dark:border-gray-700'
                       }`}
                     >
@@ -333,14 +475,24 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="space-y-1">
-                        {dayJobs.map((job) => (
-                          <Link key={job.id} href={`/jobs/${job.id}`}>
-                            <div className="text-xs p-2 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 hover:bg-blue-200 dark:hover:bg-blue-900/50 cursor-pointer transition-colors">
-                              <div className="font-medium truncate">{job.client.name}</div>
-                              <div className="text-[10px] opacity-80">{formatTime(job.scheduledDate)}</div>
-                            </div>
-                          </Link>
-                        ))}
+                        {dayJobs.map((job) => {
+                          const isUnassigned = !job.assignee;
+                          return (
+                            <Link key={job.id} href={`/jobs/${job.id}`}>
+                              <div className={`text-xs p-2 rounded cursor-pointer transition-colors ${
+                                isUnassigned
+                                  ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-900 dark:text-pink-100 border border-pink-200 dark:border-pink-800 hover:bg-pink-200 dark:hover:bg-pink-900/60'
+                                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 hover:bg-blue-200 dark:hover:bg-blue-900/50'
+                              }`}>
+                                <div className="font-medium truncate">{job.client.name}</div>
+                                <div className="text-[10px] opacity-80">{formatTime(job.scheduledDate)}</div>
+                                {isUnassigned && (
+                                  <div className="text-[10px] font-medium mt-0.5">⚠️ No cleaner</div>
+                                )}
+                              </div>
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -348,40 +500,144 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* Day View */}
+            {viewType === 'day' && (
+              <div className="space-y-3">
+                {(() => {
+                  const dayJobs = getJobsForDate(currentDate);
+
+                  if (dayJobs.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-gray-500">
+                        No jobs scheduled for this day
+                      </div>
+                    );
+                  }
+
+                  return dayJobs.map((job) => {
+                    const isUnassigned = !job.assignee;
+                    return (
+                      <Link key={job.id} href={`/jobs/${job.id}`}>
+                        <div className={`p-4 rounded-lg border-2 transition-all hover:shadow-md ${
+                          isUnassigned
+                            ? 'bg-pink-50 dark:bg-pink-900/10 border-pink-200 dark:border-pink-800'
+                            : 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
+                        }`}>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Clock className={`h-4 w-4 ${
+                                  isUnassigned ? 'text-pink-600 dark:text-pink-400' : 'text-blue-600 dark:text-blue-400'
+                                }`} />
+                                <span className={`font-semibold ${
+                                  isUnassigned ? 'text-pink-900 dark:text-pink-100' : 'text-blue-900 dark:text-blue-100'
+                                }`}>
+                                  {formatTime(job.scheduledDate)}
+                                </span>
+                                {isUnassigned && (
+                                  <span className="px-2 py-0.5 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 text-xs font-medium rounded-full">
+                                    ⚠️ Needs Assignment
+                                  </span>
+                                )}
+                              </div>
+
+                              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                                {job.client.name}
+                              </h3>
+
+                              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">Service:</span>
+                                  <span>{job.serviceType}</span>
+                                </div>
+
+                                {job.assignee ? (
+                                  <div className="flex items-center gap-2">
+                                    <UserIcon className="h-3.5 w-3.5" />
+                                    <span>{job.assignee.user.name}</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 text-pink-700 dark:text-pink-300 font-medium">
+                                    <UserIcon className="h-3.5 w-3.5" />
+                                    <span>No cleaner assigned</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+
             {/* List View */}
             {viewType === 'list' && (
               <div className="space-y-2">
                 {stats?.upcomingJobsList && stats.upcomingJobsList.length > 0 ? (
-                  stats.upcomingJobsList.map((job) => (
-                    <Link key={job.id} href={`/jobs/${job.id}`}>
-                      <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className="text-center">
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {new Date(job.scheduledDate).getDate()}
+                  (() => {
+                    // Sort jobs to put unassigned ones at the top
+                    const sortedJobs = [...stats.upcomingJobsList].sort((a, b) => {
+                      const aUnassigned = !a.assignee;
+                      const bUnassigned = !b.assignee;
+                      if (aUnassigned && !bUnassigned) return -1;
+                      if (!aUnassigned && bUnassigned) return 1;
+                      return new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime();
+                    });
+
+                    return sortedJobs.map((job) => {
+                      const isUnassigned = !job.assignee;
+                      return (
+                        <Link key={job.id} href={`/jobs/${job.id}`}>
+                          <div className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                            isUnassigned
+                              ? 'border-pink-200 bg-pink-50 dark:border-pink-800 dark:bg-pink-900/10 hover:bg-pink-100 dark:hover:bg-pink-900/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                          }`}>
+                            <div className="flex items-center gap-4">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                  {new Date(job.scheduledDate).getDate()}
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {new Date(job.scheduledDate).toLocaleDateString('en-US', { month: 'short' })}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <div className="font-medium">{job.client.name}</div>
+                                  {isUnassigned && (
+                                    <span className="px-2 py-0.5 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 text-xs font-medium rounded-full">
+                                      ⚠️ Needs Assignment
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">{job.serviceType}</div>
+                              </div>
                             </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                              {new Date(job.scheduledDate).toLocaleDateString('en-US', { month: 'short' })}
+                            <div className="text-right">
+                              <div className={`font-medium ${
+                                isUnassigned ? 'text-pink-600 dark:text-pink-400' : 'text-blue-600 dark:text-blue-400'
+                              }`}>
+                                {formatTime(job.scheduledDate)}
+                              </div>
+                              {job.assignee ? (
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {job.assignee.user.name}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-pink-700 dark:text-pink-300 font-medium">
+                                  No cleaner
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div>
-                            <div className="font-medium">{job.client.name}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">{job.serviceType}</div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium text-blue-600 dark:text-blue-400">
-                            {formatTime(job.scheduledDate)}
-                          </div>
-                          {job.assignee && (
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                              {job.assignee.user.name}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  ))
+                        </Link>
+                      );
+                    });
+                  })()
                 ) : (
                   <div className="text-center py-12 text-gray-500">
                     No upcoming jobs scheduled
@@ -405,33 +661,63 @@ export default function DashboardPage() {
 
           <div className="space-y-4">
             {activities.length > 0 ? (
-              activities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className={`p-3 rounded-lg border ${
-                    activity.priority === 'high'
-                      ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/10'
-                      : activity.priority === 'medium'
-                      ? 'border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-900/10'
-                      : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <span className="text-lg">{getActivityIcon(activity.category)}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {activity.title}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                        {activity.description}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        {getTimeAgo(activity.timestamp)}
+              (() => {
+                // Sort activities: high priority (unassigned jobs) first
+                const sortedActivities = [...activities].sort((a, b) => {
+                  const priorityOrder = { high: 0, medium: 1, low: 2 };
+                  const aPriority = priorityOrder[a.priority];
+                  const bPriority = priorityOrder[b.priority];
+
+                  if (aPriority !== bPriority) {
+                    return aPriority - bPriority;
+                  }
+
+                  // If same priority, sort by timestamp (most recent first)
+                  return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+                });
+
+                return sortedActivities.map((activity) => {
+                  const isUnassignedJob = activity.metadata?.isUnassigned ||
+                    (activity.category === 'booking_created' && activity.metadata?.assignee === null);
+
+                  return (
+                    <div
+                      key={activity.id}
+                      className={`p-3 rounded-lg border ${
+                        isUnassignedJob
+                          ? 'border-pink-200 bg-pink-50 dark:border-pink-900 dark:bg-pink-900/10'
+                          : activity.priority === 'high'
+                          ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/10'
+                          : activity.priority === 'medium'
+                          ? 'border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-900/10'
+                          : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">{getActivityIcon(activity.category)}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {activity.title}
+                            </div>
+                            {isUnassignedJob && (
+                              <span className="px-1.5 py-0.5 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 text-[10px] font-medium rounded">
+                                ⚠️ Needs Assignment
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                            {activity.description}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                            {getTimeAgo(activity.timestamp)}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))
+                  );
+                });
+              })()
             ) : (
               <div className="text-center py-12 text-gray-500 text-sm">
                 No recent activity
