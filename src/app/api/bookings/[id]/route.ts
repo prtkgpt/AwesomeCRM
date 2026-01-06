@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { updateBookingSchema } from '@/lib/validations';
+import { sendSMS } from '@/lib/twilio';
+import { sendEmail } from '@/lib/email';
 
 // GET /api/bookings/[id] - Get booking details
 export async function GET(
@@ -107,6 +109,10 @@ export async function PUT(
       );
     }
 
+    // Check if cleaner assignment has changed
+    const assignmentChanged = validatedData.assignedTo !== undefined &&
+                              existingBooking.assignedTo !== validatedData.assignedTo;
+
     // Update booking
     const booking = await prisma.booking.update({
       where: { id: params.id },
@@ -133,12 +139,162 @@ export async function PUT(
               select: {
                 name: true,
                 email: true,
+                phone: true,
               },
             },
           },
         },
       },
     });
+
+    // Send notification to newly assigned cleaner
+    if (assignmentChanged && booking.assignee) {
+      const company = await prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: {
+          name: true,
+          twilioAccountSid: true,
+          twilioAuthToken: true,
+          twilioPhoneNumber: true,
+          resendApiKey: true,
+        },
+      });
+
+      const cleanerName = booking.assignee.user.name || 'there';
+      const cleanerEmail = booking.assignee.user.email;
+      const cleanerPhone = booking.assignee.user.phone;
+
+      const scheduledDate = new Date(booking.scheduledDate);
+      const dateStr = scheduledDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      });
+      const timeStr = scheduledDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+      const fullAddress = `${booking.address.street}, ${booking.address.city}, ${booking.address.state} ${booking.address.zip}`;
+
+      // Send SMS notification
+      if (cleanerPhone && company) {
+        try {
+          const smsMessage = `Hi ${cleanerName}! You've been assigned a new cleaning job on ${dateStr} at ${timeStr}. Client: ${booking.client.name}. Location: ${fullAddress}. Check your dashboard for details.`;
+
+          await sendSMS(cleanerPhone, smsMessage, {
+            accountSid: company.twilioAccountSid || undefined,
+            authToken: company.twilioAuthToken || undefined,
+            from: company.twilioPhoneNumber || undefined,
+          });
+          console.log('✅ Cleaner assignment SMS sent to:', cleanerPhone);
+        } catch (error) {
+          console.error('❌ Failed to send SMS to cleaner:', error);
+        }
+      }
+
+      // Send email notification
+      if (cleanerEmail && company) {
+        try {
+          const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Job Assignment</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #2563eb; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 28px;">🧹 New Job Assignment</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px;">You have a new cleaning scheduled</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Hi ${cleanerName},</p>
+
+    <p style="font-size: 16px;">You've been assigned a new cleaning job. Here are the details:</p>
+
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
+      <h2 style="margin-top: 0; color: #2563eb; font-size: 20px;">Job Details</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Client:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${booking.client.name}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Date & Time:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${dateStr}<br>${timeStr}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Service Type:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${booking.serviceType.replace('_', ' ')}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Duration:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${booking.duration} minutes</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0;"><strong>Address:</strong></td>
+          <td style="padding: 10px 0; text-align: right;">${fullAddress}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${booking.address.gateCode ? `
+    <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+      <p style="margin: 0; color: #92400e;"><strong>🔑 Gate Code:</strong> ${booking.address.gateCode}</p>
+    </div>
+    ` : ''}
+
+    ${booking.address.parkingInfo ? `
+    <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+      <p style="margin: 0; color: #1e40af;"><strong>🅿️ Parking Info:</strong> ${booking.address.parkingInfo}</p>
+    </div>
+    ` : ''}
+
+    ${booking.address.petInfo ? `
+    <div style="background-color: #fce7f3; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ec4899;">
+      <p style="margin: 0; color: #831843;"><strong>🐾 Pet Info:</strong> ${booking.address.petInfo}</p>
+    </div>
+    ` : ''}
+
+    ${booking.notes ? `
+    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6b7280;">
+      <p style="margin: 0; color: #374151;"><strong>📝 Notes:</strong> ${booking.notes}</p>
+    </div>
+    ` : ''}
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Log in to your dashboard to view full details and manage this job.
+    </p>
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Best regards,<br>
+      <strong>${company?.name || 'Your Company'}</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>© ${new Date().getFullYear()} ${company?.name || 'CleanDay CRM'}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+          `;
+
+          await sendEmail({
+            to: cleanerEmail,
+            subject: `New Job Assignment - ${booking.client.name} on ${dateStr}`,
+            html: emailHtml,
+            type: 'notification',
+            apiKey: company.resendApiKey || undefined,
+          });
+          console.log('✅ Cleaner assignment email sent to:', cleanerEmail);
+        } catch (error) {
+          console.error('❌ Failed to send email to cleaner:', error);
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
