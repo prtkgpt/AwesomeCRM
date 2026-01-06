@@ -74,17 +74,28 @@ export async function POST(request: NextRequest) {
       message: 'Password changed successfully',
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error('🔴 POST /api/user/password error:', error);
 
     if (error instanceof z.ZodError) {
+      console.error('🔴 Validation errors:', error.errors);
       return NextResponse.json(
         { success: false, error: error.errors[0].message },
         { status: 400 }
       );
     }
 
+    if (error instanceof Error && error.message) {
+      console.error('🔴 Error message:', error.message);
+      console.error('🔴 Error stack:', error.stack);
+      return NextResponse.json({
+        success: false,
+        error: `Failed to change password: ${error.message}`,
+        details: error.stack
+      }, { status: 500 });
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Failed to change password' },
+      { success: false, error: 'Failed to change password - unknown error' },
       { status: 500 }
     );
   }
