@@ -117,7 +117,7 @@ export default function NewClientPage() {
           ? parseFloat(formData.copayDiscountAmount)
           : undefined,
         copayNotes: formData.copayNotes || undefined,
-        cleaningObservations: formData.cleaningObservations || undefined,
+        // cleaningObservations: formData.cleaningObservations || undefined, // TODO: Add after migration
 
         // Address
         addresses: [

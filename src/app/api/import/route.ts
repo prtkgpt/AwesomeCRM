@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
               hasInsurance,
               insuranceProvider: hasInsurance ? row.insuranceProvider || null : null,
               standardCopayAmount: copayAmount,
-              cleaningObservations: row.cleaningObservations || null,
+              // cleaningObservations: row.cleaningObservations || null, // TODO: Re-enable after migration
               addresses: {
                 create: {
                   label: 'Primary Address',
