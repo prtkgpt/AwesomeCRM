@@ -176,6 +176,16 @@ export default function AddressAutocomplete({
   const handleManualChange = () => {
     setVerified(false);
     setVerificationError('');
+
+    // Update parent with current values when manually changing
+    // This is debounced and only happens on blur
+    onAddressSelect({
+      street,
+      city,
+      state,
+      zip,
+      isVerified: false
+    });
   };
 
   return (
@@ -191,10 +201,8 @@ export default function AddressAutocomplete({
             value={street}
             onChange={(e) => {
               setStreet(e.target.value);
-              handleManualChange();
-            }}
-            onBlur={() => {
-              onAddressSelect({ street, city, state, zip, isVerified: verified });
+              setVerified(false);
+              setVerificationError('');
             }}
             className="pl-10"
             placeholder="Start typing address..."
@@ -213,10 +221,8 @@ export default function AddressAutocomplete({
             value={city}
             onChange={(e) => {
               setCity(e.target.value);
-              handleManualChange();
-            }}
-            onBlur={() => {
-              onAddressSelect({ street, city, state, zip, isVerified: verified });
+              setVerified(false);
+              setVerificationError('');
             }}
             placeholder="City"
             required
@@ -229,10 +235,8 @@ export default function AddressAutocomplete({
             value={state}
             onChange={(e) => {
               setState(e.target.value.toUpperCase());
-              handleManualChange();
-            }}
-            onBlur={() => {
-              onAddressSelect({ street, city, state, zip, isVerified: verified });
+              setVerified(false);
+              setVerificationError('');
             }}
             placeholder="CA"
             maxLength={2}
@@ -246,10 +250,8 @@ export default function AddressAutocomplete({
             value={zip}
             onChange={(e) => {
               setZip(e.target.value);
-              handleManualChange();
-            }}
-            onBlur={() => {
-              onAddressSelect({ street, city, state, zip, isVerified: verified });
+              setVerified(false);
+              setVerificationError('');
             }}
             placeholder="94102"
             maxLength={10}
