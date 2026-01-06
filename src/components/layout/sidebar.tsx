@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, DollarSign } from 'lucide-react';
+import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -47,11 +47,6 @@ const ownerAdminNavItems = [
     href: '/invoices',
     label: 'Invoices',
     icon: FileText,
-  },
-  {
-    href: '/settings/pricing',
-    label: 'Pricing',
-    icon: DollarSign,
   },
   {
     href: '/settings',
@@ -162,28 +157,8 @@ export function Sidebar() {
           </button>
 
           {/* Footer Attribution */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400 text-center leading-relaxed">
-              Built with love by{' '}
-              <a
-                href="https://www.prateekgupta.org"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Prateek Gupta
-              </a>
-              {' '}and{' '}
-              <a
-                href="https://getawesomemaids.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Team
-              </a>
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-1">
+          <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
               © 2026 CleanDay CRM
             </p>
           </div>
