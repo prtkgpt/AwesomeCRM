@@ -50,7 +50,7 @@ export default function TeamPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Check if current user is OWNER (can see all hourly rates and pay logs)
-  const isOwner = session?.user?.role === 'OWNER';
+  const isOwner = (session?.user as any)?.role === 'OWNER';
 
   useEffect(() => {
     if (status === 'unauthenticated') {

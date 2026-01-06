@@ -55,7 +55,7 @@ export default function PayLogsPage({ params }: { params: { id: string } }) {
       return;
     }
 
-    if (session?.user?.role !== 'OWNER') {
+    if ((session?.user as any)?.role !== 'OWNER') {
       alert('Access denied. Only the owner can view pay logs.');
       router.push('/team');
       return;
