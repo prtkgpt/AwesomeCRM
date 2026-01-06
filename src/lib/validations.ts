@@ -63,7 +63,7 @@ export const createClientSchema = z.object({
   hasDiscountedCopay: z.boolean().optional(),
   copayDiscountAmount: z.number().optional(),
   copayNotes: z.string().optional(),
-  cleaningObservations: z.string().optional(),
+  // cleaningObservations: z.string().optional(), // TODO: Re-enable after migration
 });
 
 export const updateClientSchema = z.object({
