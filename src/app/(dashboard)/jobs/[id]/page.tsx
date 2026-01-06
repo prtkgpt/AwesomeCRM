@@ -91,7 +91,15 @@ export default function JobDetailPage() {
 
         // Populate edit form
         const scheduledDate = new Date(data.data.scheduledDate);
-        const formattedDate = scheduledDate.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+        // Convert to local datetime string for datetime-local input
+        // datetime-local expects YYYY-MM-DDTHH:mm in LOCAL timezone
+        const year = scheduledDate.getFullYear();
+        const month = String(scheduledDate.getMonth() + 1).padStart(2, '0');
+        const day = String(scheduledDate.getDate()).padStart(2, '0');
+        const hours = String(scheduledDate.getHours()).padStart(2, '0');
+        const minutes = String(scheduledDate.getMinutes()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`;
+
         setEditForm({
           scheduledDate: formattedDate,
           duration: data.data.duration.toString(),
@@ -290,16 +298,22 @@ export default function JobDetailPage() {
   const handleSaveEdit = async () => {
     setUpdating(true);
     try {
+      // Convert datetime-local string to proper ISO string with timezone
+      // datetime-local format: "2026-01-06T10:00"
+      // We need to interpret this as local time and convert to ISO
+      const localDate = new Date(editForm.scheduledDate);
+      const isoString = localDate.toISOString();
+
       const response = await fetch(`/api/bookings/${jobId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          scheduledDate: new Date(editForm.scheduledDate),
+          scheduledDate: isoString, // Send as ISO string with timezone
           duration: parseInt(editForm.duration),
           serviceType: editForm.serviceType,
           price: parseFloat(editForm.price),
           notes: editForm.notes,
-          assignedTo: editForm.assignedTo || null,
+          assignedTo: editForm.assignedTo ? editForm.assignedTo : null, // Properly handle empty string
         }),
       });
 
@@ -309,6 +323,7 @@ export default function JobDetailPage() {
         setJob(data.data);
         setIsEditing(false);
         alert('Job updated successfully!');
+        fetchJob(); // Refresh job data to ensure UI is in sync
       } else {
         alert(data.error || 'Failed to update job');
       }
