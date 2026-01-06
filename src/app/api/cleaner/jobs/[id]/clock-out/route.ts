@@ -88,12 +88,16 @@ export async function POST(
     const clockOutTime = new Date();
     const durationMinutes = Math.round((clockOutTime.getTime() - clockInTime.getTime()) / 60000);
 
+    // Generate feedback token if doesn't exist
+    const feedbackToken = booking.feedbackToken || `fb_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+
     // Update booking with clock-out time and mark as completed
     const updatedBooking = await prisma.booking.update({
       where: { id: params.id },
       data: {
         clockedOutAt: clockOutTime,
         status: 'COMPLETED', // Automatically mark as completed when clocking out
+        feedbackToken: feedbackToken,
       },
       include: {
         client: {

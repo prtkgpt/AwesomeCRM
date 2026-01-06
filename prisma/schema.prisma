@@ -408,6 +408,7 @@ model Booking {
 
   // Customer feedback & tip
   feedbackToken         String?             @unique  // Unique token for customer feedback page
+  feedbackLinkSentAt    DateTime?                    // When feedback link was sent to customer
   customerRating        Int?                         // 1-5 stars from customer
   customerFeedback      String?                      // Customer's written feedback
   tipAmount             Float?                       // Tip amount from customer

@@ -54,11 +54,15 @@ export async function POST(
       );
     }
 
+    // Generate feedback token if doesn't exist
+    const feedbackToken = booking.feedbackToken || `fb_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+
     // Update booking status to completed
     const updatedBooking = await prisma.booking.update({
       where: { id: params.id },
       data: {
         status: 'COMPLETED',
+        feedbackToken: feedbackToken,
       },
       include: {
         client: {

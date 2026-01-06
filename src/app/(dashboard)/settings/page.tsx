@@ -25,9 +25,11 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  DollarSign,
 } from 'lucide-react';
+import Link from 'next/link';
 
-type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import';
+type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import' | 'pricing';
 
 interface UserProfile {
   id: string;
@@ -314,6 +316,12 @@ export default function SettingsPage() {
     { id: 'about', label: 'About', icon: Info },
   ];
 
+  const externalLinks = [
+    ...(userRole === 'OWNER' || userRole === 'ADMIN'
+      ? [{ href: '/settings/pricing', label: 'Pricing Configuration', icon: DollarSign }]
+      : []),
+  ];
+
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <div className="mb-6">
@@ -343,6 +351,19 @@ export default function SettingsPage() {
                     <Icon className="h-5 w-5" />
                     <span className="font-medium">{tab.label}</span>
                   </button>
+                );
+              })}
+              {externalLinks.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="font-medium">{link.label}</span>
+                  </Link>
                 );
               })}
               <button

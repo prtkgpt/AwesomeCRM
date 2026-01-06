@@ -65,6 +65,7 @@ export default function JobDetailPage() {
   });
   const [processingAction, setProcessingAction] = useState(false);
   const [cleaners, setCleaners] = useState<any[]>([]);
+  const [sendingFeedback, setSendingFeedback] = useState(false);
 
   useEffect(() => {
     fetchJob();
@@ -216,6 +217,28 @@ export default function JobDetailPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       alert('Failed to copy link');
+    }
+  };
+
+  const handleSendFeedbackLink = async () => {
+    setSendingFeedback(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}/send-feedback-link`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`Feedback link sent successfully via ${data.sentVia.join(' and ')}!${data.errors ? '\n\nPartial errors: ' + data.errors.join(', ') : ''}`);
+        fetchJob(); // Refresh job data to show feedbackLinkSentAt
+      } else {
+        alert(data.error || 'Failed to send feedback link');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSendingFeedback(false);
     }
   };
 
@@ -958,6 +981,30 @@ export default function JobDetailPage() {
                 <p className="text-xs text-gray-500 mt-1">
                   Rate house condition, customer, tip & overall experience
                 </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Customer Feedback
+                </label>
+                <Button
+                  onClick={handleSendFeedbackLink}
+                  disabled={sendingFeedback}
+                  variant="outline"
+                  size="sm"
+                  className="w-full bg-green-50 hover:bg-green-100 border-green-200"
+                >
+                  <Share2 className="h-4 w-4 mr-1" />
+                  {sendingFeedback ? 'Sending...' : 'Send Feedback Link to Customer'}
+                </Button>
+                <p className="text-xs text-gray-500 mt-1">
+                  Send SMS/Email with link for customer to rate, tip, and pay
+                </p>
+                {job.feedbackLinkSentAt && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Last sent {new Date(job.feedbackLinkSentAt).toLocaleString()}
+                  </p>
+                )}
               </div>
             </>
           )}
