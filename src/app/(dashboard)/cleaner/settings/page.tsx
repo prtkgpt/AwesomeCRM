@@ -47,12 +47,13 @@ export default function CleanerSettingsPage() {
     }
 
     try {
-      const res = await fetch('/api/user/change-password', {
+      const res = await fetch('/api/user/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
+          confirmPassword: passwordData.confirmPassword,
         }),
       });
 
