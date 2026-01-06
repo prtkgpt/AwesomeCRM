@@ -23,12 +23,7 @@ export default function CleanerProfilePage() {
     if (status === 'unauthenticated') {
       router.push('/login');
     } else if (status === 'authenticated' && session?.user) {
-      // Load user data from session
-      setFormData({
-        name: session.user.name || '',
-        email: session.user.email || '',
-        phone: session.user.phone || '',
-      });
+      // Fetch profile data from API (not from session, as phone is not in session type)
       fetchProfile();
     }
   }, [status, session, router]);
