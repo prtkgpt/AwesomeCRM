@@ -74,6 +74,7 @@ model Company {
   invitations         Invitation[]
   cleaningReviews     CleaningReview[]
   payLogs             PayLog[]
+  pricingRules        PricingRule[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -642,4 +643,61 @@ enum PayLogType {
   PAYCHECK
   SUPPLIES_REIMBURSEMENT
   GAS_REIMBURSEMENT
+}
+
+// ============================================
+// PRICING CONFIGURATION
+// ============================================
+
+enum PricingRuleType {
+  BEDROOM
+  BATHROOM
+  ADDON
+  CUSTOM
+}
+
+enum PricingDisplay {
+  BOTH        // Show in both booking and estimate
+  BOOKING     // Show only in booking
+  ESTIMATE    // Show only in estimate
+  HIDDEN      // Don't display (internal only)
+}
+
+model PricingRule {
+  id              String          @id @default(cuid())
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Rule identification
+  type            PricingRuleType
+  name            String          // "Studio Apartment", "1 Bedroom", "1 Bathroom", "Pet hair removal"
+
+  // Pricing
+  price           Float           // Base price for this item
+  duration        Int             // Duration in minutes
+
+  // Display settings
+  display         PricingDisplay  @default(BOTH)
+  sortOrder       Int             @default(0)     // For ordering in UI
+
+  // Quantity/value (for bedrooms: 0 for studio, 1, 2, 3, etc.)
+  quantity        Float?          // Can be 0.5 for half bath, 1, 1.5, 2, etc.
+
+  // Service category filtering (optional - null means applies to all)
+  serviceType     String?         // "STANDARD", "DEEP", "MOVE_OUT", null for all
+
+  // Frequency-based pricing (optional - null means applies to all)
+  frequency       String?         // "ONE_TIME", "WEEKLY", "BIWEEKLY", "MONTHLY", null for all
+
+  // Status
+  isActive        Boolean         @default(true)
+
+  // Metadata
+  description     String?         // Optional description or notes
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([companyId, type])
+  @@index([companyId, isActive])
 }
