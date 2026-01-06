@@ -30,7 +30,6 @@ export async function GET(
             user: {
               select: {
                 name: true,
-                photo: true,
               },
             },
           },
