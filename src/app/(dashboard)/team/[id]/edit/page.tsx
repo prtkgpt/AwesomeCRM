@@ -59,7 +59,7 @@ export default function EditTeamMemberPage() {
 
         // Check if current user can edit hourly rate
         // Only OWNER can edit hourly rates
-        const userRole = session?.user?.role;
+        const userRole = (session?.user as any)?.role;
         setCanEditHourlyRate(userRole === 'OWNER');
 
         setFormData({
