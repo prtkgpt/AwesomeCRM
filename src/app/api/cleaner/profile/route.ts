@@ -37,6 +37,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Get TeamMember data
+    const teamMember = await prisma.teamMember.findFirst({
+      where: { userId: session.user.id },
+      select: {
+        id: true,
+        street: true,
+        city: true,
+        state: true,
+        zip: true,
+        emergencyContact: true,
+        emergencyPhone: true,
+        hourlyRate: true,
+        employeeId: true,
+        experience: true,
+        speed: true,
+        serviceAreas: true,
+        specialties: true,
+      },
+    });
+
     return NextResponse.json({
       id: user.id,
       email: user.email,
@@ -44,6 +64,19 @@ export async function GET(request: NextRequest) {
       phone: user.phone,
       role: user.role,
       companyName: user.company.name,
+      // TeamMember fields
+      street: teamMember?.street || '',
+      city: teamMember?.city || '',
+      state: teamMember?.state || '',
+      zip: teamMember?.zip || '',
+      emergencyContact: teamMember?.emergencyContact || '',
+      emergencyPhone: teamMember?.emergencyPhone || '',
+      hourlyRate: teamMember?.hourlyRate || '',
+      employeeId: teamMember?.employeeId || '',
+      experience: teamMember?.experience || '',
+      speed: teamMember?.speed || 'Medium',
+      serviceAreas: teamMember?.serviceAreas || [],
+      specialties: teamMember?.specialties || [],
     });
   } catch (error) {
     console.error('🔴 GET /api/cleaner/profile error:', error);
@@ -76,7 +109,7 @@ export async function PUT(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { role: true },
+      select: { role: true, companyId: true },
     });
 
     if (!user || user.role !== 'CLEANER') {
@@ -84,7 +117,20 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, phone } = body;
+    const {
+      name,
+      phone,
+      street,
+      city,
+      state,
+      zip,
+      emergencyContact,
+      emergencyPhone,
+      experience,
+      speed,
+      serviceAreas,
+      specialties,
+    } = body;
 
     // Update user profile
     const updatedUser = await prisma.user.update({
@@ -100,6 +146,49 @@ export async function PUT(request: NextRequest) {
         phone: true,
       },
     });
+
+    // Update or create TeamMember record
+    const teamMember = await prisma.teamMember.findFirst({
+      where: { userId: session.user.id },
+    });
+
+    if (teamMember) {
+      // Update existing TeamMember
+      await prisma.teamMember.update({
+        where: { id: teamMember.id },
+        data: {
+          street: street || undefined,
+          city: city || undefined,
+          state: state || undefined,
+          zip: zip || undefined,
+          emergencyContact: emergencyContact || undefined,
+          emergencyPhone: emergencyPhone || undefined,
+          experience: experience || undefined,
+          speed: speed || undefined,
+          serviceAreas: serviceAreas || undefined,
+          specialties: specialties || undefined,
+        },
+      });
+    } else {
+      // Create TeamMember if doesn't exist
+      await prisma.teamMember.create({
+        data: {
+          companyId: user.companyId,
+          userId: session.user.id,
+          isActive: true,
+          street: street || undefined,
+          city: city || undefined,
+          state: state || undefined,
+          zip: zip || undefined,
+          emergencyContact: emergencyContact || undefined,
+          emergencyPhone: emergencyPhone || undefined,
+          experience: experience || undefined,
+          speed: speed || undefined,
+          serviceAreas: serviceAreas || undefined,
+          specialties: specialties || undefined,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
