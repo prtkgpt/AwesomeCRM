@@ -120,6 +120,72 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // ACTIVITY: Cleaner is "On My Way"
+      if (
+        booking.onMyWaySentAt &&
+        booking.onMyWaySentAt >= oneDayAgo &&
+        booking.assignee
+      ) {
+        activities.push({
+          id: `on-my-way-${booking.id}`,
+          type: 'activity',
+          category: 'on_my_way',
+          title: 'Cleaner on the way',
+          description: `${booking.assignee.user.name || 'Cleaner'} is on the way to ${booking.client.name}`,
+          timestamp: booking.onMyWaySentAt,
+          priority: 'medium',
+          metadata: {
+            clientName: booking.client.name,
+            cleanerName: booking.assignee.user.name || booking.assignee.user.email,
+            jobId: booking.id,
+          },
+        });
+      }
+
+      // ACTIVITY: Cleaner clocked in
+      if (
+        booking.clockedInAt &&
+        booking.clockedInAt >= oneDayAgo &&
+        booking.assignee
+      ) {
+        activities.push({
+          id: `clocked-in-${booking.id}`,
+          type: 'activity',
+          category: 'clocked_in',
+          title: 'Cleaner started',
+          description: `${booking.assignee.user.name || 'Cleaner'} started cleaning at ${booking.client.name}`,
+          timestamp: booking.clockedInAt,
+          priority: 'medium',
+          metadata: {
+            clientName: booking.client.name,
+            cleanerName: booking.assignee.user.name || booking.assignee.user.email,
+            jobId: booking.id,
+          },
+        });
+      }
+
+      // ACTIVITY: Cleaner clocked out
+      if (
+        booking.clockedOutAt &&
+        booking.clockedOutAt >= oneDayAgo &&
+        booking.assignee
+      ) {
+        activities.push({
+          id: `clocked-out-${booking.id}`,
+          type: 'activity',
+          category: 'clocked_out',
+          title: 'Cleaner finished',
+          description: `${booking.assignee.user.name || 'Cleaner'} finished cleaning at ${booking.client.name}`,
+          timestamp: booking.clockedOutAt,
+          priority: 'low',
+          metadata: {
+            clientName: booking.client.name,
+            cleanerName: booking.assignee.user.name || booking.assignee.user.email,
+            jobId: booking.id,
+          },
+        });
+      }
+
       // ACTIVITY: Recently completed cleaning
       if (
         booking.status === 'COMPLETED' &&
@@ -174,8 +240,8 @@ export async function GET(request: NextRequest) {
           id: `booking-created-${booking.id}`,
           type: 'activity',
           category: 'booking_created',
-          title: 'New booking created',
-          description: `${booking.client.name} scheduled for ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`,
+          title: 'Booking scheduled',
+          description: `Scheduled ${booking.client.name} for ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${booking.assignee ? ` (Assigned to ${booking.assignee.user.name || 'cleaner'})` : ''}`,
           timestamp: booking.createdAt,
           priority: 'low',
           metadata: {
@@ -183,6 +249,89 @@ export async function GET(request: NextRequest) {
             cleanerName: booking.assignee?.user.name || 'Unassigned',
             amount: booking.price,
             jobId: booking.id,
+          },
+        });
+      }
+    });
+
+    // Fetch recently created clients
+    const clients = await prisma.client.findMany({
+      where: {
+        companyId: user.companyId,
+        createdAt: {
+          gte: oneDayAgo,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 20,
+    });
+
+    clients.forEach((client) => {
+      if (client.createdAt && client.createdAt >= oneDayAgo) {
+        activities.push({
+          id: `client-created-${client.id}`,
+          type: 'activity',
+          category: 'client_created',
+          title: 'New client added',
+          description: `${client.user.name || client.user.email || 'Staff'} added ${client.name} as a new client`,
+          timestamp: client.createdAt,
+          priority: 'low',
+          metadata: {
+            clientName: client.name,
+            createdBy: client.user.name || client.user.email,
+            clientId: client.id,
+          },
+        });
+      }
+    });
+
+    // Fetch recent team member additions
+    const teamMembers = await prisma.teamMember.findMany({
+      where: {
+        companyId: user.companyId,
+        createdAt: {
+          gte: oneDayAgo,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 10,
+    });
+
+    teamMembers.forEach((member) => {
+      if (member.createdAt && member.createdAt >= oneDayAgo) {
+        activities.push({
+          id: `team-member-added-${member.id}`,
+          type: 'activity',
+          category: 'team_member_added',
+          title: 'New team member',
+          description: `${member.user.name || member.user.email} joined as ${member.user.role}`,
+          timestamp: member.createdAt,
+          priority: 'low',
+          metadata: {
+            memberName: member.user.name || member.user.email,
+            role: member.user.role,
+            memberId: member.id,
           },
         });
       }
