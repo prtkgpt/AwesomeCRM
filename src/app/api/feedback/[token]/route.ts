@@ -10,10 +10,15 @@ export async function GET(
     const booking = await prisma.booking.findUnique({
       where: { feedbackToken: params.token },
       include: {
-        client: true,
+        client: {
+          select: {
+            name: true,
+          },
+        },
         company: {
           select: {
             name: true,
+            logo: true,
             googleReviewUrl: true,
             zelleEmail: true,
             venmoUsername: true,
@@ -25,6 +30,7 @@ export async function GET(
             user: {
               select: {
                 name: true,
+                photo: true,
               },
             },
           },
@@ -78,22 +84,14 @@ export async function POST(
       );
     }
 
-    // Check if feedback already submitted
-    if (booking.feedbackSubmittedAt) {
-      return NextResponse.json(
-        { success: false, error: 'Feedback already submitted' },
-        { status: 400 }
-      );
-    }
-
-    // Update booking with feedback
+    // Update booking with feedback (allow updates)
     const updatedBooking = await prisma.booking.update({
       where: { id: booking.id },
       data: {
         customerRating: rating,
         customerFeedback: feedback || null,
         tipAmount: tipAmount || null,
-        feedbackSubmittedAt: new Date(),
+        feedbackSubmittedAt: booking.feedbackSubmittedAt || new Date(), // Only set on first submission
       },
     });
 
