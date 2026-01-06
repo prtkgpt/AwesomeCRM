@@ -26,9 +26,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Check for status filter (active/inactive)
+    const { searchParams } = new URL(request.url);
+    const statusFilter = searchParams.get('status');
+
     const teamMembers = await prisma.teamMember.findMany({
       where: {
         companyId: user.companyId,
+        ...(statusFilter === 'inactive' && { isActive: false }),
+        ...(statusFilter === 'active' && { isActive: true }),
+        // If no status filter, return all (including active by default)
+        ...(!statusFilter && { isActive: true }),
       },
       include: {
         user: {

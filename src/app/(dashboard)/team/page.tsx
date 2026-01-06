@@ -173,6 +173,12 @@ export default function TeamPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Team Members</h1>
         <div className="flex gap-2">
+          <Link href="/team/deactivated">
+            <Button variant="outline">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Deactivated Members
+            </Button>
+          </Link>
           <Link href="/team/add-cleaner">
             <Button variant="default">
               <Plus className="h-4 w-4 mr-2" />
