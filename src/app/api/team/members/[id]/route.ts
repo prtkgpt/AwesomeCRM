@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 // GET /api/team/members/[id] - Get team member details
 export async function GET(
@@ -94,6 +95,9 @@ export async function PATCH(
         id: params.id,
         companyId: user.companyId,
       },
+      include: {
+        user: true,
+      },
     });
 
     if (!teamMember) {
@@ -103,7 +107,43 @@ export async function PATCH(
       );
     }
 
-    // Update team member
+    // If reactivating with a new password, update both user and team member
+    if (body.isActive && body.newPassword) {
+      const hashedPassword = await bcrypt.hash(body.newPassword, 10);
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Update user password
+        await tx.user.update({
+          where: { id: teamMember.userId },
+          data: { passwordHash: hashedPassword },
+        });
+
+        // Update team member
+        const updated = await tx.teamMember.update({
+          where: { id: params.id },
+          data: {
+            isActive: true,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                role: true,
+              },
+            },
+          },
+        });
+
+        return updated;
+      });
+
+      return NextResponse.json({ success: true, data: result });
+    }
+
+    // Regular update without password change
     const updated = await prisma.teamMember.update({
       where: { id: params.id },
       data: {

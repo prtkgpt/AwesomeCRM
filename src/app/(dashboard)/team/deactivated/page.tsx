@@ -27,11 +27,29 @@ interface TeamMember {
   createdAt: string;
 }
 
+interface ReactivationModal {
+  isOpen: boolean;
+  member: TeamMember | null;
+  newPassword: string;
+}
+
 export default function DeactivatedTeamPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [deactivatedMembers, setDeactivatedMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reactivationModal, setReactivationModal] = useState<ReactivationModal>({
+    isOpen: false,
+    member: null,
+    newPassword: '',
+  });
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [reactivatedMember, setReactivatedMember] = useState<{
+    email: string;
+    password: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -56,20 +74,56 @@ export default function DeactivatedTeamPage() {
     }
   };
 
-  const handleReactivate = async (memberId: string, memberName: string) => {
-    if (!confirm(`Are you sure you want to reactivate ${memberName}?`)) {
-      return;
+  const generatePassword = () => {
+    const length = 12;
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
     }
+    return password;
+  };
+
+  const openReactivationModal = (member: TeamMember) => {
+    const newPassword = generatePassword();
+    setReactivationModal({
+      isOpen: true,
+      member,
+      newPassword,
+    });
+    setGeneratedPassword(newPassword);
+  };
+
+  const closeReactivationModal = () => {
+    setReactivationModal({
+      isOpen: false,
+      member: null,
+      newPassword: '',
+    });
+    setGeneratedPassword('');
+  };
+
+  const handleReactivate = async () => {
+    if (!reactivationModal.member) return;
 
     try {
-      const res = await fetch(`/api/team/members/${memberId}`, {
+      const res = await fetch(`/api/team/members/${reactivationModal.member.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: true }),
+        body: JSON.stringify({
+          isActive: true,
+          newPassword: reactivationModal.newPassword,
+        }),
       });
 
       if (res.ok) {
-        alert(`${memberName} has been reactivated successfully!`);
+        setReactivatedMember({
+          email: reactivationModal.member.user.email,
+          password: reactivationModal.newPassword,
+          name: reactivationModal.member.user.name || 'Cleaner',
+        });
+        setShowCredentials(true);
+        closeReactivationModal();
         fetchDeactivatedMembers();
       } else {
         const data = await res.json();
@@ -79,6 +133,11 @@ export default function DeactivatedTeamPage() {
       console.error('Reactivate error:', error);
       alert('Failed to reactivate team member');
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert('Copied to clipboard!');
   };
 
   if (loading) {
@@ -177,9 +236,7 @@ export default function DeactivatedTeamPage() {
 
                 <div className="ml-4">
                   <Button
-                    onClick={() =>
-                      handleReactivate(member.id, member.user.name || 'this member')
-                    }
+                    onClick={() => openReactivationModal(member)}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <UserCheck className="h-4 w-4 mr-2" />
@@ -189,6 +246,137 @@ export default function DeactivatedTeamPage() {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Reactivation Confirmation Modal */}
+      {reactivationModal.isOpen && reactivationModal.member && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-4">Reactivate Team Member</h2>
+            <p className="mb-4">
+              You are about to reactivate{' '}
+              <strong>{reactivationModal.member.user.name}</strong>
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              A new password will be generated. You'll need to share the login
+              credentials with them.
+            </p>
+            <div className="bg-gray-50 p-3 rounded mb-4">
+              <label className="block text-sm font-medium mb-1">New Password</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={reactivationModal.newPassword}
+                  onChange={(e) =>
+                    setReactivationModal({
+                      ...reactivationModal,
+                      newPassword: e.target.value,
+                    })
+                  }
+                  className="flex-1 px-3 py-2 border rounded"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const newPwd = generatePassword();
+                    setReactivationModal({
+                      ...reactivationModal,
+                      newPassword: newPwd,
+                    });
+                  }}
+                >
+                  Generate
+                </Button>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={closeReactivationModal}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleReactivate}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Reactivate
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Credentials Display Modal */}
+      {showCredentials && reactivatedMember && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-4 text-green-600">
+              ✓ Account Reactivated Successfully!
+            </h2>
+            <p className="mb-4">
+              <strong>{reactivatedMember.name}</strong> can now log in with these
+              credentials:
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded p-4 space-y-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={reactivatedMember.email}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-white border rounded"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(reactivatedMember.email)}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={reactivatedMember.password}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-white border rounded font-mono"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(reactivatedMember.password)}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+              <p className="text-sm text-yellow-800">
+                <strong>⚠️ Important:</strong> Make sure to share these credentials with
+                the cleaner before closing this dialog. You won't be able to see the
+                password again.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                onClick={() => {
+                  setShowCredentials(false);
+                  setReactivatedMember(null);
+                }}
+              >
+                Done
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
     </div>
