@@ -73,8 +73,9 @@ export default function NewClientPage() {
   };
 
   const handleAddressSelect = (addressData: any) => {
-    setFormData({
-      ...formData,
+    // Use functional setState to avoid stale closure issues
+    setFormData(prev => ({
+      ...prev,
       street: addressData.street,
       city: addressData.city,
       state: addressData.state,
@@ -84,7 +85,7 @@ export default function NewClientPage() {
       lng: addressData.lng || 0,
       formattedAddress: addressData.formattedAddress || '',
       isVerified: addressData.isVerified || false,
-    });
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
