@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthUser } from '@/lib/mobile-auth';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/cleaner/profile - Get cleaner profile
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const authUser = await getAuthUser(request);
 
-    if (!session?.user?.id) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: authUser.id },
       select: {
         id: true,
         email: true,
@@ -39,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     // Get TeamMember data
     const teamMember = await prisma.teamMember.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authUser.id },
       select: {
         id: true,
         street: true,
@@ -101,14 +100,14 @@ export async function GET(request: NextRequest) {
 // PUT /api/cleaner/profile - Update cleaner profile
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const authUser = await getAuthUser(request);
 
-    if (!session?.user?.id) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: authUser.id },
       select: { role: true, companyId: true },
     });
 
@@ -134,7 +133,7 @@ export async function PUT(request: NextRequest) {
 
     // Update user profile
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: authUser.id },
       data: {
         name: name || undefined,
         phone: phone || undefined,
@@ -149,7 +148,7 @@ export async function PUT(request: NextRequest) {
 
     // Update or create TeamMember record
     const teamMember = await prisma.teamMember.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authUser.id },
     });
 
     if (teamMember) {
@@ -174,7 +173,7 @@ export async function PUT(request: NextRequest) {
       await prisma.teamMember.create({
         data: {
           companyId: user.companyId,
-          userId: session.user.id,
+          userId: authUser.id,
           isActive: true,
           street: street || undefined,
           city: city || undefined,
