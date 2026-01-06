@@ -33,6 +33,16 @@ export async function GET(
       include: {
         client: true,
         address: true,
+        assignee: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
         messages: {
           orderBy: {
             createdAt: 'desc',
@@ -112,10 +122,21 @@ export async function PUT(
         ...(validatedData.internalNotes !== undefined && { internalNotes: validatedData.internalNotes }),
         ...(validatedData.isPaid !== undefined && { isPaid: validatedData.isPaid }),
         ...(validatedData.paymentMethod && { paymentMethod: validatedData.paymentMethod }),
+        ...(validatedData.assignedTo !== undefined && { assignedTo: validatedData.assignedTo }),
       },
       include: {
         client: true,
         address: true,
+        assignee: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -243,6 +264,16 @@ export async function PATCH(
       include: {
         client: true,
         address: true,
+        assignee: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
 
