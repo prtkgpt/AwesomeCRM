@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Star, ThumbsUp, DollarSign, CreditCard, CheckCircle } from 'lucide-react';
+import { Star, ThumbsUp, DollarSign, CreditCard, CheckCircle, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 interface BookingData {
   id: string;
@@ -39,6 +43,100 @@ interface BookingData {
   feedbackSubmittedAt?: string;
 }
 
+// Stripe Payment Form Component
+function StripePaymentForm({
+  clientSecret,
+  onSuccess,
+  onCancel,
+  amount,
+  type
+}: {
+  clientSecret: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+  amount: number;
+  type: 'tip' | 'copay';
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setProcessing(true);
+    setErrorMessage(null);
+
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        setErrorMessage(error.message || 'Payment failed');
+        setProcessing(false);
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        onSuccess();
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'An error occurred');
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="bg-blue-50 p-3 rounded-lg">
+        <p className="text-sm font-medium text-blue-900">
+          {type === 'tip' ? 'Tip Amount' : 'Payment Amount'}: <span className="text-xl">${amount.toFixed(2)}</span>
+        </p>
+      </div>
+
+      <PaymentElement />
+
+      {errorMessage && (
+        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <Button
+          type="submit"
+          disabled={!stripe || processing}
+          className="flex-1"
+        >
+          {processing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <CreditCard className="h-4 w-4 mr-2" />
+              Pay ${amount.toFixed(2)}
+            </>
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={processing}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export default function FeedbackPage() {
   const params = useParams();
   const token = params.token as string;
@@ -56,6 +154,14 @@ export default function FeedbackPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // Payment states
+  const [showTipPayment, setShowTipPayment] = useState(false);
+  const [showCopayPayment, setShowCopayPayment] = useState(false);
+  const [tipClientSecret, setTipClientSecret] = useState<string | null>(null);
+  const [copayClientSecret, setCopayClientSecret] = useState<string | null>(null);
+  const [tipPaid, setTipPaid] = useState(false);
+  const [copayPaidLocal, setCopayPaidLocal] = useState(false);
+
   useEffect(() => {
     fetchBooking();
   }, [token]);
@@ -72,6 +178,12 @@ export default function FeedbackPage() {
           setRating(data.data.customerRating);
           setFeedback(data.data.customerFeedback || '');
           setSubmitted(true);
+        }
+        if (data.data.copayPaid) {
+          setCopayPaidLocal(true);
+        }
+        if (data.data.tipAmount) {
+          setTipPaid(true);
         }
       } else {
         setError(data.error || 'Booking not found');
@@ -115,7 +227,7 @@ export default function FeedbackPage() {
     }
   };
 
-  const handleTipCleaner = async () => {
+  const handleInitiateTipPayment = async () => {
     const amount = tipAmount === 'custom' ? parseFloat(customTip) : parseFloat(tipAmount);
 
     if (!amount || amount <= 0) {
@@ -123,8 +235,115 @@ export default function FeedbackPage() {
       return;
     }
 
-    // TODO: Integrate Stripe for tip payment
-    alert(`Stripe integration coming soon! Tip amount: $${amount}`);
+    try {
+      const response = await fetch(`/api/feedback/${token}/create-tip-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipAmount: amount }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.clientSecret) {
+        setTipClientSecret(data.clientSecret);
+        setShowTipPayment(true);
+      } else {
+        alert(data.error || 'Failed to initialize payment');
+      }
+    } catch (err) {
+      alert('Failed to initialize payment');
+    }
+  };
+
+  const handleInitiateCopayPayment = async () => {
+    try {
+      const response = await fetch(`/api/feedback/${token}/create-copay-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.clientSecret) {
+        setCopayClientSecret(data.clientSecret);
+        setShowCopayPayment(true);
+      } else {
+        alert(data.error || 'Failed to initialize payment');
+      }
+    } catch (err) {
+      alert('Failed to initialize payment');
+    }
+  };
+
+  const handleTipPaymentSuccess = async () => {
+    const amount = tipAmount === 'custom' ? parseFloat(customTip) : parseFloat(tipAmount);
+
+    // Confirm payment on server
+    await fetch(`/api/feedback/${token}/confirm-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paymentIntentId: 'confirmed',
+        paymentType: 'TIP',
+        amount,
+      }),
+    });
+
+    setTipPaid(true);
+    setShowTipPayment(false);
+    alert('Thank you for your generous tip!');
+    fetchBooking(); // Refresh booking data
+  };
+
+  const handleCopayPaymentSuccess = async () => {
+    // Confirm payment on server
+    await fetch(`/api/feedback/${token}/confirm-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paymentIntentId: 'confirmed',
+        paymentType: 'COPAY',
+      }),
+    });
+
+    setCopayPaidLocal(true);
+    setShowCopayPayment(false);
+    alert('Payment received! Thank you.');
+    fetchBooking(); // Refresh booking data
+  };
+
+  const handleManualPayment = async (method: string, type: 'TIP' | 'COPAY') => {
+    try {
+      const amount = type === 'TIP'
+        ? (tipAmount === 'custom' ? parseFloat(customTip) : parseFloat(tipAmount))
+        : undefined;
+
+      const response = await fetch(`/api/feedback/${token}/record-manual-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentType: type,
+          paymentMethod: method,
+          amount,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        if (type === 'COPAY') {
+          setCopayPaidLocal(true);
+        } else {
+          setTipPaid(true);
+        }
+        alert(data.message);
+        fetchBooking();
+      } else {
+        alert(data.error || 'Failed to record payment');
+      }
+    } catch (err) {
+      alert('Failed to record payment');
+    }
   };
 
   const openGoogleReview = () => {
@@ -271,7 +490,7 @@ export default function FeedbackPage() {
         </Card>
 
         {/* Tip Section */}
-        {booking.assignee && (
+        {booking.assignee && !tipPaid && (
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <ThumbsUp className="h-5 w-5 text-green-600" />
@@ -281,48 +500,103 @@ export default function FeedbackPage() {
               100% of your tip goes directly to {booking.assignee.user.name}
             </p>
 
-            <div className="grid grid-cols-4 gap-2 mb-4">
-              {['5', '10', '15', '20'].map((amount) => (
-                <button
-                  key={amount}
-                  onClick={() => {
-                    setTipAmount(amount);
-                    setCustomTip('');
-                  }}
-                  className={`py-3 px-4 rounded-lg border-2 font-semibold transition-colors ${
-                    tipAmount === amount
-                      ? 'border-green-600 bg-green-50 text-green-700'
-                      : 'border-gray-200 hover:border-green-300'
-                  }`}
-                >
-                  ${amount}
-                </button>
-              ))}
-            </div>
+            {!showTipPayment ? (
+              <>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {['5', '10', '15', '20'].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => {
+                        setTipAmount(amount);
+                        setCustomTip('');
+                      }}
+                      className={`py-3 px-4 rounded-lg border-2 font-semibold transition-colors ${
+                        tipAmount === amount
+                          ? 'border-green-600 bg-green-50 text-green-700'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      ${amount}
+                    </button>
+                  ))}
+                </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Custom Amount</label>
-              <input
-                type="number"
-                value={customTip}
-                onChange={(e) => {
-                  setCustomTip(e.target.value);
-                  setTipAmount('custom');
-                }}
-                placeholder="Enter custom tip"
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Custom Amount</label>
+                  <input
+                    type="number"
+                    value={customTip}
+                    onChange={(e) => {
+                      setCustomTip(e.target.value);
+                      setTipAmount('custom');
+                    }}
+                    placeholder="Enter custom tip"
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
+                </div>
 
-            <Button onClick={handleTipCleaner} className="w-full bg-green-600 hover:bg-green-700">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Tip via Stripe
-            </Button>
+                <Button onClick={handleInitiateTipPayment} className="w-full bg-green-600 hover:bg-green-700 mb-2">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Tip via Credit Card
+                </Button>
+
+                {booking.company.cashappUsername && (
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 mb-2"
+                    onClick={() => {
+                      window.open(`https://cash.app/${booking.company.cashappUsername}`, '_blank');
+                      handleManualPayment('CASHAPP', 'TIP');
+                    }}
+                  >
+                    Tip via Cash App
+                  </Button>
+                )}
+
+                {booking.company.venmoUsername && (
+                  <Button
+                    className="w-full bg-blue-500 hover:bg-blue-600"
+                    onClick={() => {
+                      window.open(`https://venmo.com/${booking.company.venmoUsername}`, '_blank');
+                      handleManualPayment('VENMO', 'TIP');
+                    }}
+                  >
+                    Tip via Venmo
+                  </Button>
+                )}
+              </>
+            ) : (
+              tipClientSecret && stripePromise && (
+                <Elements stripe={stripePromise} options={{ clientSecret: tipClientSecret }}>
+                  <StripePaymentForm
+                    clientSecret={tipClientSecret}
+                    onSuccess={handleTipPaymentSuccess}
+                    onCancel={() => {
+                      setShowTipPayment(false);
+                      setTipClientSecret(null);
+                    }}
+                    amount={tipAmount === 'custom' ? parseFloat(customTip) : parseFloat(tipAmount)}
+                    type="tip"
+                  />
+                </Elements>
+              )
+            )}
+          </Card>
+        )}
+
+        {tipPaid && (
+          <Card className="p-6 bg-green-50 border-green-200">
+            <div className="flex items-center gap-3 text-green-700">
+              <CheckCircle className="h-6 w-6" />
+              <div>
+                <p className="font-semibold">Tip Sent!</p>
+                <p className="text-sm">Thank you for your generosity!</p>
+              </div>
+            </div>
           </Card>
         )}
 
         {/* Payment Section */}
-        {!booking.copayPaid && booking.finalCopayAmount > 0 && (
+        {!copayPaidLocal && booking.finalCopayAmount > 0 && (
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-blue-600" />
@@ -332,34 +606,57 @@ export default function FeedbackPage() {
               Amount Due: ${booking.finalCopayAmount.toFixed(2)}
             </p>
 
-            <div className="space-y-3">
-              <Button className="w-full" variant="default">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Pay with Card (Stripe)
-              </Button>
-
-              {booking.company.cashappUsername && (
-                <Button
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  onClick={() => window.open(`https://cash.app/${booking.company.cashappUsername}`, '_blank')}
-                >
-                  Pay with Cash App
+            {!showCopayPayment ? (
+              <div className="space-y-3">
+                <Button className="w-full" variant="default" onClick={handleInitiateCopayPayment}>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Pay with Card (Stripe)
                 </Button>
-              )}
 
-              {booking.company.venmoUsername && (
-                <Button
-                  className="w-full bg-blue-500 hover:bg-blue-600"
-                  onClick={() => window.open(`https://venmo.com/${booking.company.venmoUsername}`, '_blank')}
-                >
-                  Pay with Venmo
-                </Button>
-              )}
-            </div>
+                {booking.company.cashappUsername && (
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      window.open(`https://cash.app/${booking.company.cashappUsername}`, '_blank');
+                      handleManualPayment('CASHAPP', 'COPAY');
+                    }}
+                  >
+                    Pay with Cash App
+                  </Button>
+                )}
+
+                {booking.company.venmoUsername && (
+                  <Button
+                    className="w-full bg-blue-500 hover:bg-blue-600"
+                    onClick={() => {
+                      window.open(`https://venmo.com/${booking.company.venmoUsername}`, '_blank');
+                      handleManualPayment('VENMO', 'COPAY');
+                    }}
+                  >
+                    Pay with Venmo
+                  </Button>
+                )}
+              </div>
+            ) : (
+              copayClientSecret && stripePromise && (
+                <Elements stripe={stripePromise} options={{ clientSecret: copayClientSecret }}>
+                  <StripePaymentForm
+                    clientSecret={copayClientSecret}
+                    onSuccess={handleCopayPaymentSuccess}
+                    onCancel={() => {
+                      setShowCopayPayment(false);
+                      setCopayClientSecret(null);
+                    }}
+                    amount={booking.finalCopayAmount}
+                    type="copay"
+                  />
+                </Elements>
+              )
+            )}
           </Card>
         )}
 
-        {booking.copayPaid && (
+        {copayPaidLocal && (
           <Card className="p-6 bg-green-50 border-green-200">
             <div className="flex items-center gap-3 text-green-700">
               <CheckCircle className="h-6 w-6" />
