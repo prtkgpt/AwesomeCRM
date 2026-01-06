@@ -226,7 +226,7 @@ model Client {
   hasDiscountedCopay      Boolean   @default(false)
   copayDiscountAmount     Float?    // Discount amount off copay (e.g., $10 off)
   copayNotes              String?   // Notes about copay arrangements
-  cleaningObservations    String?   // Cleaning notes and observations for insurance
+  // cleaningObservations    String?   // TODO: Add column to database first, then uncomment
 
   addresses         Address[]
   bookings          Booking[]
