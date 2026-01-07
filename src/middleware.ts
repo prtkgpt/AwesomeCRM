@@ -12,6 +12,7 @@ export default withAuth(
       path.startsWith('/login') ||
       path.startsWith('/signup') ||
       path.startsWith('/invite') ||
+      path.startsWith('/compare') || // Public comparison page
       path.startsWith('/estimate/') || // Public estimate acceptance pages
       path.startsWith('/feedback/') || // Public feedback pages
       path.startsWith('/api/public/') || // Public API routes
@@ -83,6 +84,7 @@ export default withAuth(
           path.startsWith('/login') ||
           path.startsWith('/signup') ||
           path.startsWith('/invite') ||
+          path.startsWith('/compare') || // Public comparison page
           path.startsWith('/estimate/') ||
           path.startsWith('/feedback/') ||
           path.startsWith('/api/public/') ||
