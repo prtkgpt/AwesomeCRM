@@ -81,6 +81,8 @@ export default function JobDetailPage() {
   const [cleaners, setCleaners] = useState<any[]>([]);
   const [sendingFeedback, setSendingFeedback] = useState(false);
   const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<string>('card');
+  const [copayPaymentMethod, setCopayPaymentMethod] = useState<string>('STRIPE');
 
   useEffect(() => {
     fetchJob();
@@ -344,15 +346,49 @@ export default function JobDetailPage() {
       const response = await fetch('/api/payments/mark-paid', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: jobId }),
+        body: JSON.stringify({
+          bookingId: jobId,
+          paymentMethod: paymentMethod
+        }),
       });
 
       const data = await response.json();
 
       if (data.success) {
         setJob(data.data);
+        alert(`✅ Marked as paid via ${paymentMethod}`);
       } else {
         alert(data.error || 'Failed to mark as paid');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleMarkCopayPaid = async () => {
+    if (!job) return;
+
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          copayPaid: true,
+          copayPaymentMethod: copayPaymentMethod,
+          copayPaidAt: new Date().toISOString(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setJob(data.data);
+        alert(`✅ Copay marked as paid via ${copayPaymentMethod}`);
+      } else {
+        alert(data.error || 'Failed to mark copay as paid');
       }
     } catch (error) {
       alert('An error occurred. Please try again.');
@@ -1026,19 +1062,77 @@ export default function JobDetailPage() {
                 </>
               )}
 
+              <div className="border-t pt-2 mt-2">
+                <label className="text-xs font-medium text-gray-700 mb-2 block">
+                  Payment Method (Manual)
+                </label>
+                <div className="space-y-1.5">
+                  {['Zelle', 'Venmo', 'CashApp', 'Check', 'Cash', 'No Copay Insurance'].map((method) => (
+                    <label key={method} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={method.toLowerCase().replace(' ', '_')}
+                        checked={paymentMethod === method.toLowerCase().replace(' ', '_')}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm text-gray-700">{method}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <Button
                 onClick={handleMarkPaid}
                 disabled={updating}
                 variant="outline"
                 size="sm"
-                className="w-full"
+                className="w-full mt-2"
               >
                 <DollarSign className="h-4 w-4 mr-1" />
-                Mark as Paid (Manual)
+                Mark as Paid ({paymentMethod})
               </Button>
-              <p className="text-xs text-gray-500">
-                Use if customer paid via cash, check, or other method
-              </p>
+            </div>
+          )}
+
+          {/* Copay Payment Section for Insurance Clients */}
+          {job.client.hasInsurance && job.hasInsuranceCoverage && !job.copayPaid && job.finalCopayAmount > 0 && job.status === 'COMPLETED' && (
+            <div className="space-y-2 border-2 border-purple-200 rounded-lg p-3 bg-purple-50">
+              <label className="text-sm font-medium text-purple-900 mb-2 block">
+                💳 Copay Payment (${job.finalCopayAmount})
+              </label>
+
+              <div className="border-t border-purple-200 pt-2 mt-2">
+                <label className="text-xs font-medium text-purple-800 mb-2 block">
+                  Copay Payment Method
+                </label>
+                <div className="space-y-1.5">
+                  {['STRIPE', 'ZELLE', 'VENMO', 'CASHAPP', 'CHECK', 'CASH'].map((method) => (
+                    <label key={method} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="copayPaymentMethod"
+                        value={method}
+                        checked={copayPaymentMethod === method}
+                        onChange={(e) => setCopayPaymentMethod(e.target.value)}
+                        className="w-4 h-4 text-purple-600"
+                      />
+                      <span className="text-sm text-purple-900 capitalize">{method.toLowerCase()}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                onClick={handleMarkCopayPaid}
+                disabled={updating}
+                size="sm"
+                className="w-full mt-2 bg-purple-600 hover:bg-purple-700"
+              >
+                <DollarSign className="h-4 w-4 mr-1" />
+                Mark Copay as Paid ({copayPaymentMethod})
+              </Button>
             </div>
           )}
 
