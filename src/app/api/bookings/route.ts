@@ -29,17 +29,32 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get('to');
     const clientId = searchParams.get('clientId');
 
+    // Build date filter based on what's provided
+    let dateFilter: any = {};
+    if (from && to) {
+      // Both from and to: date range
+      dateFilter = {
+        gte: new Date(from),
+        lte: new Date(to),
+      };
+    } else if (from) {
+      // Only from: dates >= from (upcoming)
+      dateFilter = {
+        gte: new Date(from),
+      };
+    } else if (to) {
+      // Only to: dates <= to (past)
+      dateFilter = {
+        lte: new Date(to),
+      };
+    }
+
     const bookings = await prisma.booking.findMany({
       where: {
         companyId: user.companyId,
         ...(status && { status: status as any }),
         ...(clientId && { clientId }),
-        ...(from && to && {
-          scheduledDate: {
-            gte: new Date(from),
-            lte: new Date(to),
-          },
-        }),
+        ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
       },
       include: {
         client: true,
