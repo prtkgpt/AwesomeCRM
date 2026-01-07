@@ -110,7 +110,7 @@ export default async function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
             <div className="flex items-center justify-center gap-2 text-gray-700">
               <CheckCircle className="h-5 w-5 text-green-500" />
-              <span className="text-sm font-medium">Used by 500+ cleaning businesses</span>
+              <span className="text-sm font-medium">Built by experienced home care professionals</span>
             </div>
             <div className="flex items-center justify-center gap-2 text-gray-700">
               <CheckCircle className="h-5 w-5 text-green-500" />
@@ -363,7 +363,7 @@ export default async function Home() {
       <section className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white shadow-2xl">
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            Join 500+ Cleaning Businesses Growing with CleanDay
+            Join Cleaning Businesses Growing with CleanDay
           </h2>
           <p className="text-xl mb-2 text-blue-100">
             Lock in the $20/month launch price before it goes up to $197/month

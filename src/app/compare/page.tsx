@@ -376,6 +376,32 @@ export default function ComparePage() {
         </div>
       </section>
 
+      {/* BookingKoala Meltdown Callout */}
+      <section className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-2xl p-8 shadow-lg">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-2xl">⚠️</span>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  Remember the BookingKoala Meltdown Last Year?
+                </h3>
+                <p className="text-gray-700 mb-4 leading-relaxed">
+                  Thousands of cleaning businesses lost access to their schedules, client data, and payment systems when BookingKoala's servers went down. Some businesses couldn't access their data for days.
+                </p>
+                <p className="text-gray-900 font-semibold">
+                  With CleanDay, you're working with a dedicated team that prioritizes reliability and data security. We're built by home care professionals who understand what's at stake.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Why Choose CleanDay */}
       <section className="container mx-auto px-4 py-16 bg-gradient-to-r from-blue-600 to-purple-600 -mx-4">
         <div className="max-w-4xl mx-auto text-center text-white">
@@ -415,7 +441,7 @@ export default function ComparePage() {
             Ready to Save $177-$479/Month?
           </h2>
           <p className="text-xl text-gray-600 mb-8">
-            Join 500+ cleaning businesses who switched to CleanDay and never looked back.
+            Join cleaning businesses making the switch to reliable, affordable software.
           </p>
 
           <div className="bg-white rounded-2xl shadow-2xl p-8 border-4 border-blue-500 mb-8">
