@@ -81,8 +81,9 @@ export default function JobDetailPage() {
   const [cleaners, setCleaners] = useState<any[]>([]);
   const [sendingFeedback, setSendingFeedback] = useState(false);
   const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<string>('card');
+  const [paymentMethod, setPaymentMethod] = useState<string>('stripe');
   const [copayPaymentMethod, setCopayPaymentMethod] = useState<string>('STRIPE');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     fetchJob();
@@ -328,6 +329,11 @@ export default function JobDetailPage() {
 
       if (data.success) {
         setJob(data.data);
+
+        // If marked as completed and unpaid, show payment modal
+        if (newStatus === 'COMPLETED' && !data.data.isPaid) {
+          setShowPaymentModal(true);
+        }
       } else {
         alert(data.error || 'Failed to update status');
       }
@@ -1099,13 +1105,13 @@ export default function JobDetailPage() {
                   Payment Method (Manual)
                 </label>
                 <div className="space-y-1.5">
-                  {['Zelle', 'Venmo', 'CashApp', 'Check', 'Cash', 'No Copay Insurance'].map((method) => (
+                  {['Stripe/Card', 'Zelle', 'Venmo', 'CashApp', 'Check', 'Cash', 'No Copay Insurance'].map((method) => (
                     <label key={method} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         name="paymentMethod"
-                        value={method.toLowerCase().replace(' ', '_')}
-                        checked={paymentMethod === method.toLowerCase().replace(' ', '_')}
+                        value={method.toLowerCase().replace('/', '_').replace(' ', '_')}
+                        checked={paymentMethod === method.toLowerCase().replace('/', '_').replace(' ', '_')}
                         onChange={(e) => setPaymentMethod(e.target.value)}
                         className="w-4 h-4 text-blue-600"
                       />
@@ -1335,6 +1341,166 @@ export default function JobDetailPage() {
                 className="flex-1"
               >
                 Copy & Close
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Payment Modal - Shows when job is marked as completed */}
+      {showPaymentModal && job && job.status === 'COMPLETED' && !job.isPaid && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold mb-2">🎉 Job Completed!</h2>
+              <p className="text-gray-600">
+                Collect payment from {job.client.name} - ${job.price}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Auto-charge if card on file */}
+              {job.client.autoChargeEnabled && job.client.stripePaymentMethodId ? (
+                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-green-900 mb-2">💳 Card on File</h3>
+                  <p className="text-sm text-green-700 mb-3">
+                    Customer has auto-charge enabled (****{job.client.stripePaymentMethodId.slice(-4)})
+                  </p>
+                  <Button
+                    onClick={() => {
+                      handleAutoCharge();
+                      setShowPaymentModal(false);
+                    }}
+                    disabled={creatingPaymentLink}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    size="lg"
+                  >
+                    <CreditCard className="h-5 w-5 mr-2" />
+                    {creatingPaymentLink ? 'Charging...' : `Charge ${formatCurrency(job.price)} Now`}
+                  </Button>
+                </div>
+              ) : (
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 mb-2">💳 Send Payment Link</h3>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Create a Stripe payment link and copy to clipboard
+                  </p>
+                  <Button
+                    onClick={() => {
+                      handleCreatePaymentLink();
+                      setShowPaymentModal(false);
+                    }}
+                    disabled={creatingPaymentLink}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    size="lg"
+                  >
+                    <CreditCard className="h-5 w-5 mr-2" />
+                    {creatingPaymentLink ? 'Creating...' : 'Create Payment Link'}
+                  </Button>
+                </div>
+              )}
+
+              {/* Manual payment methods */}
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Or mark as paid manually:</h3>
+                <div className="space-y-2">
+                  {['Stripe/Card', 'Zelle', 'Venmo', 'CashApp', 'Check', 'Cash', 'No Copay Insurance'].map((method) => (
+                    <label key={method} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                      <input
+                        type="radio"
+                        name="paymentMethodModal"
+                        value={method.toLowerCase().replace('/', '_').replace(' ', '_')}
+                        checked={paymentMethod === method.toLowerCase().replace('/', '_').replace(' ', '_')}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm font-medium text-gray-700">{method}</span>
+                    </label>
+                  ))}
+                </div>
+                <Button
+                  onClick={() => {
+                    handleMarkPaid();
+                    setShowPaymentModal(false);
+                  }}
+                  disabled={updating}
+                  variant="outline"
+                  size="lg"
+                  className="w-full mt-3"
+                >
+                  <DollarSign className="h-5 w-5 mr-2" />
+                  Mark as Paid via {paymentMethod.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                </Button>
+              </div>
+
+              {/* Send feedback link */}
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-900 mb-3">📧 Get Tip, Feedback & Review:</h3>
+                <Button
+                  onClick={() => {
+                    handleSendFeedbackLink();
+                    setShowPaymentModal(false);
+                  }}
+                  disabled={sendingFeedback}
+                  variant="outline"
+                  size="lg"
+                  className="w-full bg-green-50 hover:bg-green-100 border-green-300"
+                >
+                  <Share2 className="h-5 w-5 mr-2" />
+                  {sendingFeedback ? 'Sending...' : 'Send Feedback Link to Customer'}
+                </Button>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Customer can rate, tip, and pay through the link
+                </p>
+              </div>
+
+              {/* Copay Collection */}
+              {job.client.hasInsurance && job.hasInsuranceCoverage && !job.copayPaid && job.finalCopayAmount > 0 && (
+                <div className="border-t pt-4">
+                  <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-purple-900 mb-2">💳 Collect Copay</h3>
+                    <p className="text-sm text-purple-700 mb-3">
+                      Copay amount: ${job.finalCopayAmount}
+                    </p>
+                    <div className="space-y-2">
+                      {['STRIPE', 'ZELLE', 'VENMO', 'CASHAPP', 'CHECK', 'CASH'].map((method) => (
+                        <label key={method} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-purple-100 rounded">
+                          <input
+                            type="radio"
+                            name="copayPaymentMethodModal"
+                            value={method}
+                            checked={copayPaymentMethod === method}
+                            onChange={(e) => setCopayPaymentMethod(e.target.value)}
+                            className="w-4 h-4 text-purple-600"
+                          />
+                          <span className="text-sm font-medium text-purple-900 capitalize">{method.toLowerCase()}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <Button
+                      onClick={() => {
+                        handleMarkCopayPaid();
+                        setShowPaymentModal(false);
+                      }}
+                      disabled={updating}
+                      className="w-full mt-3 bg-purple-600 hover:bg-purple-700"
+                      size="lg"
+                    >
+                      <DollarSign className="h-5 w-5 mr-2" />
+                      Mark Copay as Paid
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-6 pt-4 border-t">
+              <Button
+                onClick={() => setShowPaymentModal(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Skip for Now
               </Button>
             </div>
           </Card>
