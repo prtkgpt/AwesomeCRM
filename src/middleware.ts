@@ -13,8 +13,10 @@ export default withAuth(
       path.startsWith('/signup') ||
       path.startsWith('/invite') ||
       path.startsWith('/estimate/') || // Public estimate acceptance pages
+      path.startsWith('/feedback/') || // Public feedback pages
       path.startsWith('/api/public/') || // Public API routes
       path.startsWith('/api/auth/') || // NextAuth API routes
+      path.startsWith('/api/feedback/') || // Public feedback API routes
       path.startsWith('/api/team/invite/') || // Team invitation API routes
       path.startsWith('/api/team/accept-invite') // Accept invitation API route
     ) {
@@ -82,8 +84,10 @@ export default withAuth(
           path.startsWith('/signup') ||
           path.startsWith('/invite') ||
           path.startsWith('/estimate/') ||
+          path.startsWith('/feedback/') ||
           path.startsWith('/api/public/') ||
           path.startsWith('/api/auth/') ||
+          path.startsWith('/api/feedback/') ||
           path.startsWith('/api/team/invite/') || // Team invitation API routes
           path.startsWith('/api/team/accept-invite') // Accept invitation API route
         ) {
