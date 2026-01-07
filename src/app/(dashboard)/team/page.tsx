@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, UserPlus, DollarSign, Trash2, Edit } from 'lucide-react';
+import { Plus, UserPlus, DollarSign, Trash2, Edit, Mail } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -145,21 +145,52 @@ export default function TeamPage() {
     }
 
     try {
+      console.log(`Deleting invitation: ${invitationId} for ${email}`);
       const res = await fetch(`/api/team/invitations/${invitationId}`, {
         method: 'DELETE',
       });
 
       const data = await res.json();
+      console.log('Delete response:', { status: res.status, data });
 
-      if (res.ok) {
+      if (res.ok && data.success) {
         alert('Invitation deleted successfully');
         fetchTeamData(); // Refresh the lists
       } else {
-        alert(data.error || 'Failed to delete invitation');
+        const errorMsg = data.error || 'Failed to delete invitation';
+        const details = data.details ? ` (${data.details})` : '';
+        console.error('Delete failed:', data);
+        alert(errorMsg + details);
       }
     } catch (error) {
       console.error('Delete invitation error:', error);
-      alert('Failed to delete invitation');
+      alert('Network error: Failed to delete invitation. Please check your connection.');
+    }
+  };
+
+  const handleResendInvitation = async (invitationId: string, email: string) => {
+    try {
+      console.log(`Resending invitation: ${invitationId} for ${email}`);
+      const res = await fetch(`/api/team/invitations/${invitationId}`, {
+        method: 'PATCH',
+      });
+
+      const data = await res.json();
+      console.log('Resend response:', { status: res.status, data });
+
+      if (res.ok && data.success) {
+        alert('Invitation email resent successfully!');
+        fetchTeamData(); // Refresh to show updated expiration
+      } else {
+        const errorMsg = data.error || 'Failed to resend invitation';
+        const details = data.details ? `\n${data.details}` : '';
+        const link = data.inviteLink ? `\n\nManual invite link: ${data.inviteLink}` : '';
+        console.error('Resend failed:', data);
+        alert(errorMsg + details + link);
+      }
+    } catch (error) {
+      console.error('Resend invitation error:', error);
+      alert('Network error: Failed to resend invitation. Please check your connection.');
     }
   };
 
@@ -319,15 +350,26 @@ export default function TeamPage() {
                         Expires: {new Date(invite.expiresAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteInvitation(invite.id, invite.email)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleResendInvitation(invite.id, invite.email)}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Mail className="h-4 w-4 mr-1" />
+                        Resend
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteInvitation(invite.id, invite.email)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
