@@ -239,7 +239,9 @@ model Client {
   invoices          Invoice[]
 
   // Stripe integration
-  stripeCustomerId  String?   @unique
+  stripeCustomerId        String?   @unique
+  stripePaymentMethodId   String?   // Saved payment method for auto-charging
+  autoChargeEnabled       Boolean   @default(false)  // Allow automatic charging after job completion
 
   // Link to customer user account (if they sign up)
   customerUserId    String?   @unique
@@ -372,8 +374,12 @@ model Booking {
   copayStripePaymentIntentId String?        @unique        // Stripe payment intent ID for copay
 
   // Stripe integration
-  stripePaymentIntentId String?             @unique
-  stripePaymentLink     String?
+  stripePaymentIntentId     String?             @unique
+  stripePaymentLink         String?
+  paymentPreAuthAt          DateTime?           // When card was pre-authorized (24hrs before)
+  paymentPreAuthAmount      Float?              // Amount pre-authorized
+  autoChargeAttemptedAt     DateTime?           // When auto-charge was attempted
+  autoChargeSuccessful      Boolean             @default(false)
 
   // Recurrence
   isRecurring           Boolean             @default(false)
