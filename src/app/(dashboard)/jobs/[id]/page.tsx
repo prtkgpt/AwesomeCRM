@@ -24,6 +24,7 @@ import {
   Navigation,
   LogIn,
   LogOut,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -66,6 +67,7 @@ export default function JobDetailPage() {
   const [processingAction, setProcessingAction] = useState(false);
   const [cleaners, setCleaners] = useState<any[]>([]);
   const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
 
   useEffect(() => {
     fetchJob();
@@ -239,6 +241,32 @@ export default function JobDetailPage() {
       alert('An error occurred. Please try again.');
     } finally {
       setSendingFeedback(false);
+    }
+  };
+
+  const handleCreatePaymentLink = async () => {
+    setCreatingPaymentLink(true);
+    try {
+      const response = await fetch('/api/payments/create-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: jobId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.data.paymentLink) {
+        // Copy payment link to clipboard
+        await navigator.clipboard.writeText(data.data.paymentLink);
+        alert(`Payment link created and copied to clipboard!\n\nYou can now share this link with the customer:\n${data.data.paymentLink}`);
+        fetchJob(); // Refresh to show updated payment info
+      } else {
+        alert(data.error || 'Failed to create payment link');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setCreatingPaymentLink(false);
     }
   };
 
@@ -920,19 +948,36 @@ export default function JobDetailPage() {
           </div>
 
           {!job.isPaid && job.status === 'COMPLETED' && (
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Payment
               </label>
               <Button
+                onClick={handleCreatePaymentLink}
+                disabled={creatingPaymentLink}
+                size="sm"
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                <CreditCard className="h-4 w-4 mr-1" />
+                {creatingPaymentLink ? 'Creating...' : 'Charge Customer (Stripe)'}
+              </Button>
+              <p className="text-xs text-gray-500">
+                Creates a secure Stripe payment link and copies to clipboard
+              </p>
+
+              <Button
                 onClick={handleMarkPaid}
                 disabled={updating}
+                variant="outline"
                 size="sm"
                 className="w-full"
               >
                 <DollarSign className="h-4 w-4 mr-1" />
-                Mark as Paid
+                Mark as Paid (Manual)
               </Button>
+              <p className="text-xs text-gray-500">
+                Use this if customer paid via cash, check, or other method
+              </p>
             </div>
           )}
 
