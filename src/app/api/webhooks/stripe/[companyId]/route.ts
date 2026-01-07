@@ -58,7 +58,7 @@ export async function POST(
 
     // Initialize Stripe with the company's secret key
     const stripe = new Stripe(company.stripeSecretKey, {
-      apiVersion: '2024-11-20.acacia',
+      apiVersion: '2023-10-16',
     });
 
     // Verify the webhook signature using company's webhook secret
