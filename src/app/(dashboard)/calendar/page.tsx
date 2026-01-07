@@ -216,20 +216,22 @@ export default function CalendarPage() {
               const cleaner = cleaners.find(
                 (c) => c.id === booking.assignee?.id
               );
+              const isUnassigned = !booking.assignee;
               return (
                 <Link key={booking.id} href={`/jobs/${booking.id}`}>
                   <div
                     className="text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
                     style={{
-                      backgroundColor: cleaner?.color || '#6b7280',
+                      backgroundColor: isUnassigned ? '#ec4899' : (cleaner?.color || '#6b7280'),
                       color: 'white',
                     }}
                     title={`${booking.client.name} - ${booking.serviceType}${
                       booking.assignee
                         ? ` - ${booking.assignee.user.name}`
-                        : ''
+                        : ' - UNASSIGNED'
                     }`}
                   >
+                    {isUnassigned && '⚠️ '}
                     {booking.client.name}
                   </div>
                 </Link>
@@ -286,13 +288,23 @@ export default function CalendarPage() {
             const cleaner = cleaners.find(
               (c) => c.id === booking.assignee?.id
             );
+            const isUnassigned = !booking.assignee;
             return (
               <Link key={booking.id} href={`/jobs/${booking.id}`}>
-                <Card className="p-4 hover:shadow-md transition-shadow">
+                <Card className={`p-4 hover:shadow-md transition-shadow ${
+                  isUnassigned
+                    ? 'bg-pink-50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-900'
+                    : ''
+                }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        {cleaner && (
+                        {isUnassigned ? (
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: '#ec4899' }}
+                          />
+                        ) : cleaner && (
                           <div
                             className="w-3 h-3 rounded-full"
                             style={{ backgroundColor: cleaner.color }}
@@ -302,6 +314,11 @@ export default function CalendarPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           {booking.serviceType}
                         </span>
+                        {isUnassigned && (
+                          <span className="text-xs px-2 py-1 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 rounded-full">
+                            ⚠️ No Cleaner
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                         <p>
