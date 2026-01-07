@@ -10,8 +10,9 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 
-// Pricing configuration
-const HOURLY_RATE = 50.00;
+// Pricing configuration - These are fallback defaults
+// Actual pricing should be fetched from the database via /api/pricing/rules
+const DEFAULT_HOURLY_RATE = 50.00;
 
 const SERVICE_TYPES = [
   { value: 'INITIAL_STANDARD', label: 'Initial Standard', multiplier: 1.00 },
@@ -127,10 +128,27 @@ export default function NewEstimatePage() {
   const [excludeProviderNotification, setExcludeProviderNotification] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [hourlyRate, setHourlyRate] = useState(DEFAULT_HOURLY_RATE);
 
   useEffect(() => {
     fetchClients();
+    fetchCompanySettings();
   }, []);
+
+  const fetchCompanySettings = async () => {
+    try {
+      // Try to fetch company hourly rate from settings
+      const response = await fetch('/api/company/settings');
+      const data = await response.json();
+
+      if (data.success && data.data?.hourlyRate) {
+        setHourlyRate(data.data.hourlyRate);
+      }
+    } catch (error) {
+      console.error('Failed to fetch company settings, using default rate:', error);
+      // Continue with default rate
+    }
+  };
 
   const fetchClients = async () => {
     try {
@@ -174,16 +192,20 @@ export default function NewEstimatePage() {
 
     // Add carpet shampooing minutes
     // Pricing: $50/bedroom, $25/staircase, $60/living room
-    // At $50/hr: bedroom=60min, staircase=30min, livingRoom=72min
-    totalMinutes += carpetShampooing.bedrooms * 60;
-    totalMinutes += carpetShampooing.staircases * 30;
-    totalMinutes += carpetShampooing.livingRooms * 72;
+    // Calculate minutes based on price and hourly rate
+    const bedroomMinutes = (50 / hourlyRate) * 60; // $50 per bedroom
+    const staircaseMinutes = (25 / hourlyRate) * 60; // $25 per staircase
+    const livingRoomMinutes = (60 / hourlyRate) * 60; // $60 per living room
+
+    totalMinutes += carpetShampooing.bedrooms * bedroomMinutes;
+    totalMinutes += carpetShampooing.staircases * staircaseMinutes;
+    totalMinutes += carpetShampooing.livingRooms * livingRoomMinutes;
 
     // Convert to hours
     const totalHours = totalMinutes / 60;
 
-    // Calculate base price
-    const basePrice = totalHours * HOURLY_RATE;
+    // Calculate base price using the fetched hourly rate
+    const basePrice = totalHours * hourlyRate;
 
     // Apply service type multiplier
     const finalPrice = basePrice * selectedServiceType.multiplier;

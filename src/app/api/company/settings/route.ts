@@ -7,6 +7,7 @@ import { z } from 'zod';
 const updateCompanySettingsSchema = z.object({
   name: z.string().min(1, 'Company name is required').optional(),
   emailDomain: z.string().optional(),
+  hourlyRate: z.number().min(0, 'Hourly rate must be positive').optional(),
   twilioAccountSid: z.string().optional(),
   twilioAuthToken: z.string().optional(),
   twilioPhoneNumber: z.string().optional(),
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         emailDomain: true,
+        hourlyRate: true,
         twilioAccountSid: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
@@ -174,6 +176,9 @@ export async function PATCH(request: NextRequest) {
     if (validatedData.emailDomain !== undefined) {
       updateData.emailDomain = validatedData.emailDomain || null;
     }
+    if (validatedData.hourlyRate !== undefined) {
+      updateData.hourlyRate = validatedData.hourlyRate;
+    }
 
     // Only update API credentials if they're not masked values
     if (validatedData.twilioAccountSid && !validatedData.twilioAccountSid.startsWith('••')) {
@@ -226,6 +231,7 @@ export async function PATCH(request: NextRequest) {
         id: true,
         name: true,
         emailDomain: true,
+        hourlyRate: true,
         twilioAccountSid: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
