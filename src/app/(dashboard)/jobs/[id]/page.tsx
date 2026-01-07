@@ -1246,27 +1246,6 @@ export default function JobDetailPage() {
               </div>
             </>
           )}
-
-          {job.status !== 'COMPLETED' && !job.estimateAccepted && (
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Share Estimate
-              </label>
-              <Button
-                onClick={handleGenerateEstimate}
-                disabled={generatingEstimate}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                <Share2 className="h-4 w-4 mr-1" />
-                {generatingEstimate ? 'Generating...' : 'Generate Estimate Link'}
-              </Button>
-              <p className="text-xs text-gray-500 mt-1">
-                Share this link with customers to accept the estimate
-              </p>
-            </div>
-          )}
         </div>
       </Card>
 
