@@ -1091,7 +1091,7 @@ export default function JobDetailPage() {
                 className="w-full mt-2"
               >
                 <DollarSign className="h-4 w-4 mr-1" />
-                Mark as Paid ({paymentMethod})
+                SAVE
               </Button>
             </div>
           )}
@@ -1131,7 +1131,7 @@ export default function JobDetailPage() {
                 className="w-full mt-2 bg-purple-600 hover:bg-purple-700"
               >
                 <DollarSign className="h-4 w-4 mr-1" />
-                Mark Copay as Paid ({copayPaymentMethod})
+                SAVE
               </Button>
             </div>
           )}
