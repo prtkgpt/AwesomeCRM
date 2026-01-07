@@ -26,6 +26,8 @@ import {
   XCircle,
   AlertCircle,
   DollarSign,
+  Copy,
+  Check,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -61,6 +63,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [webhookUrlCopied, setWebhookUrlCopied] = useState(false);
 
   // Profile state
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -240,6 +243,21 @@ export default function SettingsPage() {
       alert('An error occurred. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyWebhookUrl = async () => {
+    if (!companySettings?.id) return;
+
+    const webhookUrl = `${window.location.origin}/api/webhooks/stripe/${companySettings.id}`;
+
+    try {
+      await navigator.clipboard.writeText(webhookUrl);
+      setWebhookUrlCopied(true);
+      setTimeout(() => setWebhookUrlCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy webhook URL:', error);
+      alert('Failed to copy URL. Please copy manually.');
     }
   };
 
@@ -876,6 +894,46 @@ export default function SettingsPage() {
                             Stripe Dashboard
                           </a>
                         </p>
+                      </div>
+
+                      {/* Webhook URL Display */}
+                      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                              Your Webhook URL
+                            </label>
+                            <code className="block text-xs bg-white dark:bg-gray-800 p-3 rounded border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 break-all">
+                              {companySettings?.id
+                                ? `${typeof window !== 'undefined' ? window.location.origin : 'https://cleandaycrm.com'}/api/webhooks/stripe/${companySettings.id}`
+                                : 'Save your settings first to see your webhook URL'}
+                            </code>
+                            <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                              📋 Copy this URL and add it to your Stripe Dashboard → Webhooks
+                            </p>
+                          </div>
+                          {companySettings?.id && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={copyWebhookUrl}
+                              className="mt-6 shrink-0"
+                            >
+                              {webhookUrlCopied ? (
+                                <>
+                                  <Check className="h-4 w-4 mr-1 text-green-600" />
+                                  Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-4 w-4 mr-1" />
+                                  Copy
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
