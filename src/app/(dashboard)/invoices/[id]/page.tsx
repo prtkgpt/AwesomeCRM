@@ -168,22 +168,27 @@ export default function InvoiceDetailPage() {
 
     setUpdating(true);
     try {
+      console.log(`Sending invoice ${invoiceId} to ${invoice.client.email}`);
       const response = await fetch(`/api/invoices/${invoiceId}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
 
       const data = await response.json();
+      console.log('Send invoice response:', { status: response.status, data });
 
       if (data.success) {
-        alert('Invoice sent successfully');
+        alert('Invoice sent successfully!');
         fetchInvoice(); // Refresh to show updated status
       } else {
-        alert(data.error || 'Failed to send invoice');
+        const errorMsg = data.error || 'Failed to send invoice';
+        const details = data.details ? `\n\nDetails: ${data.details}` : '';
+        console.error('Send invoice failed:', data);
+        alert(errorMsg + details);
       }
     } catch (error) {
       console.error('Error sending invoice:', error);
-      alert('Failed to send invoice');
+      alert('Network error: Failed to send invoice. Please check your connection.');
     } finally {
       setUpdating(false);
     }
