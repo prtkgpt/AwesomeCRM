@@ -538,6 +538,28 @@ export default function JobDetailPage() {
     }
   };
 
+  const handleDuplicate = () => {
+    if (!job) return;
+
+    // Navigate to new job page with current job data as query params
+    const params = new URLSearchParams({
+      duplicate: 'true',
+      clientId: job.clientId,
+      addressId: job.addressId,
+      serviceType: job.serviceType,
+      duration: job.duration.toString(),
+      price: job.price.toString(),
+      notes: job.notes || '',
+      internalNotes: job.internalNotes || '',
+      assignedTo: job.assignedTo || '',
+      hasInsuranceCoverage: job.hasInsuranceCoverage?.toString() || 'false',
+      insuranceAmount: job.insuranceAmount?.toString() || '0',
+      copayAmount: job.copayAmount?.toString() || '0',
+    });
+
+    router.push(`/jobs/new?${params.toString()}`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'SCHEDULED':
@@ -575,14 +597,24 @@ export default function JobDetailPage() {
         </div>
         <div className="flex gap-2">
           {!isEditing && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleStartEdit}
-            >
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleStartEdit}
+              >
+                <Edit className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDuplicate}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                Duplicate
+              </Button>
+            </>
           )}
           <Button
             variant="outline"

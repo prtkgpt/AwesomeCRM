@@ -103,6 +103,52 @@ export default function NewJobPage() {
     fetchCleaners();
   }, []);
 
+  // Pre-fill form when duplicating a job
+  useEffect(() => {
+    const isDuplicate = searchParams.get('duplicate');
+    if (isDuplicate === 'true') {
+      const clientId = searchParams.get('clientId');
+      const addressId = searchParams.get('addressId');
+      const serviceType = searchParams.get('serviceType');
+      const duration = searchParams.get('duration');
+      const price = searchParams.get('price');
+      const notes = searchParams.get('notes');
+      const internalNotes = searchParams.get('internalNotes');
+      const assignedTo = searchParams.get('assignedTo');
+      const hasInsuranceCoverage = searchParams.get('hasInsuranceCoverage');
+      const insuranceAmount = searchParams.get('insuranceAmount');
+      const copayAmount = searchParams.get('copayAmount');
+
+      setFormData(prev => ({
+        ...prev,
+        clientId: clientId || prev.clientId,
+        addressId: addressId || '',
+        serviceType: serviceType || prev.serviceType,
+        duration: duration || prev.duration,
+        price: price || prev.price,
+        notes: notes || '',
+        assignedTo: assignedTo || '',
+        hasInsuranceCoverage: hasInsuranceCoverage === 'true',
+        insuranceAmount: insuranceAmount || '0',
+        copayAmount: copayAmount || '0',
+        copayDiscountApplied: '0',
+        finalCopayAmount: copayAmount || '0',
+      }));
+
+      // If manual price is provided, enable price adjustment
+      if (price) {
+        setAdjustPrice(true);
+        setManualPrice(price);
+      }
+
+      // If manual duration is provided, enable time adjustment
+      if (duration) {
+        setAdjustTime(true);
+        setManualDuration(duration);
+      }
+    }
+  }, [searchParams]);
+
   const fetchCleaners = async () => {
     try {
       const response = await fetch('/api/team/members');
