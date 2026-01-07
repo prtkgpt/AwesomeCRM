@@ -13,6 +13,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const from = searchParams.get('from');
@@ -21,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     const bookings = await prisma.booking.findMany({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         ...(status && { status: status as any }),
         ...(clientId && { clientId }),
         ...(from && to && {

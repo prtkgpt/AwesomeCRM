@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     const revenueThisMonth = revenueResult._sum.price || 0;
 
-    // Get upcoming jobs list (next 5)
+    // Get upcoming jobs list (next 100 for better calendar coverage)
     const upcomingJobsList = await prisma.booking.findMany({
       where: {
         companyId: user.companyId,
@@ -82,11 +82,21 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        assignee: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         scheduledDate: 'asc',
       },
-      take: 5,
+      take: 100,
     });
 
     return NextResponse.json({

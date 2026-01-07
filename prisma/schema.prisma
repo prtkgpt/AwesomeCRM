@@ -46,6 +46,11 @@ model Company {
   twilioPhoneNumber   String?             // Twilio Phone Number
   resendApiKey        String?             // Resend API Key
 
+  // Stripe Integration
+  stripeSecretKey         String?         // Stripe Secret Key
+  stripePublishableKey    String?         // Stripe Publishable Key
+  stripeWebhookSecret     String?         // Stripe Webhook Signing Secret
+
   // Reminder Settings
   enableCustomerReminders     Boolean @default(true)
   enableCleanerReminders      Boolean @default(true)
