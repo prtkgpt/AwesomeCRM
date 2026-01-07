@@ -45,6 +45,13 @@ export async function GET(
             },
           },
         },
+        completedByUser: {
+          select: {
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
         messages: {
           orderBy: {
             createdAt: 'desc',
@@ -410,13 +417,30 @@ export async function PATCH(
       );
     }
 
+    // Prepare update data
+    const updateData: any = {
+      ...(body.insuranceDocumentation !== undefined && { insuranceDocumentation: body.insuranceDocumentation }),
+      ...(body.cleaningObservations !== undefined && { cleaningObservations: body.cleaningObservations }),
+      ...(body.copayPaid !== undefined && { copayPaid: body.copayPaid }),
+      ...(body.copayPaymentMethod !== undefined && { copayPaymentMethod: body.copayPaymentMethod }),
+      ...(body.copayPaidAt !== undefined && { copayPaidAt: body.copayPaidAt }),
+    };
+
+    // Handle status updates
+    if (body.status !== undefined) {
+      updateData.status = body.status;
+
+      // If marking as completed, track who completed it and when
+      if (body.status === 'COMPLETED') {
+        updateData.completedAt = new Date();
+        updateData.completedBy = session.user.id;
+      }
+    }
+
     // Update booking with partial data
     const booking = await prisma.booking.update({
       where: { id: params.id },
-      data: {
-        ...(body.insuranceDocumentation !== undefined && { insuranceDocumentation: body.insuranceDocumentation }),
-        ...(body.cleaningObservations !== undefined && { cleaningObservations: body.cleaningObservations }),
-      },
+      data: updateData,
       include: {
         client: true,
         address: true,
@@ -428,6 +452,13 @@ export async function PATCH(
                 email: true,
               },
             },
+          },
+        },
+        completedByUser: {
+          select: {
+            name: true,
+            email: true,
+            role: true,
           },
         },
       },

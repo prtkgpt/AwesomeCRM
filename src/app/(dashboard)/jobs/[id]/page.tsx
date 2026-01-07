@@ -788,14 +788,21 @@ export default function JobDetailPage() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-sm px-3 py-1 rounded-full ${getStatusColor(job.status)}`}>
-                  {job.status}
-                </span>
-                {job.isRecurring && (
-                  <span className="text-sm px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
-                    Recurring {job.recurrenceFrequency}
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm px-3 py-1 rounded-full ${getStatusColor(job.status)}`}>
+                    {job.status}
                   </span>
+                  {job.isRecurring && (
+                    <span className="text-sm px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
+                      Recurring {job.recurrenceFrequency}
+                    </span>
+                  )}
+                </div>
+                {job.status === 'COMPLETED' && (job as any).completedByUser && (
+                  <p className="text-xs text-gray-500">
+                    Completed by {(job as any).completedByUser.name || (job as any).completedByUser.email}
+                  </p>
                 )}
               </div>
             </div>
