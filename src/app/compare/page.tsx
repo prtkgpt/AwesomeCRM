@@ -430,12 +430,12 @@ export default function ComparePage() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
               <a
-                href="https://www.paypal.com/paypalme/prateekguptaorg/20"
+                href="https://buy.stripe.com/dRmfZh05U92v41S1rZ6Zy00"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold bg-[#0070BA] text-white rounded-lg hover:bg-[#005ea6] transition-colors shadow-lg"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors shadow-lg"
               >
-                Pay with PayPal - Start Now
+                Subscribe Now - $20/month
               </a>
               <Link
                 href="/signup"

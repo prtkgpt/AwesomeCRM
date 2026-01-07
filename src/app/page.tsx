@@ -80,12 +80,12 @@ export default async function Home() {
 
             <div className="flex flex-col gap-3 mb-6">
               <a
-                href="https://www.paypal.com/paypalme/prateekguptaorg/20"
+                href="https://buy.stripe.com/dRmfZh05U92v41S1rZ6Zy00"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full bg-[#0070BA] text-white py-4 rounded-lg font-bold text-lg hover:bg-[#005ea6] transition-colors shadow-lg"
+                className="block w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-lg font-bold text-lg hover:from-green-700 hover:to-emerald-700 transition-colors shadow-lg"
               >
-                Pay with PayPal - Get Started Now
+                Subscribe Now - $20/month
               </a>
               <Link
                 href="/signup"
@@ -100,9 +100,9 @@ export default async function Home() {
             </p>
 
             <div className="border-t border-gray-200 pt-4">
-              <p className="text-xs text-gray-500 mb-2">To subscribe with PayPal:</p>
+              <p className="text-xs text-gray-500 mb-2">Secure payment powered by Stripe</p>
               <p className="text-xs text-gray-600">
-                Send $20 to <span className="font-mono bg-gray-100 px-2 py-1 rounded">prateek@prateekgupta.org</span> and email us to activate your account
+                Click "Subscribe Now" to complete your payment securely via Stripe
               </p>
             </div>
           </div>
@@ -374,16 +374,16 @@ export default async function Home() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
             <a
-              href="https://www.paypal.com/paypalme/prateekguptaorg/20"
+              href="https://buy.stripe.com/dRmfZh05U92v41S1rZ6Zy00"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold bg-[#0070BA] text-white rounded-lg hover:bg-[#005ea6] transition-colors shadow-lg"
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
             >
-              Pay with PayPal - Start Now
+              Subscribe Now - $20/month
             </a>
             <Link
               href="/signup"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-blue-600 bg-white rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-blue-600 border-2 border-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
             >
               Start Free Trial First
             </Link>
