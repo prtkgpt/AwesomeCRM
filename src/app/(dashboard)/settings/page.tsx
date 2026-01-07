@@ -688,6 +688,38 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={handleCompanyUpdate} className="space-y-6">
+                  {/* Company ID (Read-only) */}
+                  {companySettings?.id && (
+                    <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <label className="block text-sm font-medium mb-2">
+                        Company ID
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-sm bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 font-mono">
+                          {companySettings.id}
+                        </code>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(companySettings.id);
+                              alert('Company ID copied to clipboard!');
+                            } catch (error) {
+                              console.error('Failed to copy:', error);
+                            }
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        This is your unique company identifier used in API integrations and webhooks
+                      </p>
+                    </div>
+                  )}
+
                   {/* Company Name */}
                   <div>
                     <label className="block text-sm font-medium mb-2">
