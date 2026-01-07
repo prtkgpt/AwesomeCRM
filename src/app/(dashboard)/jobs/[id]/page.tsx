@@ -283,6 +283,34 @@ export default function JobDetailPage() {
     }
   };
 
+  const handleAutoCharge = async () => {
+    if (!confirm('Charge customer\'s saved card on file?')) {
+      return;
+    }
+
+    setCreatingPaymentLink(true);
+    try {
+      const response = await fetch('/api/payments/auto-charge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: jobId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`✅ Successfully charged $${data.data.amount}!\n\nPayment ID: ${data.data.paymentIntentId}`);
+        fetchJob(); // Refresh to show updated payment status
+      } else {
+        alert(`❌ Failed to charge card:\n\n${data.error}\n\n${data.code ? `Error code: ${data.code}` : ''}`);
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setCreatingPaymentLink(false);
+    }
+  };
+
   const handleStatusChange = async (newStatus: string) => {
     if (!job) return;
 
@@ -965,18 +993,38 @@ export default function JobDetailPage() {
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Payment
               </label>
-              <Button
-                onClick={handleCreatePaymentLink}
-                disabled={creatingPaymentLink}
-                size="sm"
-                className="w-full bg-blue-600 hover:bg-blue-700"
-              >
-                <CreditCard className="h-4 w-4 mr-1" />
-                {creatingPaymentLink ? 'Creating...' : 'Charge Customer (Stripe)'}
-              </Button>
-              <p className="text-xs text-gray-500">
-                Creates a secure Stripe payment link and copies to clipboard
-              </p>
+
+              {job.client.autoChargeEnabled && job.client.stripePaymentMethodId ? (
+                <>
+                  <Button
+                    onClick={handleAutoCharge}
+                    disabled={creatingPaymentLink}
+                    size="sm"
+                    className="w-full bg-green-600 hover:bg-green-700"
+                  >
+                    <CreditCard className="h-4 w-4 mr-1" />
+                    {creatingPaymentLink ? 'Charging...' : 'Charge Saved Card'}
+                  </Button>
+                  <p className="text-xs text-green-700 font-medium">
+                    💳 Card on file (****{job.client.stripePaymentMethodId.slice(-4)})
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={handleCreatePaymentLink}
+                    disabled={creatingPaymentLink}
+                    size="sm"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    <CreditCard className="h-4 w-4 mr-1" />
+                    {creatingPaymentLink ? 'Creating...' : 'Create Payment Link'}
+                  </Button>
+                  <p className="text-xs text-gray-500">
+                    Creates a Stripe payment link and copies to clipboard
+                  </p>
+                </>
+              )}
 
               <Button
                 onClick={handleMarkPaid}
@@ -989,7 +1037,7 @@ export default function JobDetailPage() {
                 Mark as Paid (Manual)
               </Button>
               <p className="text-xs text-gray-500">
-                Use this if customer paid via cash, check, or other method
+                Use if customer paid via cash, check, or other method
               </p>
             </div>
           )}
@@ -1067,7 +1115,7 @@ export default function JobDetailPage() {
             </>
           )}
 
-          {job.status !== 'COMPLETED' && (
+          {job.status !== 'COMPLETED' && !job.estimateAccepted && (
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Share Estimate
