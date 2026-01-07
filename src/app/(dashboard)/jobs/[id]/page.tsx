@@ -38,6 +38,19 @@ export default function JobDetailPage() {
   const router = useRouter();
   const params = useParams();
   const jobId = params.id as string;
+
+  // Generate a fun, readable job ID from the hash
+  const getFriendlyJobId = (id: string) => {
+    // Convert first 6 chars of ID to a number for readability
+    const hash = id.slice(0, 6);
+    let num = 0;
+    for (let i = 0; i < hash.length; i++) {
+      num = num * 36 + parseInt(hash[i], 36);
+    }
+    // Keep it to 4-6 digits
+    const shortNum = Math.abs(num) % 100000;
+    return `JOB-${shortNum.toString().padStart(5, '0')}`;
+  };
   const { data: session } = useSession();
 
   const [job, setJob] = useState<BookingWithRelations | null>(null);
@@ -493,7 +506,7 @@ export default function JobDetailPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Job Details</h1>
-            <p className="text-sm text-gray-500">ID: {job.id.slice(0, 8)}</p>
+            <p className="text-sm text-gray-500">{getFriendlyJobId(job.id)}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -1054,24 +1067,26 @@ export default function JobDetailPage() {
             </>
           )}
 
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
-              Share Estimate
-            </label>
-            <Button
-              onClick={handleGenerateEstimate}
-              disabled={generatingEstimate}
-              variant="outline"
-              size="sm"
-              className="w-full"
-            >
-              <Share2 className="h-4 w-4 mr-1" />
-              {generatingEstimate ? 'Generating...' : 'Generate Estimate Link'}
-            </Button>
-            <p className="text-xs text-gray-500 mt-1">
-              Share this link with customers to accept the estimate
-            </p>
-          </div>
+          {job.status !== 'COMPLETED' && (
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Share Estimate
+              </label>
+              <Button
+                onClick={handleGenerateEstimate}
+                disabled={generatingEstimate}
+                variant="outline"
+                size="sm"
+                className="w-full"
+              >
+                <Share2 className="h-4 w-4 mr-1" />
+                {generatingEstimate ? 'Generating...' : 'Generate Estimate Link'}
+              </Button>
+              <p className="text-xs text-gray-500 mt-1">
+                Share this link with customers to accept the estimate
+              </p>
+            </div>
+          )}
         </div>
       </Card>
 
