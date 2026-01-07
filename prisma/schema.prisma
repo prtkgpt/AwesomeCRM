@@ -123,6 +123,9 @@ model User {
   customerClient  Client?   @relation("CustomerAccount")
   customerBookings Booking[] @relation("CustomerBookings")
 
+  // Jobs completed by this user
+  completedBookings Booking[] @relation("CompletedByUser")
+
   // Invitations sent
   sentInvitations Invitation[] @relation("InvitationSender")
 
@@ -425,6 +428,11 @@ model Booking {
   tipAmount             Float?                       // Tip amount from customer
   tipPaidVia            String?                      // "STRIPE", "ZELLE", "VENMO", "CASHAPP", "CASH"
   feedbackSubmittedAt   DateTime?                    // When customer submitted feedback
+
+  // Job completion tracking
+  completedAt           DateTime?                    // When job was marked as completed
+  completedBy           String?                      // User ID who marked job as completed
+  completedByUser       User?               @relation("CompletedByUser", fields: [completedBy], references: [id])
 
   messages              Message[]
   invoice               Invoice?
