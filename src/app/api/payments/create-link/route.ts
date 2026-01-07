@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { stripe } from '@/lib/stripe';
+import Stripe from 'stripe';
 
 // POST /api/payments/create-link - Create Stripe payment link
 export async function POST(request: NextRequest) {
@@ -10,14 +10,6 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if Stripe is configured
-    if (!stripe) {
-      return NextResponse.json(
-        { success: false, error: 'Payment processing is not configured' },
-        { status: 503 }
-      );
     }
 
     const { bookingId } = await request.json();
@@ -29,15 +21,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get booking details
+    // Get user's company
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Get booking details with company info
     const booking = await prisma.booking.findFirst({
       where: {
         id: bookingId,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
       include: {
         client: true,
         address: true,
+        company: {
+          select: {
+            name: true,
+            stripeSecretKey: true,
+          },
+        },
       },
     });
 
@@ -47,6 +55,19 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    // Check if company has Stripe configured
+    if (!booking.company.stripeSecretKey) {
+      return NextResponse.json(
+        { success: false, error: 'Payment processing is not configured for your company' },
+        { status: 503 }
+      );
+    }
+
+    // Initialize Stripe with company's credentials
+    const stripe = new Stripe(booking.company.stripeSecretKey, {
+      apiVersion: '2023-10-16',
+    });
 
     // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -71,6 +92,7 @@ export async function POST(request: NextRequest) {
           bookingId: booking.id,
           clientId: booking.client.id,
           userId: session.user.id,
+          companyId: booking.companyId,
         },
       },
       line_items: [
@@ -78,8 +100,8 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Cleaning Service - ${booking.serviceType}`,
-              description: `${booking.address.street}, ${booking.address.city}`,
+              name: `${booking.company.name} - Cleaning Service`,
+              description: `${booking.serviceType.replace('_', ' ')} • ${booking.address.street}, ${booking.address.city}`,
             },
             unit_amount: Math.round(booking.price * 100),
           },
@@ -87,8 +109,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       customer_email: booking.client.email || undefined,
-      success_url: `${process.env.NEXTAUTH_URL}/jobs/${booking.id}?payment=success`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/jobs/${booking.id}?payment=cancelled`,
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/jobs/${booking.id}?payment=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/jobs/${booking.id}?payment=cancelled`,
     });
 
     // Update booking with payment link

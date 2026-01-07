@@ -84,7 +84,7 @@ export async function POST(
       });
     }
 
-    const feedbackUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/feedback/${feedbackToken}`;
+    const feedbackUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/feedback/${feedbackToken}`;
     const clientName = booking.client.name;
     const cleanerName = booking.assignee?.user.name || 'your cleaner';
     const companyName = booking.company.name;
