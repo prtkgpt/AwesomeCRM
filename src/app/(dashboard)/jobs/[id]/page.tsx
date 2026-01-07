@@ -1054,7 +1054,10 @@ export default function JobDetailPage() {
                 className="flex-1"
               >
                 <CheckCircle className="h-4 w-4 mr-1" />
-                Mark Completed
+                {job.status === 'COMPLETED' && (job as any).completedByUser
+                  ? `Marked Complete by ${(job as any).completedByUser.name || (job as any).completedByUser.email}`
+                  : 'Mark Completed'
+                }
               </Button>
               <Button
                 onClick={() => handleStatusChange('CANCELLED')}
