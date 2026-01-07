@@ -11,6 +11,9 @@ const updateCompanySettingsSchema = z.object({
   twilioAuthToken: z.string().optional(),
   twilioPhoneNumber: z.string().optional(),
   resendApiKey: z.string().optional(),
+  stripeSecretKey: z.string().optional(),
+  stripePublishableKey: z.string().optional(),
+  stripeWebhookSecret: z.string().optional(),
   // Reminder settings
   enableCustomerReminders: z.boolean().optional(),
   enableCleanerReminders: z.boolean().optional(),
@@ -64,6 +67,9 @@ export async function GET(request: NextRequest) {
         twilioAccountSid: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
+        stripeSecretKey: true,
+        stripePublishableKey: true,
+        stripeWebhookSecret: true,
         enableCustomerReminders: true,
         enableCleanerReminders: true,
         customerReminderHours: true,
@@ -89,6 +95,8 @@ export async function GET(request: NextRequest) {
         // Mask sensitive data
         twilioAccountSid: company.twilioAccountSid ? '••••••••' + company.twilioAccountSid.slice(-4) : null,
         resendApiKey: company.resendApiKey ? '••••••••' + company.resendApiKey.slice(-4) : null,
+        stripeSecretKey: company.stripeSecretKey ? '••••••••' + company.stripeSecretKey.slice(-4) : null,
+        stripeWebhookSecret: company.stripeWebhookSecret ? '••••••••' + company.stripeWebhookSecret.slice(-4) : null,
       },
     });
   } catch (error) {
@@ -180,6 +188,15 @@ export async function PATCH(request: NextRequest) {
     if (validatedData.resendApiKey && !validatedData.resendApiKey.startsWith('••')) {
       updateData.resendApiKey = validatedData.resendApiKey;
     }
+    if (validatedData.stripeSecretKey && !validatedData.stripeSecretKey.startsWith('••')) {
+      updateData.stripeSecretKey = validatedData.stripeSecretKey;
+    }
+    if (validatedData.stripePublishableKey !== undefined) {
+      updateData.stripePublishableKey = validatedData.stripePublishableKey || null;
+    }
+    if (validatedData.stripeWebhookSecret && !validatedData.stripeWebhookSecret.startsWith('••')) {
+      updateData.stripeWebhookSecret = validatedData.stripeWebhookSecret;
+    }
 
     // Reminder settings
     if (validatedData.enableCustomerReminders !== undefined) {
@@ -212,6 +229,9 @@ export async function PATCH(request: NextRequest) {
         twilioAccountSid: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
+        stripeSecretKey: true,
+        stripePublishableKey: true,
+        stripeWebhookSecret: true,
         enableCustomerReminders: true,
         enableCleanerReminders: true,
         customerReminderHours: true,
@@ -228,6 +248,8 @@ export async function PATCH(request: NextRequest) {
         // Mask sensitive data in response
         twilioAccountSid: updatedCompany.twilioAccountSid ? '••••••••' + updatedCompany.twilioAccountSid.slice(-4) : null,
         resendApiKey: updatedCompany.resendApiKey ? '••••••••' + updatedCompany.resendApiKey.slice(-4) : null,
+        stripeSecretKey: updatedCompany.stripeSecretKey ? '••••••••' + updatedCompany.stripeSecretKey.slice(-4) : null,
+        stripeWebhookSecret: updatedCompany.stripeWebhookSecret ? '••••••••' + updatedCompany.stripeWebhookSecret.slice(-4) : null,
       },
       message: 'Company settings updated successfully',
     });

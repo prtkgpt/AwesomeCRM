@@ -51,6 +51,9 @@ interface CompanySettings {
   twilioAccountSid: string | null;
   twilioPhoneNumber: string | null;
   resendApiKey: string | null;
+  stripeSecretKey: string | null;
+  stripePublishableKey: string | null;
+  stripeWebhookSecret: string | null;
 }
 
 export default function SettingsPage() {
@@ -88,6 +91,9 @@ export default function SettingsPage() {
     twilioAuthToken: '',
     twilioPhoneNumber: '',
     resendApiKey: '',
+    stripeSecretKey: '',
+    stripePublishableKey: '',
+    stripeWebhookSecret: '',
   });
 
   // Import data state
@@ -145,6 +151,9 @@ export default function SettingsPage() {
           twilioAuthToken: '',
           twilioPhoneNumber: data.data.twilioPhoneNumber || '',
           resendApiKey: data.data.resendApiKey || '',
+          stripeSecretKey: data.data.stripeSecretKey || '',
+          stripePublishableKey: data.data.stripePublishableKey || '',
+          stripeWebhookSecret: data.data.stripeWebhookSecret || '',
         });
       }
     } catch (error) {
@@ -791,6 +800,83 @@ export default function SettingsPage() {
                           resend.com
                         </a>
                       </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <h3 className="font-semibold mb-4">Stripe Payment Integration</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Configure Stripe to enable credit card payments for your customers
+                    </p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Secret Key
+                        </label>
+                        <Input
+                          type="password"
+                          value={companyForm.stripeSecretKey}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              stripeSecretKey: e.target.value,
+                            })
+                          }
+                          placeholder="Enter your Stripe secret key"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Your Stripe secret key (starts with sk_live_ or sk_test_)
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Publishable Key
+                        </label>
+                        <Input
+                          type="text"
+                          value={companyForm.stripePublishableKey}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              stripePublishableKey: e.target.value,
+                            })
+                          }
+                          placeholder="Enter your Stripe publishable key"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Your Stripe publishable key (starts with pk_live_ or pk_test_)
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Webhook Signing Secret
+                        </label>
+                        <Input
+                          type="password"
+                          value={companyForm.stripeWebhookSecret}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              stripeWebhookSecret: e.target.value,
+                            })
+                          }
+                          placeholder="Enter your webhook signing secret"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Your webhook signing secret from{' '}
+                          <a
+                            href="https://dashboard.stripe.com/webhooks"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Stripe Dashboard
+                          </a>
+                        </p>
+                      </div>
                     </div>
                   </div>
 
