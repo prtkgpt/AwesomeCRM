@@ -70,11 +70,14 @@ export default function CalendarPage() {
         setBookings(data.data || []);
       }
 
-      // Fetch team members (cleaners)
+      // Fetch team members (cleaners only - exclude admin/office staff/owner)
       const teamRes = await fetch('/api/team/members');
       if (teamRes.ok) {
         const data = await teamRes.json();
         const members = data.data || [];
+
+        // Filter to only show CLEANER role (exclude ADMIN, OWNER, etc.)
+        const cleanerMembers = members.filter((member: any) => member.user.role === 'CLEANER');
 
         // Assign colors to cleaners
         const colors = [
@@ -82,7 +85,7 @@ export default function CalendarPage() {
           '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6',
         ];
 
-        const stats: CleanerStats[] = members.map((member: any, index: number) => ({
+        const stats: CleanerStats[] = cleanerMembers.map((member: any, index: number) => ({
           id: member.user.id,
           name: member.user.name || member.user.email,
           email: member.user.email,
