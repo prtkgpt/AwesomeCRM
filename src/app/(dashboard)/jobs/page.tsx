@@ -37,27 +37,30 @@ export default function JobsPage() {
       const now = new Date();
       const params = new URLSearchParams();
 
-      // Apply tab-based date filters
-      if (tab === 'upcoming') {
-        params.append('from', now.toISOString());
-        if (statusFilter === 'all') {
-          params.append('status', 'SCHEDULED');
+      // Apply date range filters based on custom filters or tab
+      if (dateFrom || dateTo) {
+        // If user has custom date filters, use those
+        if (dateFrom) {
+          params.append('from', new Date(dateFrom).toISOString());
+        }
+        if (dateTo) {
+          params.append('to', new Date(dateTo + 'T23:59:59').toISOString());
         }
       } else {
-        params.append('to', now.toISOString());
+        // Otherwise, use tab-based date filters
+        if (tab === 'upcoming') {
+          params.append('from', now.toISOString());
+        } else {
+          params.append('to', now.toISOString());
+        }
       }
 
       // Apply status filter
       if (statusFilter !== 'all') {
         params.append('status', statusFilter);
-      }
-
-      // Apply date range filters
-      if (dateFrom) {
-        params.append('from', new Date(dateFrom).toISOString());
-      }
-      if (dateTo) {
-        params.append('to', new Date(dateTo + 'T23:59:59').toISOString());
+      } else if (tab === 'upcoming') {
+        // Default to SCHEDULED for upcoming jobs if no status filter
+        params.append('status', 'SCHEDULED');
       }
 
       const response = await fetch(`/api/bookings?${params}`);
@@ -352,7 +355,14 @@ export default function JobsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {bookings.map((booking) => (
-              <Card key={booking.id} className="p-4 md:p-5 hover:shadow-lg transition-shadow">
+              <Card
+                key={booking.id}
+                className={`p-4 md:p-5 hover:shadow-lg transition-shadow ${
+                  !booking.assignee
+                    ? 'bg-pink-50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-900'
+                    : ''
+                }`}
+              >
                 <div className="flex flex-col h-full">
                   <div className="flex items-start gap-3 mb-3">
                     <input
@@ -378,6 +388,11 @@ export default function JobsPage() {
                             Recurring
                           </span>
                         )}
+                        {!booking.assignee && (
+                          <span className="text-xs px-2 py-1 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 rounded-full font-medium">
+                            ⚠️ No Cleaner
+                          </span>
+                        )}
                       </div>
                       <Link href={`/jobs/${booking.id}`}>
                         <h3 className="font-semibold text-lg mb-1 hover:text-blue-600 dark:hover:text-blue-400">
@@ -390,9 +405,13 @@ export default function JobsPage() {
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {booking.address.street}, {booking.address.city}
                       </p>
-                      {booking.assignee && (
+                      {booking.assignee ? (
                         <p className="text-sm text-blue-600 dark:text-blue-400 mt-1 font-medium">
                           👤 {booking.assignee.user.name || 'Cleaner'}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-pink-700 dark:text-pink-300 mt-1 font-medium">
+                          👤 Unassigned
                         </p>
                       )}
                       <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
