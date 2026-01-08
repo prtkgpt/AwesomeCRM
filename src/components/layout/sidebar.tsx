@@ -6,6 +6,7 @@ import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, C
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import GlobalSearch from '@/components/search/global-search';
 
 const ownerAdminNavItems = [
   {
@@ -123,8 +124,13 @@ export function Sidebar() {
           <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">CleanDay CRM</h1>
         </div>
 
+        {/* Global Search */}
+        <div className="px-3 pt-4 pb-2">
+          <GlobalSearch />
+        </div>
+
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
