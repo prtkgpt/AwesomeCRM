@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       } else {
         clientStats.set(clientId, {
           id: job.client.id,
-          name: job.client.name,
+          name: job.client.name || 'Unknown Client',
           totalRevenue: job.price,
           jobCount: 1,
         });

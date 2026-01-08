@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
       } else {
         teamMemberStats.set(memberId, {
           id: job.assignee.user.id,
-          name: job.assignee.user.name,
+          name: job.assignee.user.name || 'Unknown',
           revenue: job.price,
           jobsCompleted: 1,
         });
