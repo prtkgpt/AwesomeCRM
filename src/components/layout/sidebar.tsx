@@ -162,9 +162,26 @@ export function Sidebar() {
           </button>
 
           {/* Footer Attribution */}
-          <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+            <div className="text-xs text-center">
+              <a
+                href="https://cleandaycrm.com/product-release"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                New Features
+              </a>
+            </div>
             <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-              © 2026 CleanDay CRM
+              <a
+                href="https://www.prateekgupta.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                © 2026 CleanDay CRM
+              </a>
             </p>
           </div>
         </div>
