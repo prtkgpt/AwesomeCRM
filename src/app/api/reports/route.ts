@@ -12,6 +12,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true, role: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'week';
 
@@ -41,7 +51,7 @@ export async function GET(request: NextRequest) {
     // Get completed jobs in the period
     const completedJobs = await prisma.booking.findMany({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         status: 'COMPLETED',
         scheduledDate: {
           gte: startDate,
@@ -56,7 +66,7 @@ export async function GET(request: NextRequest) {
     // Get unpaid completed jobs
     const unpaidJobs = await prisma.booking.findMany({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         status: 'COMPLETED',
         isPaid: false,
       },
@@ -68,7 +78,7 @@ export async function GET(request: NextRequest) {
     const upcomingEndDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const upcomingJobs = await prisma.booking.count({
       where: {
-        userId: session.user.id,
+        companyId: user.companyId,
         status: 'SCHEDULED',
         scheduledDate: {
           gte: now,
