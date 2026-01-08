@@ -53,6 +53,26 @@ export function formatTime(date: Date | string): string {
 }
 
 /**
+ * Format duration in minutes to human-readable format
+ * Examples: 30 → "30 min", 60 → "1 hr", 90 → "1 hr 30 min", 120 → "2 hrs"
+ */
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (remainingMinutes === 0) {
+    return hours === 1 ? '1 hr' : `${hours} hrs`;
+  }
+
+  const hourText = hours === 1 ? '1 hr' : `${hours} hrs`;
+  return `${hourText} ${remainingMinutes} min`;
+}
+
+/**
  * Generate recurring booking dates
  */
 export function generateRecurringDates(

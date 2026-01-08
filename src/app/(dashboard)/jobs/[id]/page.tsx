@@ -29,7 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
-import { formatDateTime, formatCurrency } from '@/lib/utils';
+import { formatDateTime, formatCurrency, formatDuration } from '@/lib/utils';
 import type { BookingWithRelations } from '@/types';
 import { ReviewModal } from '@/components/reviews/ReviewModal';
 import { ReviewDisplay } from '@/components/reviews/ReviewDisplay';
@@ -820,7 +820,7 @@ export default function JobDetailPage() {
                 <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
                   <div className="text-sm font-medium text-gray-500">Duration</div>
-                  <div className="text-sm">{job.duration} minutes</div>
+                  <div className="text-sm">{formatDuration(job.duration)}</div>
                 </div>
               </div>
 
@@ -1028,7 +1028,7 @@ export default function JobDetailPage() {
                   </p>
                   {job.clockedInAt && (
                     <p className="text-xs text-gray-500">
-                      Duration: {Math.round((new Date(job.clockedOutAt).getTime() - new Date(job.clockedInAt).getTime()) / 60000)} minutes
+                      Duration: {formatDuration(Math.round((new Date(job.clockedOutAt).getTime() - new Date(job.clockedInAt).getTime()) / 60000))}
                     </p>
                   )}
                 </div>

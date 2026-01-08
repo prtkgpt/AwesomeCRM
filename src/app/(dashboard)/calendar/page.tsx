@@ -11,6 +11,7 @@ import {
   Search,
   Plus,
 } from 'lucide-react';
+import { formatDuration } from '@/lib/utils';
 
 interface Booking {
   id: string;
@@ -357,7 +358,7 @@ export default function CalendarPage() {
                         ${booking.price.toFixed(2)}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {booking.duration} min
+                        {formatDuration(booking.duration)}
                       </p>
                     </div>
                   </div>

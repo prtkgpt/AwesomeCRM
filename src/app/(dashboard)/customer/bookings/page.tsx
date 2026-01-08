@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, MapPin, DollarSign } from 'lucide-react';
+import { formatDuration } from '@/lib/utils';
 
 interface Booking {
   id: string;
@@ -162,7 +163,7 @@ export default function CustomerBookingsPage() {
                     </div>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-2" />
-                      <span>{formatTime(booking.scheduledDate)} ({booking.duration} min)</span>
+                      <span>{formatTime(booking.scheduledDate)} ({formatDuration(booking.duration)})</span>
                     </div>
                     <div className="flex items-start">
                       <MapPin className="h-4 w-4 mr-2 mt-0.5" />

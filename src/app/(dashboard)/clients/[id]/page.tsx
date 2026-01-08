@@ -7,7 +7,7 @@ import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDateTime, formatCurrency } from '@/lib/utils';
+import { formatDateTime, formatCurrency, formatDuration } from '@/lib/utils';
 import type { ClientWithAddresses, BookingWithRelations } from '@/types';
 
 export default function ClientDetailPage() {
@@ -583,7 +583,7 @@ export default function ClientDetailPage() {
                       {booking.address.street}, {booking.address.city}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {booking.serviceType} • {booking.duration} min
+                      {booking.serviceType} • {formatDuration(booking.duration)}
                     </p>
                   </div>
                   <div className="text-right">

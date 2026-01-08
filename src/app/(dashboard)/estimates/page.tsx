@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { formatDateTime, formatCurrency } from '@/lib/utils';
+import { formatDateTime, formatCurrency, formatDuration } from '@/lib/utils';
 
 interface Estimate {
   id: string;
@@ -309,7 +309,7 @@ export default function EstimatesPage() {
                       <span className="font-medium">Service:</span> {estimate.serviceType}
                     </div>
                     <div>
-                      <span className="font-medium">Duration:</span> {estimate.duration} min
+                      <span className="font-medium">Duration:</span> {formatDuration(estimate.duration)}
                     </div>
                     <div>
                       <span className="font-medium">Scheduled:</span>{' '}

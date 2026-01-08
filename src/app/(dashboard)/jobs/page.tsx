@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { formatDateTime, formatCurrency } from '@/lib/utils';
+import { formatDateTime, formatCurrency, formatDuration } from '@/lib/utils';
 import type { BookingWithRelations } from '@/types';
 
 export default function JobsPage() {
@@ -415,7 +415,7 @@ export default function JobsPage() {
                         </p>
                       )}
                       <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                        {booking.serviceType} • {booking.duration} min
+                        {booking.serviceType} • {formatDuration(booking.duration)}
                       </p>
                     </div>
                   </div>

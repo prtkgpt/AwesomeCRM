@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, DollarSign, ClipboardList, Clock } from 'lucide-react';
+import { formatDuration } from '@/lib/utils';
 
 interface DashboardStats {
   upcomingBookings: number;
@@ -191,7 +192,7 @@ export default function CustomerDashboardPage() {
                         <span className="mr-2">📍</span>
                         {booking.address.street}, {booking.address.city}
                       </p>
-                      <p>Duration: {booking.duration} minutes</p>
+                      <p>Duration: {formatDuration(booking.duration)}</p>
                     </div>
                   </div>
                   <div className="text-right">

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, MapPin, Phone, CheckCircle, Navigation, LogIn, LogOut, AlertCircle } from 'lucide-react';
+import { formatDuration } from '@/lib/utils';
 
 interface Job {
   id: string;
@@ -83,7 +84,7 @@ export default function CleanerDashboardPage() {
             ? '✅ Marked as "On My Way" and client was notified!'
             : `✅ Marked as "On My Way"${data.smsError ? ` (${data.smsError})` : ''}`,
           'clock-in': '✅ Clocked in successfully!',
-          'clock-out': `✅ Clocked out! Job duration: ${data.duration} minutes`,
+          'clock-out': `✅ Clocked out! Job duration: ${formatDuration(data.duration)}`,
         };
         alert(messages[action]);
         fetchJobs(); // Refresh the list
@@ -176,7 +177,7 @@ export default function CleanerDashboardPage() {
                       <Clock className="h-4 w-4 mr-1" />
                       <span>{formatTime(job.scheduledDate)}</span>
                       <span className="mx-2">•</span>
-                      <span>{job.duration} min</span>
+                      <span>{formatDuration(job.duration)}</span>
                       <span className="mx-2">•</span>
                       <span className="font-medium">{job.serviceType}</span>
                     </div>
@@ -349,7 +350,7 @@ export default function CleanerDashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium">{job.serviceType}</p>
-                    <p className="text-xs text-gray-500">{job.duration} min</p>
+                    <p className="text-xs text-gray-500">{formatDuration(job.duration)}</p>
                   </div>
                 </div>
               </Card>
