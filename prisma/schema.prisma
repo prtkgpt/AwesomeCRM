@@ -61,6 +61,7 @@ model Company {
 
   // Customer Links & Payment Info
   googleReviewUrl       String?             // Google Business review link
+  yelpReviewUrl         String?             // Yelp Business review link
   zelleEmail            String?             // Zelle payment email
   venmoUsername         String?             // Venmo @username
   cashappUsername       String?             // CashApp $username

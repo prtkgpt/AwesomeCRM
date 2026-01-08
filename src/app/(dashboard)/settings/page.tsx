@@ -50,6 +50,8 @@ interface CompanySettings {
   id: string;
   name: string;
   emailDomain: string | null;
+  googleReviewUrl: string | null;
+  yelpReviewUrl: string | null;
   twilioAccountSid: string | null;
   twilioPhoneNumber: string | null;
   resendApiKey: string | null;
@@ -90,6 +92,8 @@ export default function SettingsPage() {
   const [companyForm, setCompanyForm] = useState({
     name: '',
     emailDomain: '',
+    googleReviewUrl: '',
+    yelpReviewUrl: '',
     twilioAccountSid: '',
     twilioAuthToken: '',
     twilioPhoneNumber: '',
@@ -150,6 +154,8 @@ export default function SettingsPage() {
         setCompanyForm({
           name: data.data.name || '',
           emailDomain: data.data.emailDomain || '',
+          googleReviewUrl: data.data.googleReviewUrl || '',
+          yelpReviewUrl: data.data.yelpReviewUrl || '',
           twilioAccountSid: data.data.twilioAccountSid || '',
           twilioAuthToken: '',
           twilioPhoneNumber: data.data.twilioPhoneNumber || '',
@@ -762,6 +768,57 @@ export default function SettingsPage() {
                     <p className="text-xs text-gray-500 mt-1">
                       Used for sending emails (e.g., estimates@yourdomain.com)
                     </p>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <h3 className="font-semibold mb-4">Customer Review Links</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Add links to your business review pages. These will be shown on the customer feedback page.
+                    </p>
+
+                    <div className="space-y-4">
+                      {/* Google Review URL */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Google Review URL
+                        </label>
+                        <Input
+                          type="url"
+                          value={companyForm.googleReviewUrl}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              googleReviewUrl: e.target.value,
+                            })
+                          }
+                          placeholder="https://g.page/r/..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Your Google Business review link
+                        </p>
+                      </div>
+
+                      {/* Yelp Review URL */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Yelp Review URL
+                        </label>
+                        <Input
+                          type="url"
+                          value={companyForm.yelpReviewUrl}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              yelpReviewUrl: e.target.value,
+                            })
+                          }
+                          placeholder="https://www.yelp.com/biz/..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Your Yelp Business review link
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="border-t pt-6">

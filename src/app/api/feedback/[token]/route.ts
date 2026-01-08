@@ -20,6 +20,7 @@ export async function GET(
             name: true,
             logo: true,
             googleReviewUrl: true,
+            yelpReviewUrl: true,
             zelleEmail: true,
             venmoUsername: true,
             cashappUsername: true,

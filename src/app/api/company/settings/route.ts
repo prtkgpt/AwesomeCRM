@@ -8,6 +8,8 @@ const updateCompanySettingsSchema = z.object({
   name: z.string().min(1, 'Company name is required').optional(),
   emailDomain: z.string().optional(),
   hourlyRate: z.number().min(0, 'Hourly rate must be positive').optional(),
+  googleReviewUrl: z.string().optional(),
+  yelpReviewUrl: z.string().optional(),
   twilioAccountSid: z.string().optional(),
   twilioAuthToken: z.string().optional(),
   twilioPhoneNumber: z.string().optional(),
@@ -66,6 +68,8 @@ export async function GET(request: NextRequest) {
         name: true,
         emailDomain: true,
         hourlyRate: true,
+        googleReviewUrl: true,
+        yelpReviewUrl: true,
         twilioAccountSid: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
@@ -179,6 +183,12 @@ export async function PATCH(request: NextRequest) {
     if (validatedData.hourlyRate !== undefined) {
       updateData.hourlyRate = validatedData.hourlyRate;
     }
+    if (validatedData.googleReviewUrl !== undefined) {
+      updateData.googleReviewUrl = validatedData.googleReviewUrl || null;
+    }
+    if (validatedData.yelpReviewUrl !== undefined) {
+      updateData.yelpReviewUrl = validatedData.yelpReviewUrl || null;
+    }
 
     // Only update API credentials if they're not masked values
     if (validatedData.twilioAccountSid && !validatedData.twilioAccountSid.startsWith('••')) {
@@ -232,6 +242,8 @@ export async function PATCH(request: NextRequest) {
         name: true,
         emailDomain: true,
         hourlyRate: true,
+        googleReviewUrl: true,
+        yelpReviewUrl: true,
         twilioAccountSid: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
