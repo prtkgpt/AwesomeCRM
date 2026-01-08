@@ -8,7 +8,7 @@ export function PageFooter() {
     },
     {
       label: 'New Updates',
-      href: 'https://www.prateekgupta.org/cleanday-crm',
+      href: 'https://www.cleandaycrm.com/product-release',
       external: true,
     },
     {
