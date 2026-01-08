@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
           id: true,
           invoiceNumber: true,
           status: true,
-          totalAmount: true,
+          total: true,
           dueDate: true,
           client: {
             select: {
@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
         description: `Due: ${new Date(invoice.dueDate).toLocaleDateString()}`,
         metadata: {
           status: invoice.status,
-          amount: invoice.totalAmount,
+          amount: invoice.total,
         },
         url: `/invoices/${invoice.id}`,
       }));
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           serviceType: true,
-          estimateStatus: true,
+          estimateAccepted: true,
           price: true,
           createdAt: true,
           client: {
@@ -246,7 +246,7 @@ export async function GET(request: NextRequest) {
           ? `${estimate.address.street}, ${estimate.address.city}`
           : '',
         metadata: {
-          status: estimate.estimateStatus,
+          status: estimate.estimateAccepted ? 'ACCEPTED' : 'PENDING',
           price: estimate.price,
         },
         url: `/estimates?id=${estimate.id}`,
@@ -271,7 +271,6 @@ export async function GET(request: NextRequest) {
         },
         select: {
           id: true,
-          role: true,
           specialties: true,
           isActive: true,
           user: {
@@ -279,6 +278,7 @@ export async function GET(request: NextRequest) {
               name: true,
               email: true,
               phone: true,
+              role: true,
             },
           },
         },
@@ -290,9 +290,9 @@ export async function GET(request: NextRequest) {
         type: 'team',
         title: member.user.name || 'Unknown',
         subtitle: member.user.email || member.user.phone || '',
-        description: member.specialties?.join(', ') || member.role,
+        description: member.specialties?.join(', ') || member.user.role,
         metadata: {
-          role: member.role,
+          role: member.user.role,
           isActive: member.isActive,
         },
         url: `/team/${member.id}/edit`,
