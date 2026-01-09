@@ -17,6 +17,7 @@ const publicBookingSchema = z.object({
     errorMap: () => ({ message: 'Please select a preferred time' }),
   }),
   notes: z.string().optional(),
+  selectedExtras: z.array(z.string()).optional(), // Array of addon IDs
 
   // Insurance
   hasInsurance: z.boolean().optional(),
@@ -168,6 +169,29 @@ export async function POST(
       const time = timeMap[validatedData.timeSlot];
       const scheduledDate = new Date(`${validatedData.date}T${time}`);
 
+      // Fetch selected extras details if any
+      let extrasNote = '';
+      if (validatedData.selectedExtras && validatedData.selectedExtras.length > 0) {
+        const addons = await tx.pricingRule.findMany({
+          where: {
+            id: { in: validatedData.selectedExtras },
+            type: 'ADDON',
+          },
+          select: {
+            name: true,
+            duration: true,
+          },
+        });
+
+        if (addons.length > 0) {
+          const extrasNames = addons.map(a => `${a.name} (${a.duration} min)`).join(', ');
+          extrasNote = `\n\nSelected Extras: ${extrasNames}`;
+        }
+      }
+
+      // Combine user notes with extras
+      const fullNotes = (validatedData.notes || '') + extrasNote;
+
       const booking = await tx.booking.create({
         data: {
           companyId: company.id,
@@ -175,10 +199,10 @@ export async function POST(
           clientId: client.id,
           addressId: address.id,
           scheduledDate,
-          duration: 180, // Default 3 hours - admin will adjust based on service type
+          duration: 180, // Default 3 hours - admin will adjust based on service type and extras
           price: 0, // Price will be calculated later by admin
           status: 'SCHEDULED',
-          notes: validatedData.notes || undefined,
+          notes: fullNotes || undefined,
         },
         include: {
           client: true,

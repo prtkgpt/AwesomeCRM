@@ -40,6 +40,7 @@ export default function PublicBookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([]); // Array of addon IDs
 
   const [formData, setFormData] = useState({
     // Client info
@@ -125,6 +126,15 @@ export default function PublicBookingPage() {
     }));
   };
 
+  // Toggle extras selection
+  const toggleExtra = (addonId: string) => {
+    setSelectedExtras(prev =>
+      prev.includes(addonId)
+        ? prev.filter(id => id !== addonId)
+        : [...prev, addonId]
+    );
+  };
+
   // Calculate estimated price based on time-based pricing system
   const calculateEstimate = (): { price: number; hours: number } | null => {
     // Need square footage to calculate
@@ -158,6 +168,22 @@ export default function PublicBookingPage() {
       baseHours = 8;
     }
 
+    // Add extra minutes from selected add-ons
+    let extraMinutes = 0;
+    if (company?.pricingRules) {
+      const addons = company.pricingRules.filter(rule => rule.type === 'ADDON');
+      selectedExtras.forEach(addonId => {
+        const addon = addons.find(a => a.id === addonId);
+        if (addon) {
+          extraMinutes += addon.duration;
+        }
+      });
+    }
+
+    // Convert extra minutes to hours
+    const extraHours = extraMinutes / 60;
+    const totalHours = baseHours + extraHours;
+
     // Service type modifiers (from spreadsheet)
     let modifier = 1.0;
     switch (formData.serviceType) {
@@ -172,15 +198,15 @@ export default function PublicBookingPage() {
         break;
     }
 
-    // Calculate price: hours × hourly rate × modifier
-    let price = baseHours * HOURLY_RATE * modifier;
+    // Calculate price: (base hours + extra hours) × hourly rate × modifier
+    let price = totalHours * HOURLY_RATE * modifier;
 
     // Apply minimum price
     if (price < MINIMUM_PRICE) {
       price = MINIMUM_PRICE;
     }
 
-    return { price, hours: baseHours };
+    return { price, hours: totalHours };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -192,7 +218,10 @@ export default function PublicBookingPage() {
       const response = await fetch(`/api/public/bookings/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          selectedExtras, // Include selected add-ons
+        }),
       });
 
       const data = await response.json();
@@ -456,6 +485,63 @@ export default function PublicBookingPage() {
             </div>
           </Card>
 
+          {/* Extras/Add-ons */}
+          {(() => {
+            const addons = company?.pricingRules?.filter(rule => rule.type === 'ADDON') || [];
+
+            // Icon mapping for add-ons (matching estimates page)
+            const addonIcons: Record<string, string> = {
+              'Oven': '🔥',
+              'Fridge': '🧊',
+              'Light Fixtures': '💡',
+              'Inside Cabinets': '🗄️',
+              'Spot Wall Cleaning': '🧽',
+              'Baseboards': '📏',
+              'Trash Disposal': '🗑️',
+              'Linen': '🧺',
+              'Interior Window Cleaning': '🪟',
+              'Stairs': '🪜',
+              'Garage - 2 Car (Reg)': '🚗',
+              'Pets': '🐾',
+              'Green Cleaning': '🌿',
+              'Laundry & Folding': '👕',
+              'Dishes': '🍽️',
+              'Inside Dishwasher': '🔵',
+              'Wet Wipe Window Blinds': '🪟',
+            };
+
+            if (addons.length > 0) {
+              return (
+                <Card className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Select Extras</h2>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Add extra services to customize the cleaning
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {addons.map((addon) => (
+                      <button
+                        key={addon.id}
+                        type="button"
+                        onClick={() => toggleExtra(addon.id)}
+                        className={`border rounded-lg p-4 text-center transition-all ${
+                          selectedExtras.includes(addon.id)
+                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="text-3xl mb-2">{addonIcons[addon.name] || '✨'}</div>
+                        <p className="font-medium text-sm">{addon.name}</p>
+                        <p className="text-xs text-gray-500">{addon.duration} min</p>
+                      </button>
+                    ))}
+                  </div>
+                </Card>
+              );
+            }
+            return null;
+          })()}
+
           {/* Insurance (if enabled) */}
           {hasInsuranceBilling && (
             <Card className="p-6 space-y-4 bg-blue-50 border-blue-200">
@@ -505,14 +591,22 @@ export default function PublicBookingPage() {
           {(() => {
             const estimate = calculateEstimate();
             if (estimate) {
+              const serviceTypeLabel = formData.serviceType === 'REGULAR' ? 'Regular Cleaning' : formData.serviceType === 'DEEP' ? 'Deep Cleaning' : 'Move In/Out Cleaning';
+              const extrasCount = selectedExtras.length;
+
               return (
                 <Card className="p-6 bg-green-50 border-green-200">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Estimated Price</h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        {formData.squareFootage} sqft • {estimate.hours} hours • {formData.serviceType === 'REGULAR' ? 'Regular Cleaning' : formData.serviceType === 'DEEP' ? 'Deep Cleaning' : 'Move In/Out Cleaning'}
+                        {formData.squareFootage} sqft • {estimate.hours.toFixed(1)} hours • {serviceTypeLabel}
                       </p>
+                      {extrasCount > 0 && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          + {extrasCount} extra service{extrasCount > 1 ? 's' : ''}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mt-2">
                         Final price may vary based on property condition and specific requirements
                       </p>
