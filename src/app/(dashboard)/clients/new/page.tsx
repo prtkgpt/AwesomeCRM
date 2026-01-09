@@ -66,10 +66,18 @@ export default function NewClientPage() {
   useEffect(() => {
     const fetchCompanySettings = async () => {
       try {
-        const response = await fetch('/api/company/settings');
+        const response = await fetch('/api/company/settings', {
+          cache: 'no-store', // Prevent caching
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
         const data = await response.json();
+        console.log('🔍 Company settings:', data.data);
+        console.log('🔍 enabledFeatures:', data.data?.enabledFeatures);
         if (data.success && data.data) {
           const hasInsurance = hasInsuranceBilling(data.data.enabledFeatures);
+          console.log('🔍 hasInsuranceBilling result:', hasInsurance);
           setCompanyHasInsurance(hasInsurance);
         }
       } catch (err) {
