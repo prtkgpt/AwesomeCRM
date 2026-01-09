@@ -22,10 +22,6 @@ export async function GET(
         pricingRules: {
           where: {
             isActive: true,
-            OR: [
-              { display: 'BOTH' },
-              { display: 'BOOKING' },
-            ],
           },
           orderBy: {
             sortOrder: 'asc',
