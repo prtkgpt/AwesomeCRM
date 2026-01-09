@@ -39,6 +39,11 @@ model Company {
   timezone            String   @default("America/New_York")
   currency            String   @default("USD")
 
+  // Business Configuration
+  businessType        String[] @default(["RESIDENTIAL"])  // ["RESIDENTIAL", "COMMERCIAL"] or both
+  enabledFeatures     Json?                               // Feature flags: { "insuranceBilling": true, ... }
+  // Example enabledFeatures: { "insuranceBilling": true, "recurringBilling": true, "teamManagement": true }
+
   // API Integrations
   emailDomain         String?             // Custom domain for emails
   twilioAccountSid    String?             // Twilio Account SID

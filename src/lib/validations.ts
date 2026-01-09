@@ -10,6 +10,7 @@ export const signupSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   phone: z.string().optional(),
   businessName: z.string().optional(),
+  businessType: z.array(z.enum(['RESIDENTIAL', 'COMMERCIAL'])).optional(),
 });
 
 export const loginSchema = z.object({

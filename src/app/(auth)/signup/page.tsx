@@ -17,6 +17,7 @@ export default function SignupPage() {
     password: '',
     phone: '',
     businessName: '',
+    businessType: [] as string[],
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,9 +29,25 @@ export default function SignupPage() {
     });
   };
 
+  const handleBusinessTypeChange = (type: string) => {
+    setFormData((prev) => {
+      const newBusinessType = prev.businessType.includes(type)
+        ? prev.businessType.filter((t) => t !== type)
+        : [...prev.businessType, type];
+      return { ...prev, businessType: newBusinessType };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate business type selection
+    if (formData.businessType.length === 0) {
+      setError('Please select at least one type of cleaning service');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -164,6 +181,30 @@ export default function SignupPage() {
                 value={formData.businessName}
                 onChange={handleChange}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>What type of cleaning do you do? *</Label>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.businessType.includes('RESIDENTIAL')}
+                    onChange={() => handleBusinessTypeChange('RESIDENTIAL')}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm">Residential Cleaning</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.businessType.includes('COMMERCIAL')}
+                    onChange={() => handleBusinessTypeChange('COMMERCIAL')}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm">Commercial Cleaning</span>
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">Select all that apply</p>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
