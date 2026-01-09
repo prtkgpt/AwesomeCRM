@@ -168,14 +168,6 @@ export async function POST(
       const time = timeMap[validatedData.timeSlot];
       const scheduledDate = new Date(`${validatedData.date}T${time}`);
 
-      // Set duration based on service type (in minutes)
-      const durationMap = {
-        REGULAR: 180,      // 3 hours
-        DEEP: 240,         // 4 hours
-        MOVE_IN_OUT: 300,  // 5 hours
-      };
-      const duration = durationMap[validatedData.serviceType];
-
       const booking = await tx.booking.create({
         data: {
           companyId: company.id,
@@ -183,7 +175,7 @@ export async function POST(
           clientId: client.id,
           addressId: address.id,
           scheduledDate,
-          duration,
+          duration: 180, // Default 3 hours - admin will adjust based on service type
           price: 0, // Price will be calculated later by admin
           status: 'SCHEDULED',
           notes: validatedData.notes || undefined,
