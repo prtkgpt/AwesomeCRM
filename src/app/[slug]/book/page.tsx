@@ -125,40 +125,62 @@ export default function PublicBookingPage() {
     }));
   };
 
-  // Calculate estimated price based on service type and property details
-  const calculateEstimate = (): number | null => {
-    if (!company?.pricingRules || company.pricingRules.length === 0) {
+  // Calculate estimated price based on time-based pricing system
+  const calculateEstimate = (): { price: number; hours: number } | null => {
+    // Need square footage to calculate
+    if (!formData.squareFootage) {
       return null;
     }
 
-    const bedrooms = formData.bedrooms ? parseFloat(formData.bedrooms) : 0;
-    const bathrooms = formData.bathrooms ? parseFloat(formData.bathrooms) : 0;
+    const sqft = parseFloat(formData.squareFootage);
+    const HOURLY_RATE = 50; // $50/hour
+    const MINIMUM_PRICE = 125; // $125 minimum
 
-    let total = 0;
-
-    // Find bedroom pricing
-    const bedroomRule = company.pricingRules.find(
-      rule =>
-        rule.type === 'BEDROOM' &&
-        rule.quantity === bedrooms &&
-        (!rule.serviceType || rule.serviceType === formData.serviceType)
-    );
-    if (bedroomRule) {
-      total += bedroomRule.price;
+    // Square footage to base hours mapping (from spreadsheet)
+    let baseHours = 3; // default
+    if (sqft <= 1000) {
+      baseHours = 3;
+    } else if (sqft <= 1500) {
+      baseHours = 4;
+    } else if (sqft <= 2000) {
+      baseHours = 4.5;
+    } else if (sqft <= 2500) {
+      baseHours = 5;
+    } else if (sqft <= 3000) {
+      baseHours = 6;
+    } else if (sqft <= 3500) {
+      baseHours = 6.5;
+    } else if (sqft <= 4000) {
+      baseHours = 7;
+    } else if (sqft <= 4500) {
+      baseHours = 8;
+    } else {
+      baseHours = 8;
     }
 
-    // Find bathroom pricing
-    const bathroomRule = company.pricingRules.find(
-      rule =>
-        rule.type === 'BATHROOM' &&
-        rule.quantity === bathrooms &&
-        (!rule.serviceType || rule.serviceType === formData.serviceType)
-    );
-    if (bathroomRule) {
-      total += bathroomRule.price;
+    // Service type modifiers (from spreadsheet)
+    let modifier = 1.0;
+    switch (formData.serviceType) {
+      case 'REGULAR':
+        modifier = 1.0; // 100% - Initial Standard
+        break;
+      case 'DEEP':
+        modifier = 1.2; // 120% - Initial Deep cleaning
+        break;
+      case 'MOVE_IN_OUT':
+        modifier = 1.2; // 120% - Move in/Move out
+        break;
     }
 
-    return total > 0 ? total : null;
+    // Calculate price: hours × hourly rate × modifier
+    let price = baseHours * HOURLY_RATE * modifier;
+
+    // Apply minimum price
+    if (price < MINIMUM_PRICE) {
+      price = MINIMUM_PRICE;
+    }
+
+    return { price, hours: baseHours };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -489,8 +511,7 @@ export default function PublicBookingPage() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Estimated Price</h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        Based on {formData.bedrooms} bedroom{formData.bedrooms !== '1' ? 's' : ''}
-                        {formData.bathrooms && ` and ${formData.bathrooms} bathroom${formData.bathrooms !== '1' ? 's' : ''}`}
+                        {formData.squareFootage} sqft • {estimate.hours} hours • {formData.serviceType === 'REGULAR' ? 'Regular Cleaning' : formData.serviceType === 'DEEP' ? 'Deep Cleaning' : 'Move In/Out Cleaning'}
                       </p>
                       <p className="text-xs text-gray-500 mt-2">
                         Final price may vary based on property condition and specific requirements
@@ -498,7 +519,7 @@ export default function PublicBookingPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-3xl font-bold text-green-600">
-                        ${estimate.toFixed(2)}
+                        ${estimate.price.toFixed(2)}
                       </p>
                       <p className="text-sm text-gray-600">Starting at</p>
                     </div>
