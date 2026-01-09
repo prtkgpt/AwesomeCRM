@@ -19,18 +19,29 @@ export async function GET(
         phone: true,
         businessType: true,
         enabledFeatures: true,
-        pricingRules: {
-          where: {
-            isActive: true,
-          },
-          orderBy: {
-            sortOrder: 'asc',
-          },
-        },
       },
     });
 
-    if (!company) {
+    // Fetch pricing rules separately to handle if relation doesn't exist
+    let pricingRules: any[] = [];
+    try {
+      pricingRules = await prisma.pricingRule.findMany({
+        where: {
+          companyId: company?.id,
+          isActive: true,
+        },
+        orderBy: {
+          sortOrder: 'asc',
+        },
+      });
+    } catch (e) {
+      // Pricing rules might not exist, that's ok
+      console.log('No pricing rules found:', e);
+    }
+
+    const companyWithPricing = company ? { ...company, pricingRules } : null;
+
+    if (!companyWithPricing) {
       return NextResponse.json(
         { success: false, error: 'Company not found' },
         { status: 404 }
@@ -39,7 +50,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: company,
+      data: companyWithPricing,
     });
   } catch (error) {
     console.error('Get public company error:', error);
