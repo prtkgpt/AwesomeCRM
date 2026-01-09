@@ -9,10 +9,13 @@ const publicBookingSchema = z.object({
   phone: z.string().min(1, 'Phone is required'),
 
   // Service details
-  serviceType: z.string().optional(),
+  serviceType: z.enum(['REGULAR', 'DEEP', 'MOVE_IN_OUT'], {
+    errorMap: () => ({ message: 'Please select a service type' }),
+  }),
   date: z.string().min(1, 'Date is required'),
-  time: z.string().min(1, 'Time is required'),
-  estimatedHours: z.string().optional(),
+  timeSlot: z.enum(['MORNING', 'NOON', 'AFTERNOON'], {
+    errorMap: () => ({ message: 'Please select a preferred time' }),
+  }),
   notes: z.string().optional(),
 
   // Insurance
@@ -156,9 +159,22 @@ export async function POST(
       }
 
       // Create booking
-      const scheduledDate = new Date(`${validatedData.date}T${validatedData.time}`);
-      const estimatedHours = validatedData.estimatedHours ? parseFloat(validatedData.estimatedHours) : 3;
-      const duration = estimatedHours * 60; // Convert hours to minutes
+      // Map time slot to actual time
+      const timeMap = {
+        MORNING: '09:00',
+        NOON: '12:00',
+        AFTERNOON: '14:00',
+      };
+      const time = timeMap[validatedData.timeSlot];
+      const scheduledDate = new Date(`${validatedData.date}T${time}`);
+
+      // Set duration based on service type (in minutes)
+      const durationMap = {
+        REGULAR: 180,      // 3 hours
+        DEEP: 240,         // 4 hours
+        MOVE_IN_OUT: 300,  // 5 hours
+      };
+      const duration = durationMap[validatedData.serviceType];
 
       const booking = await tx.booking.create({
         data: {

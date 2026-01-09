@@ -36,10 +36,9 @@ export default function PublicBookingPage() {
     phone: '',
 
     // Service details
-    serviceType: 'RESIDENTIAL',
+    serviceType: 'REGULAR',
     date: '',
-    time: '',
-    estimatedHours: '',
+    timeSlot: '',
     notes: '',
 
     // Insurance (if enabled)
@@ -326,6 +325,22 @@ export default function PublicBookingPage() {
           <Card className="p-6 space-y-4">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Service Details</h2>
 
+            <div>
+              <Label htmlFor="serviceType">Type of Service *</Label>
+              <select
+                id="serviceType"
+                name="serviceType"
+                value={formData.serviceType}
+                onChange={handleChange}
+                required
+                className="w-full border rounded-lg px-3 py-2 bg-white"
+              >
+                <option value="REGULAR">Regular Cleaning</option>
+                <option value="DEEP">Deep Cleaning</option>
+                <option value="MOVE_IN_OUT">Move In / Move Out Cleaning</option>
+              </select>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="date">Preferred Date *</Label>
@@ -341,29 +356,21 @@ export default function PublicBookingPage() {
               </div>
 
               <div>
-                <Label htmlFor="time">Preferred Time *</Label>
-                <Input
-                  id="time"
-                  name="time"
-                  type="time"
-                  value={formData.time}
+                <Label htmlFor="timeSlot">Preferred Time *</Label>
+                <select
+                  id="timeSlot"
+                  name="timeSlot"
+                  value={formData.timeSlot}
                   onChange={handleChange}
                   required
-                />
+                  className="w-full border rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value="">Select a time...</option>
+                  <option value="MORNING">Morning (8am - 10am)</option>
+                  <option value="NOON">Noon (11am - 1pm)</option>
+                  <option value="AFTERNOON">Afternoon/Early Evening (2pm - 4pm)</option>
+                </select>
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="estimatedHours">Estimated Hours</Label>
-              <Input
-                id="estimatedHours"
-                name="estimatedHours"
-                type="number"
-                step="0.5"
-                value={formData.estimatedHours}
-                onChange={handleChange}
-                placeholder="3"
-              />
             </div>
 
             <div>
