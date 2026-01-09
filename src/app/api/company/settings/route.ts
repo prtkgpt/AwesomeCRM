@@ -82,6 +82,8 @@ export async function GET(request: NextRequest) {
         cleanerReminderHours: true,
         enableMorningOfReminder: true,
         morningOfReminderTime: true,
+        businessType: true,
+        enabledFeatures: true,
         createdAt: true,
         // Don't send auth tokens for security
       },

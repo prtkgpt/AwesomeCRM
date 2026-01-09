@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import AddressAutocomplete from '@/components/address/AddressAutocomplete';
+import { hasInsuranceBilling } from '@/lib/features';
 
 export default function EditClientPage() {
   const { data: session, status } = useSession();
@@ -21,6 +22,7 @@ export default function EditClientPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [companyHasInsurance, setCompanyHasInsurance] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -71,6 +73,26 @@ export default function EditClientPage() {
       fetchClient();
     }
   }, [status, clientId, router]);
+
+  // Fetch company settings to check if insurance billing is enabled
+  useEffect(() => {
+    const fetchCompanySettings = async () => {
+      try {
+        const response = await fetch('/api/company/settings');
+        const data = await response.json();
+        if (data.success && data.data) {
+          const hasInsurance = hasInsuranceBilling(data.data.enabledFeatures);
+          setCompanyHasInsurance(hasInsurance);
+        }
+      } catch (err) {
+        console.error('Failed to fetch company settings:', err);
+        // Default to false if fetch fails
+        setCompanyHasInsurance(false);
+      }
+    };
+
+    fetchCompanySettings();
+  }, []);
 
   const fetchClient = async () => {
     try {
@@ -319,7 +341,8 @@ export default function EditClientPage() {
           </div>
         </Card>
 
-        {/* Insurance */}
+        {/* Insurance - Only show if company has insurance billing enabled */}
+        {companyHasInsurance && (
         <Card className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-lg">Insurance Information</h2>
@@ -423,6 +446,7 @@ export default function EditClientPage() {
             </div>
           )}
         </Card>
+        )}
 
         {/* Address */}
         <Card className="p-4 space-y-4">
