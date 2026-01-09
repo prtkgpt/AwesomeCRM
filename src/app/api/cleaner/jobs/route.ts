@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/cleaner/jobs - Get cleaner's assigned jobs
+// GET /api/cleaner/jobs - Get cleaner's assigned jobs + unassigned jobs
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -46,14 +46,18 @@ export async function GET(request: NextRequest) {
     console.log('🟢 CLEANER JOBS - Today range:', todayStart, 'to', todayEnd);
     console.log('🟢 CLEANER JOBS - Current time:', now);
 
-    // Get today's jobs
+    // Get today's jobs (assigned to this cleaner OR unassigned)
     const todayJobs = await prisma.booking.findMany({
       where: {
-        assignedTo: teamMember.id,
+        companyId: user.companyId, // Only jobs from the same company
         scheduledDate: {
           gte: todayStart,
           lte: todayEnd,
         },
+        OR: [
+          { assignedTo: teamMember.id }, // Assigned to this cleaner
+          { assignedTo: null },          // Unassigned jobs
+        ],
       },
       include: {
         client: {
@@ -89,18 +93,22 @@ export async function GET(request: NextRequest) {
       })));
     }
 
-    // Get upcoming jobs (next 7 days)
+    // Get upcoming jobs (next 7 days) - assigned to this cleaner OR unassigned
     const nextWeek = new Date(tomorrow);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
     const upcomingJobs = await prisma.booking.findMany({
       where: {
-        assignedTo: teamMember.id,
+        companyId: user.companyId, // Only jobs from the same company
         scheduledDate: {
           gte: tomorrow,
           lt: nextWeek,
         },
         status: 'SCHEDULED',
+        OR: [
+          { assignedTo: teamMember.id }, // Assigned to this cleaner
+          { assignedTo: null },          // Unassigned jobs
+        ],
       },
       include: {
         client: {
