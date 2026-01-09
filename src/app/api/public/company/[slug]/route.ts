@@ -19,6 +19,18 @@ export async function GET(
         phone: true,
         businessType: true,
         enabledFeatures: true,
+        pricingRules: {
+          where: {
+            isActive: true,
+            OR: [
+              { display: 'BOTH' },
+              { display: 'BOOKING' },
+            ],
+          },
+          orderBy: {
+            sortOrder: 'asc',
+          },
+        },
       },
     });
 

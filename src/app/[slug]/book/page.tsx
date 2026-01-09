@@ -10,12 +10,24 @@ import { Card } from '@/components/ui/card';
 import AddressAutocomplete from '@/components/address/AddressAutocomplete';
 import { Calendar } from 'lucide-react';
 
+type PricingRule = {
+  id: string;
+  type: string;
+  name: string;
+  price: number;
+  duration: number;
+  quantity?: number;
+  serviceType?: string;
+  display: string;
+};
+
 type Company = {
   id: string;
   name: string;
   slug: string;
   enabledFeatures: any;
   businessType: string[];
+  pricingRules: PricingRule[];
 };
 
 export default function PublicBookingPage() {
@@ -111,6 +123,42 @@ export default function PublicBookingPage() {
       formattedAddress: addressData.formattedAddress || '',
       isVerified: addressData.isVerified || false,
     }));
+  };
+
+  // Calculate estimated price based on service type and property details
+  const calculateEstimate = (): number | null => {
+    if (!company?.pricingRules || company.pricingRules.length === 0) {
+      return null;
+    }
+
+    const bedrooms = formData.bedrooms ? parseFloat(formData.bedrooms) : 0;
+    const bathrooms = formData.bathrooms ? parseFloat(formData.bathrooms) : 0;
+
+    let total = 0;
+
+    // Find bedroom pricing
+    const bedroomRule = company.pricingRules.find(
+      rule =>
+        rule.type === 'BEDROOM' &&
+        rule.quantity === bedrooms &&
+        (!rule.serviceType || rule.serviceType === formData.serviceType)
+    );
+    if (bedroomRule) {
+      total += bedroomRule.price;
+    }
+
+    // Find bathroom pricing
+    const bathroomRule = company.pricingRules.find(
+      rule =>
+        rule.type === 'BATHROOM' &&
+        rule.quantity === bathrooms &&
+        (!rule.serviceType || rule.serviceType === formData.serviceType)
+    );
+    if (bathroomRule) {
+      total += bathroomRule.price;
+    }
+
+    return total > 0 ? total : null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -430,6 +478,36 @@ export default function PublicBookingPage() {
               )}
             </Card>
           )}
+
+          {/* Price Estimate */}
+          {(() => {
+            const estimate = calculateEstimate();
+            if (estimate) {
+              return (
+                <Card className="p-6 bg-green-50 border-green-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Estimated Price</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Based on {formData.bedrooms} bedroom{formData.bedrooms !== '1' ? 's' : ''}
+                        {formData.bathrooms && ` and ${formData.bathrooms} bathroom${formData.bathrooms !== '1' ? 's' : ''}`}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Final price may vary based on property condition and specific requirements
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-green-600">
+                        ${estimate.toFixed(2)}
+                      </p>
+                      <p className="text-sm text-gray-600">Starting at</p>
+                    </div>
+                  </div>
+                </Card>
+              );
+            }
+            return null;
+          })()}
 
           {/* Submit */}
           <div className="flex gap-4">
