@@ -15,6 +15,7 @@ export default withAuth(
       path.startsWith('/compare') || // Public comparison page
       path.startsWith('/estimate/') || // Public estimate acceptance pages
       path.startsWith('/feedback/') || // Public feedback pages
+      path.endsWith('/book') || // Public booking pages (e.g., /awesome-maids/book)
       path.startsWith('/api/public/') || // Public API routes
       path.startsWith('/api/auth/') || // NextAuth API routes
       path.startsWith('/api/feedback/') || // Public feedback API routes
@@ -87,6 +88,7 @@ export default withAuth(
           path.startsWith('/compare') || // Public comparison page
           path.startsWith('/estimate/') ||
           path.startsWith('/feedback/') ||
+          path.endsWith('/book') || // Public booking pages (e.g., /awesome-maids/book)
           path.startsWith('/api/public/') ||
           path.startsWith('/api/auth/') ||
           path.startsWith('/api/feedback/') ||
