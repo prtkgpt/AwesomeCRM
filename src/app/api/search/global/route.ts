@@ -97,16 +97,39 @@ export async function GET(request: NextRequest) {
 
     // Search Bookings/Jobs
     if (!entityType || entityType === 'bookings') {
-      const bookings = await prisma.booking.findMany({
-        where: {
-          companyId: user.companyId,
+      // For cleaners, get their team member ID first
+      let cleanerTeamMemberId: string | null = null;
+      if (user.role === 'CLEANER') {
+        const teamMember = await prisma.teamMember.findUnique({
+          where: { userId: session.user.id },
+          select: { id: true },
+        });
+        cleanerTeamMemberId = teamMember?.id || null;
+      }
+
+      // Build where clause based on role
+      const bookingWhere: any = {
+        companyId: user.companyId,
+        OR: [
+          { client: { name: { contains: query, mode: 'insensitive' } } },
+          { client: { email: { contains: query, mode: 'insensitive' } } },
+          { address: { street: { contains: query, mode: 'insensitive' } } },
+          { address: { city: { contains: query, mode: 'insensitive' } } },
+        ],
+      };
+
+      // For cleaners, only show their assigned jobs + unassigned jobs
+      if (user.role === 'CLEANER' && cleanerTeamMemberId) {
+        bookingWhere.AND = {
           OR: [
-            { client: { name: { contains: query, mode: 'insensitive' } } },
-            { client: { email: { contains: query, mode: 'insensitive' } } },
-            { address: { street: { contains: query, mode: 'insensitive' } } },
-            { address: { city: { contains: query, mode: 'insensitive' } } },
+            { assignedTo: cleanerTeamMemberId },
+            { assignedTo: null },
           ],
-        },
+        };
+      }
+
+      const bookings = await prisma.booking.findMany({
+        where: bookingWhere,
         select: {
           id: true,
           serviceType: true,
