@@ -64,16 +64,21 @@ export async function GET(request: NextRequest) {
       }
 
       // For cleaners: build query with OR filter for assignments
-      whereClause = {
-        companyId: user.companyId,
-        ...(status && { status: status as any }),
-        ...(clientId && { clientId }),
-        ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
-        OR: [
-          { assignedTo: teamMember.id },
-          { assignedTo: null },
-        ],
-      };
+      const conditions: any[] = [
+        { companyId: user.companyId },
+        {
+          OR: [
+            { assignedTo: teamMember.id },
+            { assignedTo: null },
+          ],
+        },
+      ];
+
+      if (status) conditions.push({ status: status as any });
+      if (clientId) conditions.push({ clientId });
+      if (Object.keys(dateFilter).length > 0) conditions.push({ scheduledDate: dateFilter });
+
+      whereClause = { AND: conditions };
     } else {
       // For admins/owners: standard query without assignment filter
       whereClause = {

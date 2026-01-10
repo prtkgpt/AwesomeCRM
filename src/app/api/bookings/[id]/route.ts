@@ -28,12 +28,8 @@ export async function GET(
     }
 
     // Build where clause based on role
-    const whereClause: any = {
-      id: params.id,
-      companyId: user.companyId,
-    };
+    let whereClause: any;
 
-    // For cleaners, only allow access to their assigned jobs + unassigned jobs
     if (user.role === 'CLEANER') {
       const teamMember = await prisma.teamMember.findUnique({
         where: { userId: session.user.id },
@@ -47,10 +43,25 @@ export async function GET(
         );
       }
 
-      whereClause.OR = [
-        { assignedTo: teamMember.id },
-        { assignedTo: null },
-      ];
+      // For cleaners: use AND to properly combine conditions with OR
+      whereClause = {
+        AND: [
+          { id: params.id },
+          { companyId: user.companyId },
+          {
+            OR: [
+              { assignedTo: teamMember.id },
+              { assignedTo: null },
+            ],
+          },
+        ],
+      };
+    } else {
+      // For admins/owners: standard query
+      whereClause = {
+        id: params.id,
+        companyId: user.companyId,
+      };
     }
 
     const booking = await prisma.booking.findFirst({
@@ -442,12 +453,8 @@ export async function PATCH(
     }
 
     // Build where clause based on role
-    const whereClause: any = {
-      id: params.id,
-      companyId: user.companyId,
-    };
+    let whereClause: any;
 
-    // For cleaners, only allow access to their assigned jobs + unassigned jobs
     if (user.role === 'CLEANER') {
       const teamMember = await prisma.teamMember.findUnique({
         where: { userId: session.user.id },
@@ -461,10 +468,25 @@ export async function PATCH(
         );
       }
 
-      whereClause.OR = [
-        { assignedTo: teamMember.id },
-        { assignedTo: null },
-      ];
+      // For cleaners: use AND to properly combine conditions with OR
+      whereClause = {
+        AND: [
+          { id: params.id },
+          { companyId: user.companyId },
+          {
+            OR: [
+              { assignedTo: teamMember.id },
+              { assignedTo: null },
+            ],
+          },
+        ],
+      };
+    } else {
+      // For admins/owners: standard query
+      whereClause = {
+        id: params.id,
+        companyId: user.companyId,
+      };
     }
 
     // Verify ownership

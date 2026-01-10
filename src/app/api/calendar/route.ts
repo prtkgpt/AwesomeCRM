@@ -60,14 +60,20 @@ export async function GET(request: NextRequest) {
 
       // For cleaners: company + date range + (assigned to them OR unassigned)
       whereClause = {
-        companyId: user.companyId,
-        scheduledDate: {
-          gte: boundaries.start,
-          lte: boundaries.end,
-        },
-        OR: [
-          { assignedTo: teamMember.id },
-          { assignedTo: null },
+        AND: [
+          { companyId: user.companyId },
+          {
+            scheduledDate: {
+              gte: boundaries.start,
+              lte: boundaries.end,
+            },
+          },
+          {
+            OR: [
+              { assignedTo: teamMember.id },
+              { assignedTo: null },
+            ],
+          },
         ],
       };
     } else {
