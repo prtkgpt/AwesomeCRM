@@ -12,10 +12,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user with companyId
+    // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
 
     if (!user) {
@@ -32,15 +32,48 @@ export async function GET(request: NextRequest) {
     const boundaries =
       view === 'week' ? getWeekBoundaries(date) : getDayBoundaries(date);
 
+    // Build where clause
+    const whereClause: any = {
+      companyId: user.companyId,
+      scheduledDate: {
+        gte: boundaries.start,
+        lte: boundaries.end,
+      },
+    };
+
+    // For cleaners, only show their assigned jobs + unassigned jobs
+    if (user.role === 'CLEANER') {
+      const teamMember = await prisma.teamMember.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      if (teamMember) {
+        whereClause.OR = [
+          { assignedTo: teamMember.id },
+          { assignedTo: null },
+        ];
+      } else {
+        // If no team member found, return empty results
+        return NextResponse.json({
+          success: true,
+          data: {
+            bookings: [],
+            conflicts: [],
+            view,
+            date: date.toISOString(),
+            range: {
+              start: boundaries.start.toISOString(),
+              end: boundaries.end.toISOString(),
+            },
+          },
+        });
+      }
+    }
+
     // Fetch bookings for the date range
     const bookings = await prisma.booking.findMany({
-      where: {
-        companyId: user.companyId,
-        scheduledDate: {
-          gte: boundaries.start,
-          lte: boundaries.end,
-        },
-      },
+      where: whereClause,
       include: {
         client: true,
         address: true,
