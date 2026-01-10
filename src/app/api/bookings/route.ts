@@ -49,30 +49,39 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Build where clause
-    const whereClause: any = {
-      companyId: user.companyId,
-      ...(status && { status: status as any }),
-      ...(clientId && { clientId }),
-      ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
-    };
+    // Build where clause based on user role
+    let whereClause: any;
 
-    // For cleaners, only show their assigned jobs + unassigned jobs
     if (user.role === 'CLEANER') {
       const teamMember = await prisma.teamMember.findUnique({
         where: { userId: session.user.id },
         select: { id: true },
       });
 
-      if (teamMember) {
-        whereClause.OR = [
-          { assignedTo: teamMember.id },
-          { assignedTo: null },
-        ];
-      } else {
+      if (!teamMember) {
         // If no team member found, return empty array
         return NextResponse.json({ success: true, data: [] });
       }
+
+      // For cleaners: build query with OR filter for assignments
+      whereClause = {
+        companyId: user.companyId,
+        ...(status && { status: status as any }),
+        ...(clientId && { clientId }),
+        ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
+        OR: [
+          { assignedTo: teamMember.id },
+          { assignedTo: null },
+        ],
+      };
+    } else {
+      // For admins/owners: standard query without assignment filter
+      whereClause = {
+        companyId: user.companyId,
+        ...(status && { status: status as any }),
+        ...(clientId && { clientId }),
+        ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
+      };
     }
 
     const bookings = await prisma.booking.findMany({

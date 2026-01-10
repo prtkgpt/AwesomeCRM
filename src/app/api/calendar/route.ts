@@ -32,28 +32,16 @@ export async function GET(request: NextRequest) {
     const boundaries =
       view === 'week' ? getWeekBoundaries(date) : getDayBoundaries(date);
 
-    // Build where clause
-    const whereClause: any = {
-      companyId: user.companyId,
-      scheduledDate: {
-        gte: boundaries.start,
-        lte: boundaries.end,
-      },
-    };
+    // Build where clause based on user role
+    let whereClause: any;
 
-    // For cleaners, only show their assigned jobs + unassigned jobs
     if (user.role === 'CLEANER') {
       const teamMember = await prisma.teamMember.findUnique({
         where: { userId: session.user.id },
         select: { id: true },
       });
 
-      if (teamMember) {
-        whereClause.OR = [
-          { assignedTo: teamMember.id },
-          { assignedTo: null },
-        ];
-      } else {
+      if (!teamMember) {
         // If no team member found, return empty results
         return NextResponse.json({
           success: true,
@@ -69,6 +57,28 @@ export async function GET(request: NextRequest) {
           },
         });
       }
+
+      // For cleaners: company + date range + (assigned to them OR unassigned)
+      whereClause = {
+        companyId: user.companyId,
+        scheduledDate: {
+          gte: boundaries.start,
+          lte: boundaries.end,
+        },
+        OR: [
+          { assignedTo: teamMember.id },
+          { assignedTo: null },
+        ],
+      };
+    } else {
+      // For admins/owners: just company + date range
+      whereClause = {
+        companyId: user.companyId,
+        scheduledDate: {
+          gte: boundaries.start,
+          lte: boundaries.end,
+        },
+      };
     }
 
     // Fetch bookings for the date range
