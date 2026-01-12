@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Test the filtered query if user is a cleaner
-    let filteredBookings = [];
+    let filteredBookings: typeof allBookings = [];
     if (user.role === 'CLEANER' && teamMember) {
       filteredBookings = await prisma.booking.findMany({
         where: {
