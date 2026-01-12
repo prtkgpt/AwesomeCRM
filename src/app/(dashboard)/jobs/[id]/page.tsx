@@ -314,6 +314,39 @@ export default function JobDetailPage() {
     }
   };
 
+  const handleApprove = async () => {
+    if (!job) return;
+
+    if (!confirm('Approve this job as completed? This will enable payment options.')) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}/approve`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setJob(data.data);
+        alert('✅ Job approved! Payment options are now available.');
+
+        // Show payment modal after approval
+        if (!data.data.isPaid) {
+          setShowPaymentModal(true);
+        }
+      } else {
+        alert(data.error || 'Failed to approve job');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleStatusChange = async (newStatus: string) => {
     if (!job) return;
 
@@ -570,6 +603,8 @@ export default function JobDetailPage() {
     switch (status) {
       case 'SCHEDULED':
         return 'bg-blue-100 text-blue-700';
+      case 'CLEANER_COMPLETED':
+        return 'bg-yellow-100 text-yellow-800';
       case 'COMPLETED':
         return 'bg-green-100 text-green-700';
       case 'CANCELLED':
@@ -1042,6 +1077,31 @@ export default function JobDetailPage() {
         <h2 className="font-semibold text-lg">Actions</h2>
 
         <div className="space-y-3">
+          {/* Stage 1: Cleaner Completed, Pending Admin Review */}
+          {job.status === 'CLEANER_COMPLETED' && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                <span className="text-sm font-medium text-yellow-800">
+                  Cleaner Marked Complete - Pending Your Review
+                </span>
+              </div>
+              <p className="text-xs text-yellow-700 mb-3">
+                {job.assignee?.user?.name || 'Cleaner'} has marked this job as completed.
+                Review and approve to enable payment options.
+              </p>
+              <Button
+                onClick={handleApprove}
+                disabled={updating}
+                size="sm"
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                {updating ? 'Approving...' : '✓ Review & Approve Job'}
+              </Button>
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">
               Update Status
@@ -1049,7 +1109,7 @@ export default function JobDetailPage() {
             <div className="flex gap-2">
               <Button
                 onClick={() => handleStatusChange('COMPLETED')}
-                disabled={updating || job.status === 'COMPLETED'}
+                disabled={updating || job.status === 'COMPLETED' || job.status === 'CLEANER_COMPLETED'}
                 size="sm"
                 className="flex-1"
               >

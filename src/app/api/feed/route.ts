@@ -186,6 +186,25 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // ACTION: Job completed by cleaner, pending admin review
+      if (booking.status === 'CLEANER_COMPLETED' && booking.assignee) {
+        activities.push({
+          id: `pending-review-${booking.id}`,
+          type: 'action',
+          category: 'pending_admin_review',
+          title: 'Job completed - Review & Approve',
+          description: `${booking.assignee.user.name || 'Cleaner'} marked ${booking.client.name}'s job as completed. Review and approve to enable payment.`,
+          timestamp: booking.updatedAt,
+          priority: 'high',
+          metadata: {
+            clientName: booking.client.name,
+            cleanerName: booking.assignee.user.name || booking.assignee.user.email,
+            jobId: booking.id,
+            bookingDate: scheduledDate,
+          },
+        });
+      }
+
       // ACTIVITY: Recently completed cleaning
       if (
         booking.status === 'COMPLETED' &&

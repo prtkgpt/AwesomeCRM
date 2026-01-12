@@ -57,11 +57,11 @@ export async function POST(
     // Generate feedback token if doesn't exist
     const feedbackToken = booking.feedbackToken || `fb_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
-    // Update booking status to completed
+    // Update booking status to CLEANER_COMPLETED (pending admin review)
     const updatedBooking = await prisma.booking.update({
       where: { id: params.id },
       data: {
-        status: 'COMPLETED',
+        status: 'CLEANER_COMPLETED',  // Stage 1: Pending admin approval
         feedbackToken: feedbackToken,
       },
       include: {
@@ -78,7 +78,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       data: updatedBooking,
-      message: 'Job marked as completed',
+      message: 'Job marked as completed and sent for admin review',
     });
   } catch (error) {
     console.error('🔴 POST /api/cleaner/jobs/[id]/complete error:', error);

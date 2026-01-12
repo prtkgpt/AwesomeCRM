@@ -253,9 +253,14 @@ export default function CleanerDashboardPage() {
                         In Progress
                       </span>
                     )}
+                    {job.status === 'CLEANER_COMPLETED' && (
+                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 text-center">
+                        ⏳ Pending Admin Review
+                      </span>
+                    )}
                     {job.status === 'COMPLETED' && (
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 text-center">
-                        Completed
+                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 text-center">
+                        ✅ Completed & Approved
                       </span>
                     )}
                   </div>

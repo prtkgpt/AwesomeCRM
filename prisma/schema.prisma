@@ -317,7 +317,8 @@ model Address {
 
 enum BookingStatus {
   SCHEDULED
-  COMPLETED
+  CLEANER_COMPLETED    // Stage 1: Cleaner marked complete, pending admin review
+  COMPLETED            // Stage 2: Admin approved, ready for payment
   CANCELLED
   NO_SHOW
 }
