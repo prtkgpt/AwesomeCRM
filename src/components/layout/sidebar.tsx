@@ -69,7 +69,7 @@ const cleanerNavItems = [
   },
   {
     href: '/cleaner/schedule',
-    label: 'Schedule',
+    label: 'Calendar',
     icon: Calendar,
   },
   {
