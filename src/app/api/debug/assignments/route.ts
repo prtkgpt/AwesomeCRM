@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         userId: true,
-        role: true,
         isActive: true,
       },
     });
