@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         userId: true,
-        role: true,
         isActive: true,
       },
     });
@@ -54,7 +53,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Test the filtered query
-    let filteredBookings = [];
+    let filteredBookings: typeof allBookings = [];
     if (teamMember) {
       filteredBookings = await prisma.booking.findMany({
         where: {
