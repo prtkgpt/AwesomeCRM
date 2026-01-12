@@ -14,7 +14,8 @@ interface Job {
   duration: number;
   serviceType: string;
   status: string;
-  price: number;
+  wage: number; // Cleaner's wage based on their hourly rate
+  hourlyRate: number; // Cleaner's hourly rate
   notes: string | null;
   onMyWaySentAt: string | null;
   clockedInAt: string | null;
@@ -287,6 +288,21 @@ export default function CleanerDashboardPage() {
                     </div>
                   )}
 
+                  {/* Wage Info */}
+                  {job.hourlyRate > 0 && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                      <p className="text-xs font-medium text-green-800 mb-1">Your Wage for this Job</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          ${job.hourlyRate.toFixed(2)}/hr × {formatDuration(job.duration)}
+                        </span>
+                        <span className="text-lg font-bold text-green-700">
+                          ${job.wage.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Time Tracking Info */}
                   {(job.onMyWaySentAt || job.clockedInAt || job.clockedOutAt) && (
                     <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded">
@@ -361,6 +377,11 @@ export default function CleanerDashboardPage() {
                   <div className="text-right">
                     <p className="text-sm font-medium">{job.serviceType}</p>
                     <p className="text-xs text-gray-500">{formatDuration(job.duration)}</p>
+                    {job.hourlyRate > 0 && (
+                      <p className="text-sm font-bold text-green-600 mt-1">
+                        ${job.wage.toFixed(2)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Card>

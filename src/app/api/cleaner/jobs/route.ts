@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     console.log('🟢 CLEANER JOBS - Current time:', now);
 
     // Get today's jobs (assigned to this cleaner OR unassigned)
-    const todayJobs = await prisma.booking.findMany({
+    const todayJobsRaw = await prisma.booking.findMany({
       where: {
         companyId: user.companyId, // Only jobs from the same company
         scheduledDate: {
@@ -84,6 +84,20 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Calculate wage for each job (hide total price from cleaners)
+    const todayJobs = todayJobsRaw.map(job => {
+      const durationHours = job.duration / 60; // Convert minutes to hours
+      const wage = teamMember.hourlyRate ? teamMember.hourlyRate * durationHours : 0;
+
+      // Return job without price, add wage and hourlyRate instead
+      const { price, ...jobWithoutPrice } = job;
+      return {
+        ...jobWithoutPrice,
+        wage: parseFloat(wage.toFixed(2)), // Cleaner's wage
+        hourlyRate: teamMember.hourlyRate || 0, // Cleaner's hourly rate
+      };
+    });
+
     console.log('🟢 CLEANER JOBS - Found today jobs:', todayJobs.length);
     if (todayJobs.length > 0) {
       console.log('🟢 CLEANER JOBS - Today jobs:', todayJobs.map(j => ({
@@ -97,7 +111,7 @@ export async function GET(request: NextRequest) {
     const nextWeek = new Date(tomorrow);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
-    const upcomingJobs = await prisma.booking.findMany({
+    const upcomingJobsRaw = await prisma.booking.findMany({
       where: {
         companyId: user.companyId, // Only jobs from the same company
         scheduledDate: {
@@ -130,6 +144,20 @@ export async function GET(request: NextRequest) {
         scheduledDate: 'asc',
       },
       take: 10,
+    });
+
+    // Calculate wage for upcoming jobs (hide total price from cleaners)
+    const upcomingJobs = upcomingJobsRaw.map(job => {
+      const durationHours = job.duration / 60; // Convert minutes to hours
+      const wage = teamMember.hourlyRate ? teamMember.hourlyRate * durationHours : 0;
+
+      // Return job without price, add wage and hourlyRate instead
+      const { price, ...jobWithoutPrice } = job;
+      return {
+        ...jobWithoutPrice,
+        wage: parseFloat(wage.toFixed(2)), // Cleaner's wage
+        hourlyRate: teamMember.hourlyRate || 0, // Cleaner's hourly rate
+      };
     });
 
     console.log('🟢 CLEANER JOBS - Found upcoming jobs:', upcomingJobs.length);
