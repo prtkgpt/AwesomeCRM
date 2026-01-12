@@ -150,7 +150,12 @@ export default function CleanerDashboardPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">My Jobs</h1>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-1">
+          Welcome, {session?.user?.name?.split(' ')[0] || 'there'}!
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">Here are your jobs for today and upcoming schedule</p>
+      </div>
 
       {error && (
         <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
