@@ -20,76 +20,114 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Only OWNER and ADMIN can access
-    if (user.role !== 'OWNER' && user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Get all team members
-    const teamMembers = await prisma.teamMember.findMany({
-      where: { companyId: user.companyId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
+    // Get current user's full info
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        companyId: true,
       },
     });
 
-    // Get all bookings with assignments
-    const bookings = await prisma.booking.findMany({
+    // Get team member record for current user
+    const teamMember = await prisma.teamMember.findUnique({
+      where: { userId: session.user.id },
+      select: {
+        id: true,
+        userId: true,
+        role: true,
+        isActive: true,
+      },
+    });
+
+    // Get all upcoming bookings
+    const allBookings = await prisma.booking.findMany({
       where: {
         companyId: user.companyId,
-        status: 'SCHEDULED',
+        scheduledDate: { gte: new Date() },
       },
       select: {
         id: true,
         scheduledDate: true,
         assignedTo: true,
-        client: {
-          select: {
-            name: true,
-          },
-        },
+        client: { select: { name: true } },
         assignee: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
+          select: {
+            id: true,
+            user: { select: { name: true } },
           },
         },
       },
-      orderBy: {
-        scheduledDate: 'desc',
-      },
+      orderBy: { scheduledDate: 'asc' },
       take: 20,
     });
 
+    // Test the filtered query if user is a cleaner
+    let filteredBookings = [];
+    if (user.role === 'CLEANER' && teamMember) {
+      filteredBookings = await prisma.booking.findMany({
+        where: {
+          AND: [
+            { companyId: user.companyId },
+            { scheduledDate: { gte: new Date() } },
+            {
+              OR: [
+                { assignedTo: teamMember.id },
+                { assignedTo: null },
+              ],
+            },
+          ],
+        },
+        select: {
+          id: true,
+          scheduledDate: true,
+          assignedTo: true,
+          client: { select: { name: true } },
+          assignee: {
+            select: {
+              id: true,
+              user: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { scheduledDate: 'asc' },
+        take: 20,
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      data: {
-        teamMembers: teamMembers.map(tm => ({
-          teamMemberId: tm.id,
-          userId: tm.user.id,
-          name: tm.user.name,
-          email: tm.user.email,
-          role: tm.user.role,
-        })),
-        bookings: bookings.map(b => ({
-          id: b.id.slice(0, 8) + '...',
-          clientName: b.client.name,
-          scheduledDate: b.scheduledDate,
+      debug: {
+        currentUser: currentUser,
+        teamMember: teamMember,
+        allBookings: allBookings.map(b => ({
+          client: b.client.name,
+          date: b.scheduledDate.toISOString().split('T')[0],
           assignedTo: b.assignedTo,
-          assigneeName: b.assignee?.user.name || 'UNASSIGNED',
-          assigneeEmail: b.assignee?.user.email || null,
+          assigneeName: b.assignee?.user?.name || 'UNASSIGNED',
+          matchesMe: b.assignedTo === teamMember?.id,
         })),
+        filteredBookings: user.role === 'CLEANER' ? filteredBookings.map(b => ({
+          client: b.client.name,
+          date: b.scheduledDate.toISOString().split('T')[0],
+          assignedTo: b.assignedTo,
+          assigneeName: b.assignee?.user?.name || 'UNASSIGNED',
+        })) : 'Not a cleaner',
+        whereClause: user.role === 'CLEANER' && teamMember ? {
+          AND: [
+            { companyId: user.companyId },
+            { scheduledDate: { gte: 'TODAY' } },
+            {
+              OR: [
+                { assignedTo: teamMember.id },
+                { assignedTo: null },
+              ],
+            },
+          ],
+        } : 'Not a cleaner',
       },
     });
   } catch (error) {
