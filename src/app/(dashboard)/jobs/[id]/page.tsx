@@ -1102,6 +1102,31 @@ export default function JobDetailPage() {
             </div>
           )}
 
+          {/* Completion Tracking */}
+          {(job.status === 'CLEANER_COMPLETED' || job.status === 'COMPLETED') && (job as any).completedByUser && (
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <label className="text-xs font-medium text-gray-700 mb-2 block">Completion Tracking</label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <span className="text-sm text-gray-700">
+                    <span className="font-medium">Stage 1 - Completed by:</span>{' '}
+                    {(job as any).completedByUser?.name || (job as any).completedByUser?.email || 'Unknown'}
+                  </span>
+                </div>
+                {job.status === 'COMPLETED' && (job as any).approvedByUser && (
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <span className="text-sm text-gray-700">
+                      <span className="font-medium">Stage 2 - Approved by:</span>{' '}
+                      {(job as any).approvedByUser?.name || (job as any).approvedByUser?.email || 'Unknown'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">
               Update Status
@@ -1114,10 +1139,7 @@ export default function JobDetailPage() {
                 className="flex-1"
               >
                 <CheckCircle className="h-4 w-4 mr-1" />
-                {job.status === 'COMPLETED' && (job as any).completedByUser
-                  ? `Marked Complete by ${(job as any).completedByUser.name || (job as any).completedByUser.email}`
-                  : 'Mark Completed'
-                }
+                Mark Completed
               </Button>
               <Button
                 onClick={() => handleStatusChange('CANCELLED')}

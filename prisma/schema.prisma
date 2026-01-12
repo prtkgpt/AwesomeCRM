@@ -129,8 +129,11 @@ model User {
   customerClient  Client?   @relation("CustomerAccount")
   customerBookings Booking[] @relation("CustomerBookings")
 
-  // Jobs completed by this user
+  // Jobs completed by this user (cleaner)
   completedBookings Booking[] @relation("CompletedByUser")
+
+  // Jobs approved by this user (admin)
+  approvedBookings Booking[] @relation("ApprovedByUser")
 
   // Invitations sent
   sentInvitations Invitation[] @relation("InvitationSender")

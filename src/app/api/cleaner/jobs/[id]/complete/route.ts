@@ -63,6 +63,8 @@ export async function POST(
       data: {
         status: 'CLEANER_COMPLETED',  // Stage 1: Pending admin approval
         feedbackToken: feedbackToken,
+        completedAt: new Date(),
+        completedBy: user.id,
       },
       include: {
         client: {
@@ -72,6 +74,12 @@ export async function POST(
           },
         },
         address: true,
+        completedByUser: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 

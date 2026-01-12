@@ -68,7 +68,8 @@ export async function POST(
       where: { id: params.id },
       data: {
         status: 'COMPLETED',
-        // TODO: Add approvedBy and approvedAt fields to schema in future
+        approvedAt: new Date(),
+        approvedBy: user.id,
       },
       include: {
         client: {
@@ -84,6 +85,12 @@ export async function POST(
               select: { name: true, email: true },
             },
           },
+        },
+        completedByUser: {
+          select: { name: true, email: true },
+        },
+        approvedByUser: {
+          select: { name: true, email: true },
         },
       },
     });
