@@ -159,8 +159,9 @@ export default function CleanerProfilePage() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">My Profile</h1>
-        <p className="text-gray-600">Update your personal and work information</p>
+        <h1 className="text-3xl font-bold mb-2">{formData.name || 'My Profile'}</h1>
+        <p className="text-gray-600 dark:text-gray-400">Professional Home Cleaner</p>
+        <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Update your personal and work information</p>
       </div>
 
       {error && (

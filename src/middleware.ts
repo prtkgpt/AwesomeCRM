@@ -54,7 +54,13 @@ export default withAuth(
         path === '/dashboard' ||
         path.startsWith('/team') ||
         path.startsWith('/clients') ||
-        path.startsWith('/invoices')
+        path.startsWith('/invoices') ||
+        path.startsWith('/calendar') ||
+        path.startsWith('/jobs') ||
+        path.startsWith('/estimates') ||
+        path.startsWith('/reports') ||
+        path.startsWith('/feed') ||
+        path.startsWith('/settings')
       ) {
         return NextResponse.redirect(new URL('/cleaner/dashboard', req.url));
       }
