@@ -437,9 +437,14 @@ model Booking {
   feedbackSubmittedAt   DateTime?                    // When customer submitted feedback
 
   // Job completion tracking
-  completedAt           DateTime?                    // When job was marked as completed
-  completedBy           String?                      // User ID who marked job as completed
+  completedAt           DateTime?                    // When job was marked as completed by cleaner
+  completedBy           String?                      // User ID who marked job as completed (cleaner)
   completedByUser       User?               @relation("CompletedByUser", fields: [completedBy], references: [id])
+
+  // Job approval tracking (Stage 2 of two-stage workflow)
+  approvedAt            DateTime?                    // When job was approved by admin
+  approvedBy            String?                      // User ID who approved the job (admin)
+  approvedByUser        User?               @relation("ApprovedByUser", fields: [approvedBy], references: [id])
 
   messages              Message[]
   invoice               Invoice?
