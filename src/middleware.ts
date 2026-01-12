@@ -20,7 +20,8 @@ export default withAuth(
       path.startsWith('/api/auth/') || // NextAuth API routes
       path.startsWith('/api/feedback/') || // Public feedback API routes
       path.startsWith('/api/team/invite/') || // Team invitation API routes
-      path.startsWith('/api/team/accept-invite') // Accept invitation API route
+      path.startsWith('/api/team/accept-invite') || // Accept invitation API route
+      path.startsWith('/api/debug/') // Debug API routes (authenticated users only)
     ) {
       return NextResponse.next();
     }
@@ -93,7 +94,8 @@ export default withAuth(
           path.startsWith('/api/auth/') ||
           path.startsWith('/api/feedback/') ||
           path.startsWith('/api/team/invite/') || // Team invitation API routes
-          path.startsWith('/api/team/accept-invite') // Accept invitation API route
+          path.startsWith('/api/team/accept-invite') || // Accept invitation API route
+          path.startsWith('/api/debug/') // Debug API routes (authenticated users only)
         ) {
           return true;
         }
