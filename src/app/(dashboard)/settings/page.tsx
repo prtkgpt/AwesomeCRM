@@ -354,7 +354,10 @@ export default function SettingsPage() {
       ? [{ href: '/settings/pricing', label: 'Pricing Configuration', icon: DollarSign }]
       : []),
     ...(userRole === 'OWNER'
-      ? [{ href: '/settings/operations', label: 'Operations', icon: Briefcase }]
+      ? [
+          { href: '/settings/operations', label: 'Operations', icon: Briefcase },
+          { href: '/settings/referral', label: 'Referral Program', icon: User },
+        ]
       : []),
   ];
 

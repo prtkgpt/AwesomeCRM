@@ -86,6 +86,11 @@ model Company {
   ownerSalary           Float?   @default(0)      // Monthly owner salary
   otherExpenses         Float?   @default(0)      // Other monthly operational expenses
 
+  // Referral Program Configuration
+  referralEnabled       Boolean  @default(false)  // Enable/disable referral program
+  referralReferrerReward Float?  @default(25)     // Credit for referrer (e.g., $25)
+  referralRefereeReward  Float?  @default(25)     // Credit for new customer (e.g., $25)
+
   // Subscription
   plan                String   @default("FREE")  // FREE, BASIC, PRO
   subscriptionStatus  String   @default("ACTIVE")
@@ -274,6 +279,15 @@ model Client {
   customerUserId    String?   @unique
   customerUser      User?     @relation("CustomerAccount", fields: [customerUserId], references: [id])
 
+  // Referral Program
+  referralCode             String?   @unique  // Unique code for this client (e.g., "JOHN-ABC123")
+  referredById             String?              // Client ID who referred this client
+  referredBy               Client?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals                Client[]  @relation("Referrals") // Clients referred by this client
+  referralCreditsEarned    Float     @default(0) // Total credits earned from referrals
+  referralCreditsUsed      Float     @default(0) // Credits used on bookings
+  referralCreditsBalance   Float     @default(0) // Available credits
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -281,6 +295,8 @@ model Client {
   @@index([userId])
   @@index([email])
   @@index([helperBeesReferralId])
+  @@index([referralCode])
+  @@index([referredById])
 }
 
 model Address {
