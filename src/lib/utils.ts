@@ -1,9 +1,10 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, addDays, addWeeks, addMonths, isAfter, isBefore } from "date-fns";
-import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz';
+import { zonedTimeToUtc } from 'date-fns-tz';
 
-// Company timezone - all dates should be displayed in this timezone
+// Company timezone - used for parsing input dates (e.g., from booking forms)
+// Dates are stored in UTC and displayed in each user's local timezone
 const COMPANY_TIMEZONE = 'America/Los_Angeles'; // PST/PDT
 
 export function cn(...inputs: ClassValue[]) {
@@ -33,27 +34,30 @@ export function formatPhoneNumber(phone: string): string {
 }
 
 /**
- * Format date for display in company timezone (PST)
+ * Format date for display in user's local timezone
+ * Dates are stored in UTC and automatically converted to user's browser timezone
  */
 export function formatDate(date: Date | string, formatStr: string = 'MMM d, yyyy'): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return formatInTimeZone(d, COMPANY_TIMEZONE, formatStr);
+  return format(d, formatStr);
 }
 
 /**
- * Format date and time for display in company timezone (PST)
+ * Format date and time for display in user's local timezone
+ * Example: 10 AM PST job shows as "10:00 AM" in California, "1:00 PM" in New York
  */
 export function formatDateTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return formatInTimeZone(d, COMPANY_TIMEZONE, 'MMM d, yyyy h:mm a');
+  return format(d, 'MMM d, yyyy h:mm a');
 }
 
 /**
- * Format time only in company timezone (PST)
+ * Format time only in user's local timezone
+ * Example: 10 AM PST job shows as "10:00 AM" in California, "1:00 PM" in New York
  */
 export function formatTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return formatInTimeZone(d, COMPANY_TIMEZONE, 'h:mm a');
+  return format(d, 'h:mm a');
 }
 
 /**
