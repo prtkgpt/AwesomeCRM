@@ -76,6 +76,16 @@ model Company {
   serviceTypeMultipliers Json?               // Service type pricing multipliers
   // Example: { "STANDARD": 1.0, "DEEP": 1.2, "MOVE_OUT": 1.2, "WEEKLY": 0.75, "BIWEEKLY": 0.85, "MONTHLY": 0.9, "POST_CONSTRUCTION": 1.3, "POST_PARTY": 1.1 }
 
+  // Operational Expenses (Business Operations)
+  insuranceCost         Float?   @default(0)      // Monthly insurance cost
+  bondCost              Float?   @default(0)      // Monthly bond cost
+  workersCompCost       Float?   @default(0)      // Monthly workers compensation cost
+  cleaningSuppliesCost  Float?   @default(0)      // Monthly cleaning supplies cost
+  gasReimbursementRate  Float?   @default(0)      // Gas reimbursement rate (per mile or per job)
+  vaAdminSalary         Float?   @default(0)      // Monthly VA/Admin salary
+  ownerSalary           Float?   @default(0)      // Monthly owner salary
+  otherExpenses         Float?   @default(0)      // Other monthly operational expenses
+
   // Subscription
   plan                String   @default("FREE")  // FREE, BASIC, PRO
   subscriptionStatus  String   @default("ACTIVE")

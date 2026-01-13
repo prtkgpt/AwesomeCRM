@@ -985,22 +985,24 @@ export default function JobDetailPage() {
             </div>
           </div>
 
-          {/* Profit Margin */}
-          <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border-2 border-indigo-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-gray-700">Business Profit (before expenses)</div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  Customer payment - cleaner wage
+          {/* Profit Margin - Owner Only */}
+          {(session?.user as any)?.role === 'OWNER' && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border-2 border-indigo-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-gray-700">Business Profit (before expenses)</div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Customer payment - cleaner wage
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-indigo-700">
+                  {formatCurrency(
+                    job.price - (job.assignee.hourlyRate * job.duration) / 60
+                  )}
                 </div>
               </div>
-              <div className="text-2xl font-bold text-indigo-700">
-                {formatCurrency(
-                  job.price - (job.assignee.hourlyRate * job.duration) / 60
-                )}
-              </div>
             </div>
-          </div>
+          )}
         </Card>
       )}
 
