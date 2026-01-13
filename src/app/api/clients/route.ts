@@ -117,13 +117,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique referral code for this client
-    let referralCode: string;
+    let referralCode = generateReferralCode(validatedData.name, '');
     let attempts = 0;
     const maxAttempts = 5;
 
     while (attempts < maxAttempts) {
-      referralCode = generateReferralCode(validatedData.name, '');
-
       // Check if code already exists
       const existing = await prisma.client.findFirst({
         where: { referralCode, companyId: user.companyId },
@@ -132,7 +130,10 @@ export async function POST(request: NextRequest) {
       if (!existing) {
         break; // Code is unique
       }
+
+      // Generate new code and try again
       attempts++;
+      referralCode = generateReferralCode(validatedData.name, '');
     }
 
     // Create client with addresses
