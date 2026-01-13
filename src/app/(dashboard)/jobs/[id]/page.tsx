@@ -84,13 +84,28 @@ export default function JobDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<string>('stripe');
   const [copayPaymentMethod, setCopayPaymentMethod] = useState<string>('STRIPE');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [operationalExpenses, setOperationalExpenses] = useState<{
+    insuranceCost: number;
+    bondCost: number;
+    workersCompCost: number;
+    cleaningSuppliesCost: number;
+    gasReimbursementRate: number;
+    vaAdminSalary: number;
+    ownerSalary: number;
+    otherExpenses: number;
+  } | null>(null);
+  const [monthlyJobCount, setMonthlyJobCount] = useState<number>(0);
 
   useEffect(() => {
     fetchJob();
     checkInvoice();
     fetchReviews();
     fetchCleaners();
-  }, [jobId]);
+    if ((session?.user as any)?.role === 'OWNER') {
+      fetchOperationalExpenses();
+      fetchMonthlyJobCount();
+    }
+  }, [jobId, session]);
 
   const fetchJob = async () => {
     try {
@@ -178,6 +193,39 @@ export default function JobDetailPage() {
       }
     } catch (error) {
       console.error('Failed to fetch cleaners:', error);
+    }
+  };
+
+  const fetchOperationalExpenses = async () => {
+    try {
+      const response = await fetch('/api/company/operations');
+      const data = await response.json();
+
+      if (data.success) {
+        setOperationalExpenses(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch operational expenses:', error);
+    }
+  };
+
+  const fetchMonthlyJobCount = async () => {
+    try {
+      // Get current month's completed jobs count
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const response = await fetch(
+        `/api/bookings?status=COMPLETED&from=${firstDayOfMonth.toISOString()}&to=${lastDayOfMonth.toISOString()}`
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setMonthlyJobCount(data.data.length);
+      }
+    } catch (error) {
+      console.error('Failed to fetch monthly job count:', error);
     }
   };
 
@@ -985,24 +1033,134 @@ export default function JobDetailPage() {
             </div>
           </div>
 
-          {/* Profit Margin - Owner Only */}
-          {(session?.user as any)?.role === 'OWNER' && (
-            <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border-2 border-indigo-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-gray-700">Business Profit (before expenses)</div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Customer payment - cleaner wage
+          {/* Profit Analysis - Owner Only */}
+          {(session?.user as any)?.role === 'OWNER' && (() => {
+            const cleanerWage = (job.assignee.hourlyRate * job.duration) / 60;
+            const grossProfit = job.price - cleanerWage;
+
+            // Calculate total monthly operational expenses
+            const totalMonthlyExpenses = operationalExpenses
+              ? operationalExpenses.insuranceCost +
+                operationalExpenses.bondCost +
+                operationalExpenses.workersCompCost +
+                operationalExpenses.cleaningSuppliesCost +
+                operationalExpenses.vaAdminSalary +
+                operationalExpenses.ownerSalary +
+                operationalExpenses.otherExpenses
+              : 0;
+
+            // Calculate allocated operational cost per job
+            const allocatedCostPerJob = monthlyJobCount > 0
+              ? totalMonthlyExpenses / monthlyJobCount
+              : 0;
+
+            // Calculate net profit
+            const netProfit = grossProfit - allocatedCostPerJob;
+
+            // Calculate profit margin percentage
+            const profitMarginPercent = job.price > 0
+              ? (netProfit / job.price) * 100
+              : 0;
+
+            return (
+              <div className="mt-4 space-y-3">
+                {/* Gross Profit */}
+                <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border-2 border-indigo-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-700">Gross Profit</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Customer payment - cleaner wage
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-indigo-700">
+                      {formatCurrency(grossProfit)}
+                    </div>
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-indigo-700">
-                  {formatCurrency(
-                    job.price - (job.assignee.hourlyRate * job.duration) / 60
-                  )}
-                </div>
+
+                {/* Allocated Operational Costs */}
+                {operationalExpenses && monthlyJobCount > 0 && (
+                  <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border-2 border-orange-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-700">Allocated Operational Costs</div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          ${totalMonthlyExpenses.toFixed(2)}/month ÷ {monthlyJobCount} jobs this month
+                        </div>
+                        <Link
+                          href="/settings/operations"
+                          className="text-xs text-orange-600 hover:text-orange-700 hover:underline mt-1 inline-block"
+                        >
+                          View breakdown →
+                        </Link>
+                      </div>
+                      <div className="text-2xl font-bold text-orange-700">
+                        {formatCurrency(allocatedCostPerJob)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Net Profit */}
+                {operationalExpenses && monthlyJobCount > 0 && (
+                  <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg border-2 border-emerald-300">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-lg font-bold text-gray-800">Net Profit</div>
+                        <div className="text-xs text-gray-600 mt-0.5">
+                          Gross profit - allocated operational costs
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className={`text-sm font-semibold px-2 py-1 rounded ${
+                            profitMarginPercent > 0
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {profitMarginPercent > 0 ? '+' : ''}{profitMarginPercent.toFixed(1)}% margin
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`text-3xl font-black ${
+                        netProfit > 0 ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {formatCurrency(netProfit)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* No expenses configured message */}
+                {(!operationalExpenses || monthlyJobCount === 0) && (
+                  <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <div className="text-yellow-600 text-sm">⚠️</div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-yellow-800">
+                          {!operationalExpenses
+                            ? 'Operational expenses not configured'
+                            : 'No completed jobs this month yet'}
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          {!operationalExpenses
+                            ? 'Configure your monthly operational expenses to see true net profit and profit margins.'
+                            : 'Operational cost allocation will appear once you have completed jobs this month.'}
+                        </p>
+                        {!operationalExpenses && (
+                          <Link
+                            href="/settings/operations"
+                            className="text-xs text-yellow-800 hover:text-yellow-900 hover:underline mt-2 inline-block font-medium"
+                          >
+                            Configure expenses →
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </Card>
       )}
 
