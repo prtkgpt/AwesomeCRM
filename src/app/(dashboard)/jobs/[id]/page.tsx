@@ -913,6 +913,97 @@ export default function JobDetailPage() {
         )}
       </Card>
 
+      {/* Financial Breakdown - Admin Only */}
+      {session?.user?.role !== 'CLEANER' && job.assignee && job.assignee.hourlyRate && (
+        <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-600" />
+            Financial Breakdown
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Customer Payment */}
+            <div className="p-4 bg-white rounded-lg border border-green-200">
+              <div className="text-sm font-medium text-gray-600 mb-1">Customer Pays</div>
+              <div className="text-2xl font-bold text-green-700">
+                {formatCurrency(job.price)}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Total job price
+              </div>
+            </div>
+
+            {/* Cleaner Wage */}
+            <div className="p-4 bg-white rounded-lg border border-blue-200">
+              <div className="text-sm font-medium text-gray-600 mb-1">Cleaner Wage</div>
+              <div className="text-2xl font-bold text-blue-700">
+                {formatCurrency(
+                  (job.assignee.hourlyRate * job.duration) / 60
+                )}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                ${job.assignee.hourlyRate.toFixed(2)}/hr × {formatDuration(job.duration)}
+              </div>
+            </div>
+
+            {/* Time Spent */}
+            <div className="p-4 bg-white rounded-lg border border-purple-200">
+              <div className="text-sm font-medium text-gray-600 mb-1">Time Spent</div>
+              <div className="text-2xl font-bold text-purple-700">
+                {job.clockedInAt && job.clockedOutAt ? (
+                  <>
+                    {formatDuration(
+                      Math.round(
+                        (new Date(job.clockedOutAt).getTime() -
+                          new Date(job.clockedInAt).getTime()) /
+                          60000
+                      )
+                    )}
+                  </>
+                ) : (
+                  <>{formatDuration(job.duration)}</>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {job.clockedInAt && job.clockedOutAt ? (
+                  <>Actual (clocked in/out)</>
+                ) : (
+                  <>Scheduled duration</>
+                )}
+              </div>
+            </div>
+
+            {/* Tips */}
+            <div className="p-4 bg-white rounded-lg border border-yellow-200">
+              <div className="text-sm font-medium text-gray-600 mb-1">Tips</div>
+              <div className="text-2xl font-bold text-yellow-700">
+                {job.tipAmount ? formatCurrency(job.tipAmount) : '$0.00'}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {job.tipAmount ? `via ${job.tipPaidVia || 'N/A'}` : 'No tip yet'}
+              </div>
+            </div>
+          </div>
+
+          {/* Profit Margin */}
+          <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border-2 border-indigo-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-gray-700">Business Profit (before expenses)</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Customer payment - cleaner wage
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-indigo-700">
+                {formatCurrency(
+                  job.price - (job.assignee.hourlyRate * job.duration) / 60
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Insurance Documentation - Only show if client has insurance */}
       {job.client.hasInsurance && (
         <Card className="p-8 space-y-6 bg-blue-600 dark:bg-blue-700 border-4 border-blue-800 shadow-2xl">

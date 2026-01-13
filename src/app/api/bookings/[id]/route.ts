@@ -86,6 +86,13 @@ export async function GET(
             role: true,
           },
         },
+        approvedByUser: {
+          select: {
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
         messages: {
           orderBy: {
             createdAt: 'desc',
