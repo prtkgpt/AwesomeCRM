@@ -914,7 +914,7 @@ export default function JobDetailPage() {
       </Card>
 
       {/* Financial Breakdown - Admin Only */}
-      {session?.user?.role !== 'CLEANER' && job.assignee && job.assignee.hourlyRate && (
+      {(session?.user as any)?.role !== 'CLEANER' && job.assignee && job.assignee.hourlyRate && (
         <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-green-600" />

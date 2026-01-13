@@ -1,6 +1,10 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, addDays, addWeeks, addMonths, isAfter, isBefore } from "date-fns";
+import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
+
+// Company timezone - all dates should be displayed in this timezone
+const COMPANY_TIMEZONE = 'America/Los_Angeles'; // PST/PDT
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,27 +33,27 @@ export function formatPhoneNumber(phone: string): string {
 }
 
 /**
- * Format date for display
+ * Format date for display in company timezone (PST)
  */
 export function formatDate(date: Date | string, formatStr: string = 'MMM d, yyyy'): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return format(d, formatStr);
+  return formatInTimeZone(d, COMPANY_TIMEZONE, formatStr);
 }
 
 /**
- * Format date and time for display
+ * Format date and time for display in company timezone (PST)
  */
 export function formatDateTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return format(d, 'MMM d, yyyy h:mm a');
+  return formatInTimeZone(d, COMPANY_TIMEZONE, 'MMM d, yyyy h:mm a');
 }
 
 /**
- * Format time only
+ * Format time only in company timezone (PST)
  */
 export function formatTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return format(d, 'h:mm a');
+  return formatInTimeZone(d, COMPANY_TIMEZONE, 'h:mm a');
 }
 
 /**
