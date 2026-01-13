@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { calculateReferralTier, getTierInfo, TIER_CONFIG } from '@/lib/referral';
+import { calculateReferralTier, getTierInfo, TIER_CONFIG, getExpiringCredits, CREDIT_EXPIRATION_DAYS } from '@/lib/referral';
 
 /**
  * GET /api/referrals/stats
@@ -107,6 +107,10 @@ export async function GET(request: NextRequest) {
       referralsToNextTier = TIER_CONFIG.GOLD.minReferrals - referralCount;
     }
 
+    // Get credits expiring soon (within 30 days)
+    const expiringCredits = await getExpiringCredits(client.id, 30);
+    const expiringAmount = expiringCredits.reduce((sum, credit) => sum + credit.amount, 0);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -124,6 +128,10 @@ export async function GET(request: NextRequest) {
         tierBonusEarned: client.referralTierBonusEarned,
         nextTier: nextTier,
         referralsToNextTier: Math.max(0, referralsToNextTier),
+        // Expiration info
+        creditExpirationDays: CREDIT_EXPIRATION_DAYS,
+        expiringCredits: expiringCredits,
+        expiringAmount: expiringAmount,
       },
     });
   } catch (error) {

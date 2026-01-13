@@ -289,6 +289,7 @@ model Client {
   referralCreditsBalance   Float     @default(0) // Available credits
   referralTier             ReferralTier @default(NONE) // Current referral tier level
   referralTierBonusEarned  Float     @default(0) // Total bonus credits from achieving tiers
+  referralCreditTransactions ReferralCreditTransaction[] // Individual credit transactions
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -299,6 +300,34 @@ model Client {
   @@index([helperBeesReferralId])
   @@index([referralCode])
   @@index([referredById])
+}
+
+model ReferralCreditTransaction {
+  id              String    @id @default(cuid())
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId       String
+
+  amount          Float     // Credit amount (positive for earned, negative for used)
+  type            ReferralCreditType // EARNED, USED, EXPIRED, TIER_BONUS
+  description     String?   // e.g., "Referral from John Doe", "Applied to booking #123"
+
+  // Expiration tracking
+  expiresAt       DateTime? // When this credit expires (null for used/expired)
+  status          ReferralCreditStatus @default(ACTIVE) // ACTIVE, USED, EXPIRED
+
+  // Relations
+  relatedReferralId String?  // ID of the client who was referred (for EARNED type)
+  relatedBookingId  String?  // ID of the booking where credit was used
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([companyId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([createdAt])
 }
 
 model Address {
@@ -365,6 +394,19 @@ enum ReferralTier {
   BRONZE    // 1-4 referrals
   SILVER    // 5-9 referrals
   GOLD      // 10+ referrals
+}
+
+enum ReferralCreditType {
+  EARNED      // Credit earned from a referral
+  USED        // Credit used on a booking
+  EXPIRED     // Credit expired without being used
+  TIER_BONUS  // Bonus credit from tier achievement
+}
+
+enum ReferralCreditStatus {
+  ACTIVE   // Credit is available to use
+  USED     // Credit has been used
+  EXPIRED  // Credit has expired
 }
 
 enum RecurrenceFrequency {

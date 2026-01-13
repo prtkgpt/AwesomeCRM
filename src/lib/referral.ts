@@ -1,5 +1,8 @@
 import { prisma } from './prisma';
 
+// Credit expiration period (in days)
+export const CREDIT_EXPIRATION_DAYS = 180; // 6 months
+
 // Tier thresholds and bonuses
 export const TIER_CONFIG = {
   BRONZE: { minReferrals: 1, maxReferrals: 4, bonus: 10, name: 'Bronze', color: '#cd7f32' },
@@ -137,10 +140,14 @@ export async function awardReferralCredits(
       console.log(`🎉 Tier upgrade! ${currentTier} → ${newTier}, bonus: $${tierBonus}`);
     }
 
+    // Calculate expiration date for credits
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + CREDIT_EXPIRATION_DAYS);
+
     // Award credits to both parties in a transaction
-    await prisma.$transaction([
-      // Award credits to referrer (with tier bonus if applicable)
-      prisma.client.update({
+    await prisma.$transaction(async (tx) => {
+      // Update referrer totals (with tier bonus if applicable)
+      await tx.client.update({
         where: { id: referrerId },
         data: {
           referralCreditsEarned: { increment: referrerReward + tierBonus },
@@ -150,15 +157,58 @@ export async function awardReferralCredits(
             referralTierBonusEarned: { increment: tierBonus },
           }),
         },
-      }),
-      // Award credits to referee
-      prisma.client.update({
+      });
+
+      // Create transaction record for referrer's base reward
+      await tx.referralCreditTransaction.create({
+        data: {
+          clientId: referrerId,
+          companyId: companyId,
+          amount: referrerReward,
+          type: 'EARNED',
+          description: `Referral reward`,
+          expiresAt: expiresAt,
+          status: 'ACTIVE',
+          relatedReferralId: refereeId,
+        },
+      });
+
+      // Create transaction record for tier bonus if applicable
+      if (tierBonus > 0) {
+        await tx.referralCreditTransaction.create({
+          data: {
+            clientId: referrerId,
+            companyId: companyId,
+            amount: tierBonus,
+            type: 'TIER_BONUS',
+            description: `${newTier} tier bonus`,
+            expiresAt: expiresAt,
+            status: 'ACTIVE',
+          },
+        });
+      }
+
+      // Update referee totals
+      await tx.client.update({
         where: { id: refereeId },
         data: {
           referralCreditsBalance: { increment: refereeReward },
         },
-      }),
-    ]);
+      });
+
+      // Create transaction record for referee's welcome credit
+      await tx.referralCreditTransaction.create({
+        data: {
+          clientId: refereeId,
+          companyId: companyId,
+          amount: refereeReward,
+          type: 'EARNED',
+          description: `Welcome credit for using referral code`,
+          expiresAt: expiresAt,
+          status: 'ACTIVE',
+        },
+      });
+    });
 
     return { success: true, tierUpgrade };
   } catch (error) {
@@ -168,35 +218,192 @@ export async function awardReferralCredits(
 }
 
 /**
- * Apply referral credits to a booking
+ * Apply referral credits to a booking using FIFO (oldest credits first)
  */
 export async function applyReferralCredits(
   clientId: string,
-  bookingAmount: number
+  bookingAmount: number,
+  bookingId?: string
 ): Promise<{ creditsApplied: number; newBalance: number }> {
   const client = await prisma.client.findUnique({
     where: { id: clientId },
-    select: { referralCreditsBalance: true },
+    select: { referralCreditsBalance: true, companyId: true },
   });
 
   if (!client || client.referralCreditsBalance <= 0) {
     return { creditsApplied: 0, newBalance: 0 };
   }
 
-  // Apply credits up to the booking amount
-  const creditsToApply = Math.min(client.referralCreditsBalance, bookingAmount);
-
-  // Update client credits
-  await prisma.client.update({
-    where: { id: clientId },
-    data: {
-      referralCreditsUsed: { increment: creditsToApply },
-      referralCreditsBalance: { decrement: creditsToApply },
+  // Get active credits ordered by expiration date (FIFO - use oldest first)
+  const activeCredits = await prisma.referralCreditTransaction.findMany({
+    where: {
+      clientId: clientId,
+      status: 'ACTIVE',
+      type: { in: ['EARNED', 'TIER_BONUS'] },
+    },
+    orderBy: {
+      expiresAt: 'asc', // Oldest expiring first
     },
   });
 
+  let remainingAmount = Math.min(client.referralCreditsBalance, bookingAmount);
+  let totalApplied = 0;
+
+  // Apply credits using FIFO
+  await prisma.$transaction(async (tx) => {
+    for (const credit of activeCredits) {
+      if (remainingAmount <= 0) break;
+
+      const amountToUse = Math.min(credit.amount, remainingAmount);
+
+      // Mark credit as used (or partially update if we need to split)
+      if (amountToUse >= credit.amount) {
+        // Use entire credit
+        await tx.referralCreditTransaction.update({
+          where: { id: credit.id },
+          data: {
+            status: 'USED',
+            expiresAt: null, // Clear expiration since it's used
+          },
+        });
+      } else {
+        // Partial use - reduce the amount of this credit
+        await tx.referralCreditTransaction.update({
+          where: { id: credit.id },
+          data: {
+            amount: credit.amount - amountToUse,
+          },
+        });
+      }
+
+      // Create USED transaction record
+      await tx.referralCreditTransaction.create({
+        data: {
+          clientId: clientId,
+          companyId: client.companyId,
+          amount: -amountToUse, // Negative for usage
+          type: 'USED',
+          description: bookingId ? `Applied to booking #${bookingId}` : 'Applied to booking',
+          status: 'USED',
+          relatedBookingId: bookingId,
+        },
+      });
+
+      totalApplied += amountToUse;
+      remainingAmount -= amountToUse;
+    }
+
+    // Update client totals
+    await tx.client.update({
+      where: { id: clientId },
+      data: {
+        referralCreditsUsed: { increment: totalApplied },
+        referralCreditsBalance: { decrement: totalApplied },
+      },
+    });
+  });
+
   return {
-    creditsApplied: creditsToApply,
-    newBalance: client.referralCreditsBalance - creditsToApply,
+    creditsApplied: totalApplied,
+    newBalance: client.referralCreditsBalance - totalApplied,
   };
+}
+
+/**
+ * Expire old credits that have passed their expiration date
+ * Returns the number of credits expired
+ */
+export async function expireOldCredits(companyId?: string): Promise<{ expiredCount: number; expiredAmount: number }> {
+  const now = new Date();
+
+  // Find all active credits that have expired
+  const expiredCredits = await prisma.referralCreditTransaction.findMany({
+    where: {
+      status: 'ACTIVE',
+      expiresAt: {
+        lte: now, // Expiration date is in the past
+      },
+      ...(companyId && { companyId }),
+    },
+  });
+
+  if (expiredCredits.length === 0) {
+    return { expiredCount: 0, expiredAmount: 0 };
+  }
+
+  let totalExpiredAmount = 0;
+
+  // Mark all expired credits and update client balances
+  await prisma.$transaction(async (tx) => {
+    for (const credit of expiredCredits) {
+      // Mark credit as expired
+      await tx.referralCreditTransaction.update({
+        where: { id: credit.id },
+        data: {
+          status: 'EXPIRED',
+          expiresAt: null, // Clear since it's now expired
+        },
+      });
+
+      // Create EXPIRED transaction record for audit trail
+      await tx.referralCreditTransaction.create({
+        data: {
+          clientId: credit.clientId,
+          companyId: credit.companyId,
+          amount: -credit.amount, // Negative to show removal
+          type: 'EXPIRED',
+          description: `Credit expired`,
+          status: 'EXPIRED',
+        },
+      });
+
+      // Update client balance
+      await tx.client.update({
+        where: { id: credit.clientId },
+        data: {
+          referralCreditsBalance: { decrement: credit.amount },
+        },
+      });
+
+      totalExpiredAmount += credit.amount;
+    }
+  });
+
+  console.log(`⏰ Expired ${expiredCredits.length} credits totaling $${totalExpiredAmount.toFixed(2)}`);
+
+  return {
+    expiredCount: expiredCredits.length,
+    expiredAmount: totalExpiredAmount,
+  };
+}
+
+/**
+ * Get credits expiring soon (within X days)
+ */
+export async function getExpiringCredits(
+  clientId: string,
+  daysUntilExpiration: number = 30
+): Promise<{ amount: number; expiresAt: Date | null }[]> {
+  const futureDate = new Date();
+  futureDate.setDate(futureDate.getDate() + daysUntilExpiration);
+
+  const expiringCredits = await prisma.referralCreditTransaction.findMany({
+    where: {
+      clientId: clientId,
+      status: 'ACTIVE',
+      expiresAt: {
+        lte: futureDate,
+        gte: new Date(), // Not already expired
+      },
+    },
+    select: {
+      amount: true,
+      expiresAt: true,
+    },
+    orderBy: {
+      expiresAt: 'asc',
+    },
+  });
+
+  return expiringCredits;
 }

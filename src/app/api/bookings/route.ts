@@ -184,36 +184,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle referral credits application
-    let creditsApplied = 0;
-    let finalPrice = validatedData.price;
-
-    const applyCreditsFlag = (body as any).applyCredits === true;
-    if (applyCreditsFlag && client.referralCreditsBalance > 0) {
-      // Calculate how much credit to apply (up to booking price)
-      const creditsToApply = Math.min(client.referralCreditsBalance, validatedData.price);
-
-      // Apply the credits and update client balance
-      const result = await applyReferralCredits(client.id, creditsToApply);
-      creditsApplied = result.creditsApplied;
-      finalPrice = validatedData.price - creditsApplied;
-
-      console.log('🎁 Referral credits applied:', {
-        clientId: client.id,
-        clientName: client.name,
-        bookingPrice: validatedData.price,
-        creditsApplied,
-        finalPrice,
-        newBalance: result.newBalance,
-      });
-    }
-
     // If recurring and no end date specified, default to 12 months from start date
     const calculatedEndDate = validatedData.isRecurring && !validatedData.recurrenceEndDate
       ? new Date(new Date(validatedData.scheduledDate).setFullYear(
           new Date(validatedData.scheduledDate).getFullYear() + 1
         ))
       : validatedData.recurrenceEndDate;
+
+    // Check if credits should be applied
+    const applyCreditsFlag = (body as any).applyCredits === true;
+    let creditsApplied = 0;
+    let finalPrice = validatedData.price;
 
     // Create the main booking
     const booking = await prisma.booking.create({
@@ -247,6 +228,35 @@ export async function POST(request: NextRequest) {
         address: true,
       },
     });
+
+    // Apply referral credits after booking is created
+    if (applyCreditsFlag && client.referralCreditsBalance > 0) {
+      const creditsToApply = Math.min(client.referralCreditsBalance, validatedData.price);
+
+      // Apply the credits with booking ID for audit trail
+      const result = await applyReferralCredits(client.id, creditsToApply, booking.id);
+      creditsApplied = result.creditsApplied;
+      finalPrice = validatedData.price - creditsApplied;
+
+      // Update booking with actual credits applied
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          referralCreditsApplied: creditsApplied,
+          finalPrice: creditsApplied > 0 ? finalPrice : null,
+        },
+      });
+
+      console.log('🎁 Referral credits applied:', {
+        bookingId: booking.id,
+        clientId: client.id,
+        clientName: client.name,
+        bookingPrice: validatedData.price,
+        creditsApplied,
+        finalPrice,
+        newBalance: result.newBalance,
+      });
+    }
 
     // Generate recurring bookings if needed
     let generatedBookings: any[] = [];

@@ -13,7 +13,9 @@ import {
   Share2,
   TrendingUp,
   Mail,
-  MessageCircle
+  MessageCircle,
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 
 interface ReferralStats {
@@ -43,6 +45,13 @@ interface ReferralStats {
   tierBonusEarned: number;
   nextTier: string | null;
   referralsToNextTier: number;
+  // Expiration info
+  creditExpirationDays: number;
+  expiringCredits: Array<{
+    amount: number;
+    expiresAt: string | null;
+  }>;
+  expiringAmount: number;
 }
 
 export default function ReferralsPage() {
@@ -183,6 +192,32 @@ export default function ReferralsPage() {
           </div>
         </Card>
       </div>
+
+      {/* Expiring Credits Warning */}
+      {stats.expiringAmount > 0 && stats.expiringCredits.length > 0 && (
+        <Card className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-300">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-6 w-6 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-orange-900 mb-1 flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Credits Expiring Soon
+              </h3>
+              <p className="text-sm text-orange-800">
+                <strong>${stats.expiringAmount.toFixed(2)}</strong> in credits will expire within the next 30 days.
+                {stats.expiringCredits[0]?.expiresAt && (
+                  <span className="ml-1">
+                    First expiration: <strong>{new Date(stats.expiringCredits[0].expiresAt).toLocaleDateString()}</strong>
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-orange-700 mt-2">
+                💡 Credits expire after {stats.creditExpirationDays} days. Use them on your next booking to avoid losing them!
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Tier Progress Section */}
       <Card className="p-6" style={{ borderColor: stats.tierInfo.color, borderWidth: '2px' }}>
