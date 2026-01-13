@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { createClientSchema } from '@/lib/validations';
 import { stripe } from '@/lib/stripe';
 import { generateReferralCode, validateReferralCode, awardReferralCredits } from '@/lib/referral';
+import { sendEmail, getReferralUsedEmailTemplate } from '@/lib/email';
 
 // GET /api/clients - List all clients
 export async function GET(request: NextRequest) {
@@ -209,6 +210,54 @@ export async function POST(request: NextRequest) {
         const result = await awardReferralCredits(referrerId, client.id, user.companyId);
         if (result.success) {
           console.log('🎁 Referral credits awarded successfully');
+
+          // Send email notification to referrer
+          try {
+            // Fetch referrer details
+            const referrer = await prisma.client.findUnique({
+              where: { id: referrerId },
+              select: {
+                name: true,
+                email: true,
+                referralCode: true,
+                referralCreditsBalance: true,
+              },
+            });
+
+            // Fetch company details
+            const company = await prisma.company.findUnique({
+              where: { id: user.companyId },
+              select: {
+                name: true,
+                resendApiKey: true,
+                referralReferrerReward: true,
+              },
+            });
+
+            if (referrer?.email && company) {
+              const emailHtml = getReferralUsedEmailTemplate({
+                referrerName: referrer.name,
+                newCustomerName: client.name,
+                companyName: company.name,
+                creditsEarned: company.referralReferrerReward || 25,
+                creditsBalance: referrer.referralCreditsBalance,
+                referralCode: referrer.referralCode || '',
+              });
+
+              await sendEmail({
+                to: referrer.email,
+                subject: `🎉 ${client.name} used your referral code!`,
+                html: emailHtml,
+                type: 'notification',
+                apiKey: company.resendApiKey || undefined,
+              });
+
+              console.log('📧 Referral notification email sent to', referrer.email);
+            }
+          } catch (emailError) {
+            console.error('❌ Failed to send referral notification email:', emailError);
+            // Don't fail the request if email fails
+          }
         } else {
           console.error('❌ Failed to award referral credits:', result.error);
         }

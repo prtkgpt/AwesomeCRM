@@ -369,3 +369,91 @@ export function getTeamInvitationEmailTemplate(data: {
 </html>
   `;
 }
+
+export function getReferralUsedEmailTemplate(data: {
+  referrerName: string;
+  newCustomerName: string;
+  companyName: string;
+  creditsEarned: number;
+  creditsBalance: number;
+  referralCode: string;
+}) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Someone Used Your Referral Code!</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
+    <h1 style="margin: 0; font-size: 28px;">Great News!</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px;">Someone used your referral code</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Hi ${data.referrerName},</p>
+
+    <p style="font-size: 16px;">Exciting news! <strong>${data.newCustomerName}</strong> just signed up using your referral code <strong>${data.referralCode}</strong>.</p>
+
+    <div style="background: linear-gradient(135deg, #f3e7ff 0%, #fce7f3 100%); padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center; border: 2px solid #a855f7;">
+      <div style="font-size: 14px; color: #6b21a8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">You Earned</div>
+      <div style="font-size: 42px; font-weight: bold; color: #7c3aed; margin: 10px 0;">$${data.creditsEarned.toFixed(2)}</div>
+      <div style="font-size: 14px; color: #6b21a8; margin-top: 10px;">in referral credits</div>
+    </div>
+
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
+      <h2 style="margin-top: 0; color: #7c3aed; font-size: 20px;">Your Referral Summary</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>New Customer:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${data.newCustomerName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Your Referral Code:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right; font-family: monospace; background: #f3f4f6; padding: 5px 10px; border-radius: 4px;">${data.referralCode}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Credits Earned:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right; color: #059669; font-weight: bold;">+$${data.creditsEarned.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0;"><strong>Total Available Credits:</strong></td>
+          <td style="padding: 10px 0; text-align: right; font-size: 20px; color: #7c3aed; font-weight: bold;">$${data.creditsBalance.toFixed(2)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+      <p style="margin: 0; color: #1e40af;"><strong>💡 How to Use Your Credits</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #1e40af;">
+        Your referral credits will be automatically applied to your next booking. You can apply up to the full booking amount, and any remaining credits will stay in your account for future use.
+      </p>
+    </div>
+
+    <div style="background-color: #d1fae5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+      <p style="margin: 0; color: #065f46;"><strong>🎁 Keep Earning</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #065f46;">
+        Share your referral code <strong>${data.referralCode}</strong> with more friends and family to earn even more credits! There's no limit to how much you can earn.
+      </p>
+    </div>
+
+    <p style="font-size: 14px; margin-top: 30px;">
+      Thank you for spreading the word about ${data.companyName}! Your support means the world to us.
+    </p>
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Best regards,<br>
+      <strong>${data.companyName}</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>© ${new Date().getFullYear()} ${data.companyName}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}
