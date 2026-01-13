@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, addDays, addWeeks, addMonths, isAfter, isBefore } from "date-fns";
-import { zonedTimeToUtc } from 'date-fns-tz';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 // Company timezone - used for parsing input dates (e.g., from booking forms)
 // Dates are stored in UTC and displayed in each user's local timezone
@@ -73,9 +73,12 @@ export function parseDateInCompanyTZ(dateStr: string): Date {
     dateStr = `${dateStr}T00:00:00`;
   }
 
-  // Interpret the date/time as being in PST and convert to UTC
-  // This ensures "2026-01-20T10:00" is treated as 10 AM PST, not 10 AM UTC or local time
-  const utcDate = zonedTimeToUtc(dateStr, COMPANY_TIMEZONE);
+  // Create a Date object from the string (this will be interpreted in local server time)
+  const localDate = new Date(dateStr);
+
+  // Treat this date as if it's in PST and convert to UTC
+  // fromZonedTime interprets the date as being in the specified timezone
+  const utcDate = fromZonedTime(localDate, COMPANY_TIMEZONE);
   return utcDate;
 }
 

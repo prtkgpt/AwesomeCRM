@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { zonedTimeToUtc } from 'date-fns-tz';
+import { fromZonedTime } from 'date-fns-tz';
 
 const COMPANY_TIMEZONE = 'America/Los_Angeles'; // PST/PDT
 
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       const intendedPSTString = `${year}-${month}-${day}T${hours}:${minutes}`;
 
       // Convert this PST time to proper UTC
-      const correctedDate = zonedTimeToUtc(intendedPSTString, COMPANY_TIMEZONE);
+      const correctedDate = fromZonedTime(new Date(intendedPSTString), COMPANY_TIMEZONE);
 
       // Calculate the difference
       const differenceMs = correctedDate.getTime() - currentDate.getTime();
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       const intendedPSTString = `${year}-${month}-${day}T${hours}:${minutes}`;
 
       // Convert to proper UTC
-      const correctedDate = zonedTimeToUtc(intendedPSTString, COMPANY_TIMEZONE);
+      const correctedDate = fromZonedTime(new Date(intendedPSTString), COMPANY_TIMEZONE);
 
       // Only update if there's a difference
       const differenceMs = correctedDate.getTime() - currentDate.getTime();
