@@ -353,6 +353,9 @@ export default function SettingsPage() {
     ...(userRole === 'OWNER' || userRole === 'ADMIN'
       ? [{ href: '/settings/pricing', label: 'Pricing Configuration', icon: DollarSign }]
       : []),
+    ...(userRole === 'OWNER'
+      ? [{ href: '/settings/operations', label: 'Operations', icon: Briefcase }]
+      : []),
   ];
 
   return (
