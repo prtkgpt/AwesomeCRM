@@ -404,6 +404,10 @@ model Booking {
   paymentMethod         String?             // "card", "cash", "check", "zelle"
   paidAt                DateTime?
 
+  // Referral Credits Applied
+  referralCreditsApplied Float              @default(0)    // Credits used on this booking
+  finalPrice            Float?                              // Final price after credits (null if no credits applied)
+
   // Insurance & Copay Tracking
   hasInsuranceCoverage  Boolean             @default(false)
   insuranceAmount       Float               @default(0)    // Amount insurance pays

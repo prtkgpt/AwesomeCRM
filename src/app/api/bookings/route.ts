@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createBookingSchema } from '@/lib/validations';
 import { generateRecurringDates } from '@/lib/utils';
+import { applyReferralCredits } from '@/lib/referral';
 
 // GET /api/bookings - List bookings
 export async function GET(request: NextRequest) {
@@ -183,6 +184,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle referral credits application
+    let creditsApplied = 0;
+    let finalPrice = validatedData.price;
+
+    const applyCreditsFlag = (body as any).applyCredits === true;
+    if (applyCreditsFlag && client.referralCreditsBalance > 0) {
+      // Calculate how much credit to apply (up to booking price)
+      const creditsToApply = Math.min(client.referralCreditsBalance, validatedData.price);
+
+      // Apply the credits and update client balance
+      const result = await applyReferralCredits(client.id, creditsToApply);
+      creditsApplied = result.creditsApplied;
+      finalPrice = validatedData.price - creditsApplied;
+
+      console.log('🎁 Referral credits applied:', {
+        clientId: client.id,
+        clientName: client.name,
+        bookingPrice: validatedData.price,
+        creditsApplied,
+        finalPrice,
+        newBalance: result.newBalance,
+      });
+    }
+
     // If recurring and no end date specified, default to 12 months from start date
     const calculatedEndDate = validatedData.isRecurring && !validatedData.recurrenceEndDate
       ? new Date(new Date(validatedData.scheduledDate).setFullYear(
@@ -213,6 +238,9 @@ export async function POST(request: NextRequest) {
         copayAmount: validatedData.copayAmount || 0,
         copayDiscountApplied: validatedData.copayDiscountApplied || 0,
         finalCopayAmount: validatedData.finalCopayAmount || 0,
+        // Referral credits applied
+        referralCreditsApplied: creditsApplied,
+        finalPrice: creditsApplied > 0 ? finalPrice : null,
       },
       include: {
         client: true,

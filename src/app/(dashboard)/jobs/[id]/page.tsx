@@ -937,6 +937,32 @@ export default function JobDetailPage() {
               </div>
             </div>
 
+            {/* Referral Credits Applied */}
+            {(job as any).referralCreditsApplied > 0 && (
+              <div className="pt-2 border-t">
+                <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🎁</span>
+                    <h3 className="font-semibold text-purple-900">Referral Credits Applied</h3>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Original Price:</span>
+                      <span className="font-semibold">{formatCurrency(job.price)}</span>
+                    </div>
+                    <div className="flex justify-between text-green-600">
+                      <span>Credits Applied:</span>
+                      <span className="font-semibold">-{formatCurrency((job as any).referralCreditsApplied)}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold border-t border-purple-200 pt-2">
+                      <span className="text-purple-900">Final Price:</span>
+                      <span className="text-purple-700">{formatCurrency((job as any).finalPrice || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="pt-2 border-t">
               <div className="text-sm font-medium text-gray-500 mb-1">Service Type</div>
               <div className="text-sm">{job.serviceType.replace('_', ' ')}</div>

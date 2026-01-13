@@ -98,6 +98,10 @@ export default function NewJobPage() {
     finalCopayAmount: '0',
   });
 
+  // Referral credits state
+  const [referralCreditsAvailable, setReferralCreditsAvailable] = useState(0);
+  const [applyCredits, setApplyCredits] = useState(false);
+
   useEffect(() => {
     fetchClients();
     fetchCleaners();
@@ -250,6 +254,9 @@ export default function NewJobPage() {
       const client = clients.find((c) => c.id === formData.clientId);
       setSelectedClient(client || null);
 
+      // Fetch client's referral credits
+      setReferralCreditsAvailable((client as any)?.referralCreditsBalance || 0);
+
       // Auto-populate address
       if (client && client.addresses.length > 0) {
         const updates: any = {
@@ -287,6 +294,8 @@ export default function NewJobPage() {
       }
     } else {
       setSelectedClient(null);
+      setReferralCreditsAvailable(0);
+      setApplyCredits(false);
     }
   }, [formData.clientId, clients]);
 
@@ -383,6 +392,8 @@ export default function NewJobPage() {
         copayAmount: parseFloat(formData.copayAmount),
         copayDiscountApplied: parseFloat(formData.copayDiscountApplied),
         finalCopayAmount: parseFloat(formData.finalCopayAmount),
+        // Referral credits application
+        applyCredits: applyCredits && referralCreditsAvailable > 0,
       };
 
       const response = await fetch('/api/bookings', {
@@ -933,6 +944,67 @@ export default function NewJobPage() {
             />
           </div>
         </Card>
+
+        {/* Referral Credits Section */}
+        {referralCreditsAvailable > 0 && (
+          <Card className="p-4 space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-semibold text-lg flex items-center gap-2">
+                  <span className="text-2xl">🎁</span>
+                  Referral Credits Available
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  This client has ${referralCreditsAvailable.toFixed(2)} in referral credits
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-purple-700">
+                  ${referralCreditsAvailable.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-purple-200">
+              <input
+                type="checkbox"
+                id="applyCredits"
+                checked={applyCredits}
+                onChange={(e) => setApplyCredits(e.target.checked)}
+                className="h-4 w-4 rounded border-purple-300"
+              />
+              <Label htmlFor="applyCredits" className="cursor-pointer font-medium">
+                Apply credits to this booking
+              </Label>
+            </div>
+
+            {applyCredits && (
+              <div className="bg-white p-4 rounded-lg border-2 border-purple-300 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Booking Price:</span>
+                  <span className="font-semibold">${parseFloat(formData.price).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Credits Applied:</span>
+                  <span className="font-semibold">
+                    -${Math.min(referralCreditsAvailable, parseFloat(formData.price) || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-base font-bold border-t border-purple-200 pt-2">
+                  <span>Final Price:</span>
+                  <span className="text-purple-700">
+                    ${Math.max(0, parseFloat(formData.price || '0') - Math.min(referralCreditsAvailable, parseFloat(formData.price) || 0)).toFixed(2)}
+                  </span>
+                </div>
+                {Math.min(referralCreditsAvailable, parseFloat(formData.price) || 0) < referralCreditsAvailable && (
+                  <p className="text-xs text-gray-600 pt-2 border-t border-purple-200">
+                    Remaining balance after booking: ${(referralCreditsAvailable - Math.min(referralCreditsAvailable, parseFloat(formData.price) || 0)).toFixed(2)}
+                  </p>
+                )}
+              </div>
+            )}
+          </Card>
+        )}
 
         <Card className="p-4 space-y-4">
           <div className="flex items-center gap-2">
