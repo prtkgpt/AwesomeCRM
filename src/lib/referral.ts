@@ -1,5 +1,32 @@
 import { prisma } from './prisma';
 
+// Tier thresholds and bonuses
+export const TIER_CONFIG = {
+  BRONZE: { minReferrals: 1, maxReferrals: 4, bonus: 10, name: 'Bronze', color: '#cd7f32' },
+  SILVER: { minReferrals: 5, maxReferrals: 9, bonus: 25, name: 'Silver', color: '#c0c0c0' },
+  GOLD: { minReferrals: 10, maxReferrals: Infinity, bonus: 50, name: 'Gold', color: '#ffd700' },
+};
+
+/**
+ * Calculate referral tier based on number of successful referrals
+ */
+export function calculateReferralTier(referralCount: number): 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD' {
+  if (referralCount >= TIER_CONFIG.GOLD.minReferrals) return 'GOLD';
+  if (referralCount >= TIER_CONFIG.SILVER.minReferrals) return 'SILVER';
+  if (referralCount >= TIER_CONFIG.BRONZE.minReferrals) return 'BRONZE';
+  return 'NONE';
+}
+
+/**
+ * Get tier info for display
+ */
+export function getTierInfo(tier: 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD') {
+  if (tier === 'NONE') return { name: 'None', color: '#9ca3af', icon: '⭐', bonus: 0 };
+  if (tier === 'BRONZE') return { ...TIER_CONFIG.BRONZE, icon: '🥉' };
+  if (tier === 'SILVER') return { ...TIER_CONFIG.SILVER, icon: '🥈' };
+  return { ...TIER_CONFIG.GOLD, icon: '🥇' };
+}
+
 /**
  * Generate a unique referral code for a client
  * Format: FIRSTNAME-XXXXX (e.g., "JOHN-A3K9Z")
@@ -51,12 +78,13 @@ export async function validateReferralCode(code: string, companyId: string): Pro
 
 /**
  * Award referral credits to both referrer and referee
+ * Also checks for tier upgrades and awards tier bonuses
  */
 export async function awardReferralCredits(
   referrerId: string,
   refereeId: string,
   companyId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; tierUpgrade?: { oldTier: string; newTier: string; bonus: number } }> {
   try {
     // Get company referral settings
     const company = await prisma.company.findUnique({
@@ -75,14 +103,52 @@ export async function awardReferralCredits(
     const referrerReward = company.referralReferrerReward || 0;
     const refereeReward = company.referralRefereeReward || 0;
 
+    // Get referrer's current tier and referral count
+    const referrer = await prisma.client.findUnique({
+      where: { id: referrerId },
+      select: {
+        referralTier: true,
+        _count: {
+          select: { referrals: true },
+        },
+      },
+    });
+
+    if (!referrer) {
+      return { success: false, error: 'Referrer not found' };
+    }
+
+    const currentTier = referrer.referralTier;
+    const newReferralCount = referrer._count.referrals + 1; // After this new referral
+    const newTier = calculateReferralTier(newReferralCount);
+
+    // Check if tier upgraded
+    let tierBonus = 0;
+    let tierUpgrade = undefined;
+
+    if (newTier !== currentTier && newTier !== 'NONE') {
+      const tierInfo = getTierInfo(newTier);
+      tierBonus = tierInfo.bonus;
+      tierUpgrade = {
+        oldTier: currentTier,
+        newTier: newTier,
+        bonus: tierBonus,
+      };
+      console.log(`🎉 Tier upgrade! ${currentTier} → ${newTier}, bonus: $${tierBonus}`);
+    }
+
     // Award credits to both parties in a transaction
     await prisma.$transaction([
-      // Award credits to referrer
+      // Award credits to referrer (with tier bonus if applicable)
       prisma.client.update({
         where: { id: referrerId },
         data: {
-          referralCreditsEarned: { increment: referrerReward },
-          referralCreditsBalance: { increment: referrerReward },
+          referralCreditsEarned: { increment: referrerReward + tierBonus },
+          referralCreditsBalance: { increment: referrerReward + tierBonus },
+          referralTier: newTier,
+          ...(tierBonus > 0 && {
+            referralTierBonusEarned: { increment: tierBonus },
+          }),
         },
       }),
       // Award credits to referee
@@ -94,7 +160,7 @@ export async function awardReferralCredits(
       }),
     ]);
 
-    return { success: true };
+    return { success: true, tierUpgrade };
   } catch (error) {
     console.error('Failed to award referral credits:', error);
     return { success: false, error: 'Failed to award credits' };

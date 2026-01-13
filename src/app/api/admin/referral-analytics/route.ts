@@ -66,6 +66,8 @@ export async function GET(request: NextRequest) {
         referralCode: true,
         referralCreditsEarned: true,
         referralCreditsBalance: true,
+        referralTier: true,
+        referralTierBonusEarned: true,
         _count: {
           select: { referrals: true },
         },
@@ -125,6 +127,26 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
 
+    // Get tier distribution
+    const tierDistribution = await prisma.client.groupBy({
+      by: ['referralTier'],
+      where: { companyId: user.companyId },
+      _count: { referralTier: true },
+    });
+
+    const tierStats = {
+      NONE: tierDistribution.find(t => t.referralTier === 'NONE')?._count.referralTier || 0,
+      BRONZE: tierDistribution.find(t => t.referralTier === 'BRONZE')?._count.referralTier || 0,
+      SILVER: tierDistribution.find(t => t.referralTier === 'SILVER')?._count.referralTier || 0,
+      GOLD: tierDistribution.find(t => t.referralTier === 'GOLD')?._count.referralTier || 0,
+    };
+
+    // Calculate total tier bonuses awarded
+    const totalTierBonuses = await prisma.client.aggregate({
+      where: { companyId: user.companyId },
+      _sum: { referralTierBonusEarned: true },
+    });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -135,6 +157,8 @@ export async function GET(request: NextRequest) {
         creditsIssued: totalCreditsIssued._sum.referralCreditsEarned || 0,
         creditsRedeemed: totalCreditsRedeemed._sum.referralCreditsUsed || 0,
         creditsOutstanding: totalCreditsOutstanding._sum.referralCreditsBalance || 0,
+        tierBonusesAwarded: totalTierBonuses._sum.referralTierBonusEarned || 0,
+        tierDistribution: tierStats,
         topReferrers: topReferrers.map((client) => ({
           id: client.id,
           name: client.name,
@@ -143,6 +167,8 @@ export async function GET(request: NextRequest) {
           referralCount: client._count.referrals,
           creditsEarned: client.referralCreditsEarned,
           creditsBalance: client.referralCreditsBalance,
+          tier: client.referralTier,
+          tierBonusEarned: client.referralTierBonusEarned,
         })),
         recentReferrals: recentReferrals.map((client) => ({
           id: client.id,

@@ -287,6 +287,8 @@ model Client {
   referralCreditsEarned    Float     @default(0) // Total credits earned from referrals
   referralCreditsUsed      Float     @default(0) // Credits used on bookings
   referralCreditsBalance   Float     @default(0) // Available credits
+  referralTier             ReferralTier @default(NONE) // Current referral tier level
+  referralTierBonusEarned  Float     @default(0) // Total bonus credits from achieving tiers
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -356,6 +358,13 @@ enum ServiceType {
   STANDARD
   DEEP
   MOVE_OUT
+}
+
+enum ReferralTier {
+  NONE      // No referrals yet
+  BRONZE    // 1-4 referrals
+  SILVER    // 5-9 referrals
+  GOLD      // 10+ referrals
 }
 
 enum RecurrenceFrequency {

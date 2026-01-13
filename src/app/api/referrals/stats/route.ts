@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { calculateReferralTier, getTierInfo, TIER_CONFIG } from '@/lib/referral';
 
 /**
  * GET /api/referrals/stats
@@ -89,6 +90,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Calculate tier info
+    const currentTier = client.referralTier;
+    const tierInfo = getTierInfo(currentTier);
+    const referralCount = client.referrals.length;
+
+    // Calculate progress to next tier
+    let nextTier = null;
+    let referralsToNextTier = 0;
+    if (currentTier === 'NONE' || currentTier === 'BRONZE') {
+      nextTier = currentTier === 'NONE' ? 'BRONZE' : 'SILVER';
+      const nextTierConfig = nextTier === 'BRONZE' ? TIER_CONFIG.BRONZE : TIER_CONFIG.SILVER;
+      referralsToNextTier = nextTierConfig.minReferrals - referralCount;
+    } else if (currentTier === 'SILVER') {
+      nextTier = 'GOLD';
+      referralsToNextTier = TIER_CONFIG.GOLD.minReferrals - referralCount;
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -100,6 +118,12 @@ export async function GET(request: NextRequest) {
         creditsBalance: client.referralCreditsBalance,
         referrerReward: company.referralReferrerReward || 0,
         refereeReward: company.referralRefereeReward || 0,
+        // Tier info
+        currentTier: currentTier,
+        tierInfo: tierInfo,
+        tierBonusEarned: client.referralTierBonusEarned,
+        nextTier: nextTier,
+        referralsToNextTier: Math.max(0, referralsToNextTier),
       },
     });
   } catch (error) {

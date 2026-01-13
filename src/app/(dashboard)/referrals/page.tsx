@@ -30,6 +30,19 @@ interface ReferralStats {
   creditsBalance: number;
   referrerReward: number;
   refereeReward: number;
+  // Tier info
+  currentTier: 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD';
+  tierInfo: {
+    name: string;
+    color: string;
+    icon: string;
+    bonus: number;
+    minReferrals?: number;
+    maxReferrals?: number;
+  };
+  tierBonusEarned: number;
+  nextTier: string | null;
+  referralsToNextTier: number;
 }
 
 export default function ReferralsPage() {
@@ -170,6 +183,111 @@ export default function ReferralsPage() {
           </div>
         </Card>
       </div>
+
+      {/* Tier Progress Section */}
+      <Card className="p-6" style={{ borderColor: stats.tierInfo.color, borderWidth: '2px' }}>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <span className="text-3xl">{stats.tierInfo.icon}</span>
+              Referral Tier: {stats.tierInfo.name}
+            </h2>
+            {stats.tierBonusEarned > 0 && (
+              <p className="text-sm text-gray-600 mt-1">
+                You've earned ${stats.tierBonusEarned.toFixed(2)} in tier bonuses!
+              </p>
+            )}
+          </div>
+          <div className="text-right">
+            <div
+              className="text-5xl font-black"
+              style={{ color: stats.tierInfo.color }}
+            >
+              {stats.tierInfo.icon}
+            </div>
+          </div>
+        </div>
+
+        {/* Tier Progress Bar */}
+        {stats.nextTier && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">Progress to {stats.nextTier} Tier</span>
+              <span className="text-gray-600">
+                {stats.referralsToNextTier} more referral{stats.referralsToNextTier !== 1 ? 's' : ''} needed
+              </span>
+            </div>
+            <div className="relative">
+              <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full transition-all duration-500 rounded-full"
+                  style={{
+                    width: `${Math.min(100, ((stats.tierInfo.minReferrals || 0) / ((stats.tierInfo.minReferrals || 0) + stats.referralsToNextTier)) * 100)}%`,
+                    backgroundColor: stats.tierInfo.color
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-1 text-xs text-gray-500">
+                <span>{stats.referralCount} referrals</span>
+                <span>{(stats.tierInfo.minReferrals || 0) + stats.referralsToNextTier} needed</span>
+              </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-900">
+                <strong>Next Reward:</strong> Reach {stats.nextTier} tier and earn a ${
+                  stats.nextTier === 'BRONZE' ? '10' : stats.nextTier === 'SILVER' ? '25' : '50'
+                } bonus!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Max Tier Achieved */}
+        {!stats.nextTier && stats.currentTier === 'GOLD' && (
+          <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 text-center">
+            <p className="text-lg font-bold text-yellow-900">🏆 Maximum Tier Achieved!</p>
+            <p className="text-sm text-yellow-800 mt-1">
+              You've reached the highest referral tier. Keep referring to earn more credits!
+            </p>
+          </div>
+        )}
+
+        {/* All Tier Badges */}
+        <div className="mt-6 pt-6 border-t">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">All Tiers</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Bronze */}
+            <div className={`p-4 rounded-lg border-2 ${stats.currentTier === 'BRONZE' || stats.currentTier === 'SILVER' || stats.currentTier === 'GOLD' ? 'bg-orange-50 border-orange-300' : 'bg-gray-50 border-gray-200 opacity-50'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">🥉</span>
+                <span className="font-bold" style={{ color: '#cd7f32' }}>Bronze</span>
+              </div>
+              <p className="text-xs text-gray-600">1-4 referrals</p>
+              <p className="text-xs font-semibold text-green-600 mt-1">+$10 bonus</p>
+            </div>
+
+            {/* Silver */}
+            <div className={`p-4 rounded-lg border-2 ${stats.currentTier === 'SILVER' || stats.currentTier === 'GOLD' ? 'bg-gray-100 border-gray-400' : 'bg-gray-50 border-gray-200 opacity-50'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">🥈</span>
+                <span className="font-bold" style={{ color: '#c0c0c0' }}>Silver</span>
+              </div>
+              <p className="text-xs text-gray-600">5-9 referrals</p>
+              <p className="text-xs font-semibold text-green-600 mt-1">+$25 bonus</p>
+            </div>
+
+            {/* Gold */}
+            <div className={`p-4 rounded-lg border-2 ${stats.currentTier === 'GOLD' ? 'bg-yellow-50 border-yellow-400' : 'bg-gray-50 border-gray-200 opacity-50'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">🥇</span>
+                <span className="font-bold" style={{ color: '#ffd700' }}>Gold</span>
+              </div>
+              <p className="text-xs text-gray-600">10+ referrals</p>
+              <p className="text-xs font-semibold text-green-600 mt-1">+$50 bonus</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Referral Code Section */}
       <Card className="p-6 bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-300">
