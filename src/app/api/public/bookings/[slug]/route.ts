@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { parseDateInCompanyTZ } from '@/lib/utils';
 
 const publicBookingSchema = z.object({
   // Client info
@@ -167,7 +168,8 @@ export async function POST(
         AFTERNOON: '14:00',
       };
       const time = timeMap[validatedData.timeSlot];
-      const scheduledDate = new Date(`${validatedData.date}T${time}`);
+      // Parse date as PST (not UTC or local time)
+      const scheduledDate = parseDateInCompanyTZ(`${validatedData.date}T${time}`);
 
       // Fetch selected extras details if any
       let extrasNote = '';

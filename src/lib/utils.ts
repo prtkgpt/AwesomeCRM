@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, addDays, addWeeks, addMonths, isAfter, isBefore } from "date-fns";
-import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz';
 
 // Company timezone - all dates should be displayed in this timezone
 const COMPANY_TIMEZONE = 'America/Los_Angeles'; // PST/PDT
@@ -54,6 +54,25 @@ export function formatDateTime(date: Date | string): string {
 export function formatTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   return formatInTimeZone(d, COMPANY_TIMEZONE, 'h:mm a');
+}
+
+/**
+ * Parse a date+time string as if it's in company timezone (PST)
+ * Converts PST time to UTC for database storage
+ * @param dateStr - Date string in format "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"
+ * @returns Date object in UTC
+ * @example parseDateInCompanyTZ("2026-01-20T10:00") => Date representing 10 AM PST (6 PM UTC)
+ */
+export function parseDateInCompanyTZ(dateStr: string): Date {
+  // If it's just a date (YYYY-MM-DD), append midnight
+  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    dateStr = `${dateStr}T00:00:00`;
+  }
+
+  // Interpret the date/time as being in PST and convert to UTC
+  // This ensures "2026-01-20T10:00" is treated as 10 AM PST, not 10 AM UTC or local time
+  const utcDate = zonedTimeToUtc(dateStr, COMPANY_TIMEZONE);
+  return utcDate;
 }
 
 /**
