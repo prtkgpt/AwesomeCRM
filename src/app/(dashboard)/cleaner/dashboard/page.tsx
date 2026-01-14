@@ -5,8 +5,9 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Phone, CheckCircle, Navigation, LogIn, LogOut, AlertCircle } from 'lucide-react';
+import { Clock, MapPin, Phone, CheckCircle, Navigation, LogIn, LogOut, AlertCircle, ClipboardList } from 'lucide-react';
 import { formatDuration } from '@/lib/utils';
+import Link from 'next/link';
 
 interface Job {
   id: string;
@@ -242,6 +243,18 @@ export default function CleanerDashboardPage() {
                         {actionLoading === `${job.id}-complete` ? 'Completing...' : 'Mark Complete'}
                       </Button>
                     )}
+
+                    {/* View Checklist Button */}
+                    <Link href={`/cleaner/jobs/${job.id}/checklist`}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                      >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        View Checklist
+                      </Button>
+                    </Link>
 
                     {/* Status Badges */}
                     {job.onMyWaySentAt && !job.clockedInAt && (

@@ -547,6 +547,7 @@ model Booking {
   @@index([scheduledDate])
 
   reviews               CleaningReview[]
+  checklist             JobChecklist?
 }
 
 // ============================================
@@ -821,4 +822,33 @@ model PricingRule {
 
   @@index([companyId, type])
   @@index([companyId, isActive])
+}
+
+// ============================================
+// JOB CHECKLISTS
+// ============================================
+
+model JobChecklist {
+  id              String    @id @default(cuid())
+
+  // Booking reference
+  bookingId       String    @unique
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Checklist data (stored as JSON)
+  // Format: { "kitchen": [{ "id": "k1", "task": "Wash dishes", "completed": true, "completedAt": "2024-01-01T10:00:00Z" }], ... }
+  checklistData   Json
+
+  // Summary stats
+  totalTasks      Int       @default(0)
+  completedTasks  Int       @default(0)
+
+  // Timestamps
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([bookingId])
 }
