@@ -89,6 +89,32 @@ This document helps verify that all new features are properly deployed and funct
     - Professional customer experience
     - Empowers customers to control their service
 
+### 7. Customer Review System ✅
+- **Location**: `/customer/bookings` (review submission)
+- **Features**:
+  - **Review Submission**:
+    - Beautiful 5-star rating interface
+    - Optional written feedback
+    - Real-time validation
+    - Emoji feedback indicators (😞 Poor to 🤩 Excellent)
+    - Dark mode support
+  - **Review Display**:
+    - Show existing reviews with star ratings
+    - Display review feedback in attractive cards
+    - "Leave a Review" button for unreviewed completed jobs
+    - Eye-catching gradient button design
+    - Review status indicators (✓ Reviewed)
+  - **Review Management**:
+    - Only completed jobs can be reviewed
+    - One review per booking
+    - Prevents duplicate reviews
+    - Auto-timestamps submission
+  - **Benefits**:
+    - Improves service quality through customer feedback
+    - Increases customer engagement
+    - Provides valuable data for cleaner performance
+    - Builds customer trust and transparency
+
 ## Verification Steps
 
 ### For Performance Dashboard
@@ -175,6 +201,36 @@ This document helps verify that all new features are properly deployed and funct
 3. View a job for that customer
 4. Verify preferences appear in cleaner's job card
 5. Confirm all fields display correctly
+
+### For Customer Review System
+
+**Submitting a Review:**
+1. Log in as CUSTOMER user
+2. Go to "My Bookings" page (`/customer/bookings`)
+3. Click "Completed" tab to view completed services
+4. Find a completed booking without a review
+5. Click the gradient "Leave a Review" button
+6. Review modal should open
+7. Click on stars to select rating (1-5)
+8. Verify emoji feedback changes (😞 to 🤩)
+9. Optionally add written feedback
+10. Click "Submit Review"
+11. Verify success message and modal closes
+12. Booking card should now show review with stars
+
+**Viewing Reviews:**
+1. On bookings page, find a reviewed booking
+2. Should see attractive yellow/orange gradient review card
+3. Stars should display filled based on rating
+4. Written feedback should appear if provided
+5. "✓ Reviewed" badge should be visible
+6. "Leave a Review" button should be hidden for reviewed bookings
+
+**Error Handling:**
+1. Try reviewing same booking again - should prevent duplicate
+2. Try reviewing without selecting stars - should show error
+3. Verify only completed bookings show review button
+4. Upcoming/scheduled bookings should not have review option
 
 ## Common Issues & Solutions
 
@@ -375,6 +431,7 @@ npm run dev
 | Theme Toggle Fix | ✅ Completed | Improved visibility |
 | Customer Preferences | ✅ Completed | Committed in 358065b |
 | Customer Self-Service Portal | ✅ Completed | Committed in c0c98df |
+| Customer Review System | ✅ Completed | Committed in c3c1494 |
 
 ## Contact
 
