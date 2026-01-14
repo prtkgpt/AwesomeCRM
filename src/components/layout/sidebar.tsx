@@ -68,6 +68,11 @@ const cleanerNavItems = [
     icon: Briefcase,
   },
   {
+    href: '/cleaner/performance',
+    label: 'Performance',
+    icon: TrendingUp,
+  },
+  {
     href: '/cleaner/schedule',
     label: 'Schedule',
     icon: Calendar,
