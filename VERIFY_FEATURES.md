@@ -42,6 +42,21 @@ This document helps verify that all new features are properly deployed and funct
   - Gold tier (10+ referrals) - $50 bonus
   - Tier progress tracking
 
+### 5. Customer Preference Tracking ✅
+- **Location**: `/clients/[id]` (Admin view) and `/cleaner/dashboard` (Cleaner view)
+- **Features**:
+  - 20+ preference fields across 10 categories
+  - Cleaning sequence & priority tracking
+  - Product allergies & sensitivities
+  - Pet handling & feeding instructions
+  - Access & entry codes
+  - Communication preferences
+  - Temperature preferences
+  - Special requests & important notes
+  - Prominent display in cleaner dashboard
+  - Color-coded sections for easy scanning
+  - Critical info highlighting (allergies, codes)
+
 ## Verification Steps
 
 ### For Performance Dashboard
@@ -72,6 +87,25 @@ This document helps verify that all new features are properly deployed and funct
 4. Check for expiring credits warning (if applicable)
 5. Verify referral code is displayed
 6. Test referral code copy functionality
+
+### For Customer Preference Tracking
+
+**Admin View:**
+1. Log in as ADMIN or OWNER
+2. Navigate to "Clients" page
+3. Click on any client to view details
+4. Scroll to "Customer Preferences" section
+5. Fill out preference fields (cleaning order, allergies, etc.)
+6. Click "Save Preferences"
+7. Verify preferences are saved
+
+**Cleaner View:**
+1. Log in as CLEANER user
+2. Go to "My Jobs" dashboard
+3. View today's jobs
+4. Check for "⭐ Customer Preferences" section in job card
+5. Verify preferences are displayed with proper color coding
+6. Check that allergies and alarm codes are prominently highlighted
 
 ## Common Issues & Solutions
 
@@ -197,6 +231,51 @@ ALTER TABLE "ReferralCreditTransaction" ADD CONSTRAINT "ReferralCreditTransactio
 FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ```
 
+### For Customer Preference Tracking
+
+```sql
+-- CreateTable
+CREATE TABLE "ClientPreference" (
+    "id" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "cleaningSequence" TEXT,
+    "areasToFocus" TEXT,
+    "areasToAvoid" TEXT,
+    "productAllergies" TEXT,
+    "preferredProducts" TEXT,
+    "avoidScents" BOOLEAN NOT NULL DEFAULT false,
+    "scentPreferences" TEXT,
+    "petHandlingInstructions" TEXT,
+    "petFeedingNeeded" BOOLEAN NOT NULL DEFAULT false,
+    "petFeedingInstructions" TEXT,
+    "preferredContactMethod" TEXT,
+    "notificationPreferences" TEXT,
+    "languagePreference" TEXT,
+    "keyLocation" TEXT,
+    "alarmCode" TEXT,
+    "entryInstructions" TEXT,
+    "specialRequests" TEXT,
+    "thingsToKnow" TEXT,
+    "temperaturePreferences" TEXT,
+    "lastVisitNotes" TEXT,
+    "lastVisitDate" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ClientPreference_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClientPreference_clientId_key" ON "ClientPreference"("clientId");
+
+-- CreateIndex
+CREATE INDEX "ClientPreference_clientId_idx" ON "ClientPreference"("clientId");
+
+-- AddForeignKey
+ALTER TABLE "ClientPreference" ADD CONSTRAINT "ClientPreference_clientId_fkey"
+FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+```
+
 ## Quick Test Commands
 
 ```bash
@@ -225,6 +304,7 @@ npm run dev
 | Credit Expiration | ✅ Completed | Committed in 03340b2 |
 | Referral Tiers | ✅ Completed | Committed in 84383b1 |
 | Theme Toggle Fix | ✅ Completed | Improved visibility |
+| Customer Preferences | ✅ Completed | Committed in 358065b |
 
 ## Contact
 
