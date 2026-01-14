@@ -644,22 +644,22 @@ export default function CalendarPage() {
   const unassignedCount = bookings.filter((b) => !b.assignee).length;
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-6 md:p-8">
       <div className="flex gap-6">
         {/* Main Calendar Area */}
         <div className="flex-1">
           {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold">Calendar</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  ⏰ All times displayed in <strong>Pacific Time (PST/PDT)</strong>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Calendar</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  ⏰ All times displayed in <strong className="text-blue-600 dark:text-blue-400">Pacific Time (PST/PDT)</strong>
                 </p>
               </div>
               <Link href="/jobs/new">
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button>
+                  <Plus className="h-4 w-4" />
                   New Job
                 </Button>
               </Link>
@@ -717,14 +717,14 @@ export default function CalendarPage() {
               </div>
 
               {/* View Mode Selector */}
-              <div className="ml-auto flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+              <div className="ml-auto flex gap-1 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl">
                 {(['month', 'week', 'day', 'list'] as ViewMode[]).map((view) => (
                   <button
                     key={view}
                     onClick={() => setViewMode(view)}
-                    className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                       viewMode === view
-                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow'
+                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md scale-105'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
                   >
@@ -736,7 +736,7 @@ export default function CalendarPage() {
           </div>
 
           {/* Calendar Display */}
-          <Card className="p-4 overflow-hidden">
+          <Card className="p-6 overflow-hidden">
             {loading ? (
               <div className="text-center py-12 text-gray-500">Loading...</div>
             ) : (
@@ -752,19 +752,19 @@ export default function CalendarPage() {
 
         {/* Providers Sidebar */}
         <div className="w-80 hidden lg:block">
-          <Card className="p-4 sticky top-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Providers</h2>
+          <Card className="p-6 sticky top-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Providers</h2>
             </div>
 
             {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="relative mb-6">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search by name"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-11"
               />
             </div>
 

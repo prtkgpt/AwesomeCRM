@@ -85,30 +85,30 @@ const primaryAddress = client.addresses[0];
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-4 md:space-y-6">
+    <div className="p-6 md:p-8 space-y-6 md:space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold">Clients</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base mt-1">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Clients</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base mt-2">
             {clients.length} {clients.length === 1 ? 'client' : 'clients'} in your database
           </p>
         </div>
-        <div className="flex gap-2 md:gap-3">
+        <div className="flex gap-3">
           <Link href="/clients/import">
-            <Button variant="outline" size="sm" className="md:size-default">
-              <Upload className="h-4 w-4 mr-1 md:mr-2" />
+            <Button variant="outline">
+              <Upload className="h-4 w-4" />
               Import
             </Button>
           </Link>
           {clients.length > 0 && (
-            <Button variant="outline" size="sm" onClick={exportToCSV} className="md:size-default">
-              <Download className="h-4 w-4 mr-1 md:mr-2" />
+            <Button variant="outline" onClick={exportToCSV}>
+              <Download className="h-4 w-4" />
               Export
             </Button>
           )}
           <Link href="/clients/new">
-            <Button size="sm" className="md:size-default">
-              <Plus className="h-4 w-4 mr-1 md:mr-2" />
+            <Button>
+              <Plus className="h-4 w-4" />
               New Client
             </Button>
           </Link>
@@ -116,12 +116,12 @@ const primaryAddress = client.addresses[0];
       </div>
 
       <div className="relative max-w-xl">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
         <Input
           placeholder="Search clients..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
+          className="pl-12"
         />
       </div>
 
@@ -138,10 +138,10 @@ const primaryAddress = client.addresses[0];
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {clients.map((client) => (
             <Link key={client.id} href={`/clients/${client.id}`}>
-              <Card className="p-4 md:p-5 hover:shadow-lg transition-shadow h-full">
+              <Card className="p-6 hover-lift h-full cursor-pointer">
                 <div className="flex flex-col h-full">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="font-semibold text-lg md:text-xl hover:text-blue-600 dark:hover:text-blue-400">
