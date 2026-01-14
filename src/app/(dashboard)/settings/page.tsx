@@ -362,10 +362,10 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Settings</h1>
+        <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-2">
           Manage your account and preferences
         </p>
       </div>
@@ -373,22 +373,22 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar Tabs */}
         <div className="lg:col-span-1">
-          <Card className="p-2">
-            <nav className="space-y-1">
+          <Card className="p-3">
+            <nav className="space-y-1.5">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as TabType)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-semibold transition-all duration-200 ${
                       activeTab === tab.id
-                        ? 'bg-primary text-white'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-[1.02]'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 hover:scale-[1.01]'
                     }`}
                   >
                     <Icon className="h-5 w-5" />
-                    <span className="font-medium">{tab.label}</span>
+                    <span>{tab.label}</span>
                   </button>
                 );
               })}
@@ -398,19 +398,19 @@ export default function SettingsPage() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-semibold transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 hover:scale-[1.01]"
                   >
                     <Icon className="h-5 w-5" />
-                    <span className="font-medium">{link.label}</span>
+                    <span>{link.label}</span>
                   </Link>
                 );
               })}
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-semibold transition-all duration-200 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:scale-[1.01]"
               >
                 <LogOut className="h-5 w-5" />
-                <span className="font-medium">Sign Out</span>
+                <span>Sign Out</span>
               </button>
             </nav>
           </Card>

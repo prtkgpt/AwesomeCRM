@@ -123,25 +123,25 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
             Reports & Analytics
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-2">
             {formatDateRange()}
           </p>
         </div>
 
         {/* Period Toggle */}
-        <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+        <div className="flex gap-1.5 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl">
           <Button
             onClick={() => setPeriod('week')}
             variant={period === 'week' ? 'default' : 'ghost'}
             size="sm"
-            className={period === 'week' ? 'bg-blue-600 text-white' : ''}
+            className={period === 'week' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' : ''}
           >
             Week
           </Button>
@@ -149,7 +149,7 @@ export default function ReportsPage() {
             onClick={() => setPeriod('month')}
             variant={period === 'month' ? 'default' : 'ghost'}
             size="sm"
-            className={period === 'month' ? 'bg-blue-600 text-white' : ''}
+            className={period === 'month' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' : ''}
           >
             Month
           </Button>

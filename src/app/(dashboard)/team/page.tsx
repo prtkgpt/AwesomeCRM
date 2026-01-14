@@ -203,35 +203,40 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Team Members</h1>
-        <div className="flex gap-2">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 md:space-y-8">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Team Members</h1>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-2">
+            Manage your team and send invitations
+          </p>
+        </div>
+        <div className="flex gap-3">
           <Link href="/team/deactivated">
             <Button variant="outline">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Deactivated Members
+              <UserPlus className="h-4 w-4" />
+              Deactivated
             </Button>
           </Link>
           <Link href="/team/add-cleaner">
             <Button variant="default">
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4" />
               Add Cleaner
             </Button>
           </Link>
           <Button variant="outline" onClick={() => setShowInviteForm(!showInviteForm)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            {showInviteForm ? 'Cancel' : 'Invite Member'}
+            <UserPlus className="h-4 w-4" />
+            {showInviteForm ? 'Cancel' : 'Invite'}
           </Button>
         </div>
       </div>
 
       {showInviteForm && (
-        <Card className="mb-6 p-6">
-          <h2 className="text-xl font-semibold mb-4">Send Invitation</h2>
-          <form onSubmit={handleInvite} className="space-y-4">
+        <Card className="p-6 md:p-8 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-900/10 border-2 border-blue-200 dark:border-blue-900">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Send Invitation</h2>
+          <form onSubmit={handleInvite} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Email Address</label>
               <Input
                 type="email"
                 value={inviteEmail}
@@ -241,7 +246,7 @@ export default function TeamPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Role</label>
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Role</label>
               <Select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as 'ADMIN' | 'CLEANER')}
@@ -251,6 +256,7 @@ export default function TeamPage() {
               </Select>
             </div>
             <Button type="submit" disabled={submitting}>
+              <Mail className="h-4 w-4" />
               {submitting ? 'Sending...' : 'Send Invitation'}
             </Button>
           </form>
@@ -258,51 +264,72 @@ export default function TeamPage() {
       )}
 
       {/* Active Team Members */}
-      <Card className="mb-6">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold">Active Team Members</h2>
+      <Card>
+        <div className="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">Active Team Members</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            {teamMembers.filter((m) => m.isActive).length} active member{teamMembers.filter((m) => m.isActive).length !== 1 ? 's' : ''}
+          </p>
         </div>
-        <div className="divide-y">
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {teamMembers.filter((m) => m.isActive).length === 0 ? (
-            <div className="p-6 text-center text-gray-500">
-              No active team members. Invite your first team member to get started!
+            <div className="p-8 md:p-12 text-center">
+              <div className="text-gray-400 mb-4">
+                <UserPlus className="h-12 w-12 mx-auto" />
+              </div>
+              <p className="text-gray-500 dark:text-gray-400">
+                No active team members. Invite your first team member to get started!
+              </p>
             </div>
           ) : (
             teamMembers
               .filter((m) => m.isActive)
               .map((member) => (
-                <div key={member.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex justify-between items-start">
+                <div key={member.id} className="p-6 md:p-8 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                  <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="font-bold text-lg md:text-xl text-gray-900 dark:text-gray-100">
                           {member.user.name || member.user.email}
                         </h3>
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                        <span className="px-3 py-1 text-xs font-bold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
                           {member.user.role}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <p>Email: {member.user.email}</p>
-                        {member.user.phone && <p>Phone: {member.user.phone}</p>}
+                      <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                        <p className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          {member.user.email}
+                        </p>
+                        {member.user.phone && (
+                          <p className="flex items-center gap-2">
+                            <span className="h-4 w-4">📱</span>
+                            {member.user.phone}
+                          </p>
+                        )}
                         {member.employeeId && <p>Employee ID: {member.employeeId}</p>}
-                        {isOwner && member.hourlyRate && <p>Hourly Rate: ${member.hourlyRate}/hr</p>}
+                        {isOwner && member.hourlyRate && (
+                          <p className="flex items-center gap-2 font-semibold text-green-600 dark:text-green-400">
+                            <DollarSign className="h-4 w-4" />
+                            ${member.hourlyRate}/hr
+                          </p>
+                        )}
                         {member.specialties.length > 0 && (
                           <p>Specialties: {member.specialties.join(', ')}</p>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Link href={`/team/${member.id}/edit`}>
                         <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4 mr-1" />
+                          <Edit className="h-4 w-4" />
                           Edit
                         </Button>
                       </Link>
                       {isOwner && (
                         <Link href={`/team/${member.id}/pay-logs`}>
                           <Button variant="outline" size="sm">
-                            <DollarSign className="h-4 w-4 mr-1" />
+                            <DollarSign className="h-4 w-4" />
                             Pay Logs
                           </Button>
                         </Link>
@@ -311,7 +338,9 @@ export default function TeamPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeactivate(member.id)}
+                        className="hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-800"
                       >
+                        <Trash2 className="h-4 w-4" />
                         Deactivate
                       </Button>
                     </div>
@@ -325,20 +354,23 @@ export default function TeamPage() {
       {/* Pending Invitations */}
       {invitations.length > 0 && (
         <Card>
-          <div className="p-6 border-b">
-            <h2 className="text-xl font-semibold">Pending Invitations</h2>
+          <div className="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">Pending Invitations</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              {invitations.length} pending invitation{invitations.length !== 1 ? 's' : ''}
+            </p>
           </div>
-          <div className="divide-y">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {invitations.map((invite) => {
               const isExpired = new Date(invite.expiresAt) < new Date();
               return (
-                <div key={invite.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex justify-between items-center">
+                <div key={invite.id} className="p-6 md:p-8 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{invite.email}</p>
+                      <div className="flex items-center gap-3 mb-2">
+                        <p className="font-bold text-lg text-gray-900 dark:text-gray-100">{invite.email}</p>
                         {isExpired && (
-                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                          <span className="px-3 py-1 text-xs font-bold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
                             Expired
                           </span>
                         )}
