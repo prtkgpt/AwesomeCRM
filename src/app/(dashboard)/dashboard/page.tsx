@@ -225,33 +225,33 @@ export default function DashboardPage() {
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Main Content - Center Panel */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4 md:p-6 space-y-6">
+        <div className="p-6 md:p-8 space-y-8">
           {/* Header with User Info */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                <UserIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+                <UserIcon className="h-7 w-7 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                   {userName}
                 </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
                   {userRole || 'USER'}
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Link href="/jobs/new">
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button>
+                  <Plus className="h-4 w-4" />
                   New Job
                 </Button>
               </Link>
               <Link href="/clients/new">
-                <Button variant="outline" size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button variant="outline">
+                  <Plus className="h-4 w-4" />
                   New Client
                 </Button>
               </Link>
@@ -259,67 +259,67 @@ export default function DashboardPage() {
           </div>
 
           {/* Metrics - Small Boxes */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <Card className="p-6 hover-lift cursor-default">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md">
+                  <Users className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Clients</p>
-                  <p className="text-xl font-bold">{stats?.totalClients || 0}</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Clients</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.totalClients || 0}</p>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <CalendarIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <Card className="p-6 hover-lift cursor-default">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md">
+                  <CalendarIcon className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Upcoming</p>
-                  <p className="text-xl font-bold">{stats?.upcomingJobs || 0}</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Upcoming</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.upcomingJobs || 0}</p>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <Card className="p-6 hover-lift cursor-default">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md">
+                  <TrendingUp className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Completed</p>
-                  <p className="text-xl font-bold">{stats?.completedThisMonth || 0}</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.completedThisMonth || 0}</p>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            <Card className="p-6 hover-lift cursor-default">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-md">
+                  <DollarSign className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Revenue MTD</p>
-                  <p className="text-xl font-bold">${stats?.revenueThisMonth || 0}</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Revenue MTD</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">${stats?.revenueThisMonth || 0}</p>
                 </div>
               </div>
             </Card>
           </div>
 
           {/* Calendar Section */}
-          <Card className="p-6">
+          <Card className="p-8">
             {/* Calendar Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
               <div className="flex items-center gap-4">
-                <h2 className="text-lg font-semibold">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {viewType === 'day'
                     ? currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
                     : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </h2>
-                <div className="flex gap-1">
+                <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -353,14 +353,14 @@ export default function DashboardPage() {
               </div>
 
               {/* View Options */}
-              <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+              <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl">
                 {(['month', 'week', 'day', 'list'] as ViewType[]).map((view) => (
                   <button
                     key={view}
                     onClick={() => setViewType(view)}
-                    className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                       viewType === view
-                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow'
+                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md scale-105'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
                   >
@@ -652,8 +652,8 @@ export default function DashboardPage() {
       {/* Right Panel - Activity Feed */}
       <div className="hidden lg:block w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-y-auto">
         <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">Activity Feed</h3>
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Activity Feed</h3>
             <Link href="/feed">
               <Button variant="ghost" size="sm">View All</Button>
             </Link>
@@ -683,7 +683,7 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={activity.id}
-                      className={`p-3 rounded-lg border ${
+                      className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
                         isUnassignedJob
                           ? 'border-pink-200 bg-pink-50 dark:border-pink-900 dark:bg-pink-900/10'
                           : activity.priority === 'high'
@@ -693,23 +693,23 @@ export default function DashboardPage() {
                           : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
                       }`}
                     >
-                      <div className="flex items-start gap-2">
-                        <span className="text-lg">{getActivityIcon(activity.category)}</span>
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl">{getActivityIcon(activity.category)}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                               {activity.title}
                             </div>
                             {isUnassignedJob && (
-                              <span className="px-1.5 py-0.5 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 text-[10px] font-medium rounded">
-                                ⚠️ Needs Assignment
+                              <span className="px-2 py-0.5 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 text-[10px] font-bold rounded-full">
+                                ⚠️
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                          <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed">
                             {activity.description}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 font-medium">
                             {getTimeAgo(activity.timestamp)}
                           </div>
                         </div>
