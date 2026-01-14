@@ -419,12 +419,17 @@ export default function NewJobPage() {
   };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
+    <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-6 md:space-y-8">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold">New Job</h1>
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">New Job</h1>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">
+            Create a new cleaning job
+          </p>
+        </div>
       </div>
 
       {error && (
@@ -434,9 +439,9 @@ export default function NewJobPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Client & Location</h2>
+      <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+        <Card className="p-6 md:p-8 space-y-6">
+          <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Client & Location</h2>
 
           <div>
             <Label htmlFor="clientId">Client *</Label>
@@ -487,11 +492,13 @@ export default function NewJobPage() {
           )}
         </Card>
 
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Schedule</h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            ⏰ All times are in <strong>Pacific Time (PST/PDT)</strong>
-          </p>
+        <Card className="p-6 md:p-8 space-y-6">
+          <div>
+            <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Schedule</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              ⏰ All times are in <strong>Pacific Time (PST/PDT)</strong>
+            </p>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -520,8 +527,8 @@ export default function NewJobPage() {
           </div>
         </Card>
 
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Service Details</h2>
+        <Card className="p-6 md:p-8 space-y-6">
+          <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Service Details</h2>
 
           <div>
             <Label htmlFor="serviceType">Service Type *</Label>
@@ -1009,17 +1016,17 @@ export default function NewJobPage() {
           </Card>
         )}
 
-        <Card className="p-4 space-y-4">
-          <div className="flex items-center gap-2">
+        <Card className="p-6 md:p-8 space-y-6">
+          <div className="flex items-center gap-3">
             <input
               type="checkbox"
               id="isRecurring"
               name="isRecurring"
               checked={formData.isRecurring}
               onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-5 w-5 rounded border-gray-300"
             />
-            <Label htmlFor="isRecurring" className="cursor-pointer">
+            <Label htmlFor="isRecurring" className="cursor-pointer font-semibold text-base">
               Make this a recurring job
             </Label>
           </div>
@@ -1058,11 +1065,11 @@ export default function NewJobPage() {
           )}
         </Card>
 
-        <div className="flex gap-3">
-          <Button type="submit" disabled={loading} className="flex-1">
+        <div className="flex gap-4 pt-4">
+          <Button type="submit" disabled={loading} className="flex-1 h-12 text-base font-semibold">
             {loading ? 'Creating...' : 'Create Job'}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} className="h-12 px-8 text-base font-semibold">
             Cancel
           </Button>
         </div>

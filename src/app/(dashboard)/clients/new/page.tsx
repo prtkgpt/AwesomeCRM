@@ -204,24 +204,29 @@ export default function NewClientPage() {
   };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
+    <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6 md:space-y-8">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold">New Client</h1>
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">New Client</h1>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">
+            Add a new client to your CRM
+          </p>
+        </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+        <div className="bg-red-100 border-2 border-red-400 text-red-800 p-4 rounded-lg text-sm font-semibold shadow-md">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
         {/* Basic Information */}
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Client Information</h2>
+        <Card className="p-6 md:p-8 space-y-6">
+          <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Client Information</h2>
 
           <div>
             <Label htmlFor="name">Full Name *</Label>
@@ -288,9 +293,9 @@ export default function NewClientPage() {
 
         {/* Insurance & Helper Bee's - Only show if company has insurance billing enabled */}
         {companyHasInsurance && (
-        <Card className={`p-6 space-y-4 ${formData.hasInsurance ? 'bg-blue-50 border-2 border-blue-500' : ''}`}>
+        <Card className={`p-6 md:p-8 space-y-6 ${formData.hasInsurance ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500 dark:border-blue-600' : ''}`}>
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-xl">
+            <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">
               Insurance & Helper Bee's Information
             </h2>
             <label className="flex items-center gap-3 cursor-pointer bg-white p-3 rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors">
@@ -468,8 +473,8 @@ export default function NewClientPage() {
         )}
 
         {/* Primary Address with Autocomplete */}
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Primary Address</h2>
+        <Card className="p-6 md:p-8 space-y-6">
+          <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Primary Address</h2>
 
           <AddressAutocomplete
             onAddressSelect={handleAddressSelect}
@@ -481,8 +486,8 @@ export default function NewClientPage() {
         </Card>
 
         {/* Property Details */}
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Property Details (Optional)</h2>
+        <Card className="p-6 md:p-8 space-y-6">
+          <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Property Details <span className="text-base font-normal text-gray-500">(Optional)</span></h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -566,8 +571,8 @@ export default function NewClientPage() {
         </Card>
 
         {/* Cleaner Notes */}
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Cleaner Notes</h2>
+        <Card className="p-6 md:p-8 space-y-6">
+          <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Cleaner Notes</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -617,11 +622,11 @@ export default function NewClientPage() {
           </div>
         </Card>
 
-        <div className="flex gap-3">
-          <Button type="submit" disabled={loading} className="flex-1">
+        <div className="flex gap-4 pt-4">
+          <Button type="submit" disabled={loading} className="flex-1 h-12 text-base font-semibold">
             {loading ? 'Creating...' : 'Create Client'}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} className="h-12 px-8 text-base font-semibold">
             Cancel
           </Button>
         </div>
