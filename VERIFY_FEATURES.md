@@ -115,6 +115,60 @@ This document helps verify that all new features are properly deployed and funct
     - Provides valuable data for cleaner performance
     - Builds customer trust and transparency
 
+### 8. Financial Dashboard Enhancement ✅
+- **Location**: `/reports/financial`
+- **Access**: Owner/Admin only
+- **Features**:
+  - **Key Metrics Cards**:
+    - Total Revenue (with paid/unpaid breakdown)
+    - Gross Profit with profit margin percentage
+    - Average Booking Value
+    - Outstanding Invoices (count and amount)
+    - Gradient backgrounds with icons
+    - Dark mode support
+  - **Period Filtering**:
+    - All Time view
+    - This Year
+    - This Quarter
+    - This Month
+    - Real-time data refresh
+  - **Revenue Trends Chart**:
+    - 12-month historical line chart
+    - Revenue, Profit, and Wages comparison
+    - Interactive tooltips with formatted currency
+    - Trend visualization
+  - **Service Type Performance**:
+    - Bar chart comparing revenue vs profit
+    - Profit margin analysis by service type
+    - Average price per service type
+    - Count of bookings per service
+  - **Payment Methods Analysis**:
+    - Pie chart showing payment distribution
+    - Percentage breakdown
+    - Visual color coding
+  - **Top 10 Customers**:
+    - Revenue ranking with medal system (🥇🥈🥉)
+    - Total revenue per customer
+    - Booking count
+    - Average booking value
+    - Sortable table
+  - **Customer Segmentation**:
+    - New vs returning customer analysis
+    - Revenue breakdown
+    - Customer acquisition insights
+  - **Financial Calculations**:
+    - Automatic wage calculation (hourly rate × duration)
+    - Profit margins (revenue - wages)
+    - Customer Lifetime Value (CLV)
+    - Outstanding invoice tracking
+  - **Benefits**:
+    - Data-driven business decisions
+    - Identify most profitable services
+    - Track revenue trends and patterns
+    - Understand customer value
+    - Monitor cash flow and receivables
+    - Comprehensive financial visibility
+
 ## Verification Steps
 
 ### For Performance Dashboard
@@ -231,6 +285,82 @@ This document helps verify that all new features are properly deployed and funct
 2. Try reviewing without selecting stars - should show error
 3. Verify only completed bookings show review button
 4. Upcoming/scheduled bookings should not have review option
+
+### For Financial Dashboard
+
+**Accessing the Dashboard:**
+1. Log in as OWNER or ADMIN user
+2. Navigate to "Reports" → "Financial" in the sidebar
+3. Or go directly to `/reports/financial`
+4. Should see Financial Dashboard page load
+
+**Testing Key Metrics:**
+1. Verify 4 metric cards display at top:
+   - Total Revenue (blue gradient)
+   - Gross Profit (green gradient with margin %)
+   - Average Booking Value (purple gradient)
+   - Outstanding Invoices (orange gradient)
+2. Each card should show formatted currency amounts
+3. Check that Total Revenue shows booking count
+4. Verify Outstanding Invoices shows count
+
+**Testing Period Filters:**
+1. Click period dropdown (top right)
+2. Select "This Month"
+3. Verify data updates to show only current month
+4. Try "This Quarter" - data should update
+5. Try "This Year" - data should update
+6. Select "All Time" - should show all historical data
+
+**Testing Charts:**
+1. **Revenue Trends (Line Chart)**:
+   - Scroll to line chart showing 12 months
+   - Hover over data points - should show tooltips with amounts
+   - Verify three lines: Revenue (blue), Profit (green), Wages (orange)
+   - Check legend displays correctly
+
+2. **Service Type Performance (Bar Chart)**:
+   - Verify bar chart shows service types (STANDARD, DEEP, MOVE_OUT)
+   - Should show two bars per service: Revenue (blue) and Profit (green)
+   - Hover for detailed amounts
+
+3. **Payment Methods (Pie Chart)**:
+   - Verify pie chart shows payment distribution
+   - Labels should show method and percentage
+   - Hover for exact amounts
+
+**Testing Top Customers Table:**
+1. Scroll to "Top 10 Customers by Revenue" section
+2. Verify table shows up to 10 customers
+3. Check ranking medals:
+   - 1st place: Gold medal (🥇)
+   - 2nd place: Silver medal (🥈)
+   - 3rd place: Bronze medal (🥉)
+4. Verify columns display:
+   - Rank (with medal)
+   - Customer name
+   - Total revenue (green)
+   - Booking count
+   - Average per booking
+
+**Testing Calculations:**
+1. Verify profit calculations are accurate
+2. Check that profit margin percentages display correctly
+3. Verify wage calculations (should be hourly rate × hours worked)
+4. Outstanding invoices should match unpaid bookings
+
+**Testing Dark Mode:**
+1. Toggle dark mode using theme switcher
+2. Verify all charts render correctly in dark mode
+3. Check that gradient cards have proper dark mode styling
+4. Verify text contrast is readable
+
+**Access Control:**
+1. Log out from OWNER/ADMIN account
+2. Log in as CLEANER user
+3. Try to access `/reports/financial`
+4. Should be redirected or see "Forbidden" message
+5. Verify CUSTOMER role also cannot access
 
 ## Common Issues & Solutions
 
@@ -432,6 +562,7 @@ npm run dev
 | Customer Preferences | ✅ Completed | Committed in 358065b |
 | Customer Self-Service Portal | ✅ Completed | Committed in c0c98df |
 | Customer Review System | ✅ Completed | Committed in c3c1494 |
+| Financial Dashboard Enhancement | ✅ Completed | Committed in 268d0af |
 
 ## Contact
 
