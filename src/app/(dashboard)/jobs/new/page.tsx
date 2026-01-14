@@ -59,6 +59,10 @@ export default function NewJobPage() {
   const [error, setError] = useState('');
   const [useDetailedPricing, setUseDetailedPricing] = useState(false);
 
+  // Business timezone
+  const [businessTimezone, setBusinessTimezone] = useState<string>('America/Los_Angeles');
+  const [timezoneAbbr, setTimezoneAbbr] = useState<string>('PST/PDT');
+
   // Time validation state
   const [timeWarning, setTimeWarning] = useState('');
   const [showTimeWarning, setShowTimeWarning] = useState(false);
@@ -111,7 +115,40 @@ export default function NewJobPage() {
   useEffect(() => {
     fetchClients();
     fetchCleaners();
+    fetchBusinessTimezone();
   }, []);
+
+  const fetchBusinessTimezone = async () => {
+    try {
+      const response = await fetch('/api/company/settings');
+      const data = await response.json();
+
+      if (data.success && data.data.timezone) {
+        setBusinessTimezone(data.data.timezone);
+        // Get timezone abbreviation
+        const abbr = getTimezoneAbbreviation(data.data.timezone);
+        setTimezoneAbbr(abbr);
+      }
+    } catch (error) {
+      console.error('Failed to fetch business timezone:', error);
+      // Keep default PST/PDT if fetch fails
+    }
+  };
+
+  const getTimezoneAbbreviation = (timezone: string): string => {
+    // Common timezone mappings
+    const timezoneMap: Record<string, string> = {
+      'America/Los_Angeles': 'PST/PDT',
+      'America/New_York': 'EST/EDT',
+      'America/Chicago': 'CST/CDT',
+      'America/Denver': 'MST/MDT',
+      'America/Phoenix': 'MST',
+      'America/Anchorage': 'AKST/AKDT',
+      'Pacific/Honolulu': 'HST',
+    };
+
+    return timezoneMap[timezone] || timezone.split('/').pop()?.replace(/_/g, ' ') || 'Local Time';
+  };
 
   // Pre-fill form when duplicating a job
   useEffect(() => {
@@ -347,7 +384,7 @@ export default function NewJobPage() {
     }));
   };
 
-  // Validate time is within PST business hours
+  // Validate time is within business hours
   const validateScheduleTime = (): { isValid: boolean; warning: string } => {
     if (!formData.scheduledTime || !formData.duration) {
       return { isValid: true, warning: '' };
@@ -357,7 +394,7 @@ export default function NewJobPage() {
     const [hours, minutes] = formData.scheduledTime.split(':').map(Number);
     const startTimeMinutes = hours * 60 + minutes;
 
-    // PST business hours: 8am (480 min) to 5pm (1020 min)
+    // Business hours: 8am to 5pm start, 8pm end (in business local time)
     const MIN_START_TIME = 8 * 60; // 8am in minutes
     const MAX_START_TIME = 17 * 60; // 5pm in minutes
     const MAX_END_TIME = 20 * 60; // 8pm in minutes
@@ -369,14 +406,14 @@ export default function NewJobPage() {
     if (startTimeMinutes < MIN_START_TIME) {
       return {
         isValid: false,
-        warning: `⚠️ Start time is before 8:00 AM PST. Recommended start time is between 8:00 AM and 5:00 PM PST.`
+        warning: `⚠️ Start time is before 8:00 AM ${timezoneAbbr}. Recommended start time is between 8:00 AM and 5:00 PM ${timezoneAbbr}.`
       };
     }
 
     if (startTimeMinutes > MAX_START_TIME) {
       return {
         isValid: false,
-        warning: `⚠️ Start time is after 5:00 PM PST. Recommended start time is between 8:00 AM and 5:00 PM PST.`
+        warning: `⚠️ Start time is after 5:00 PM ${timezoneAbbr}. Recommended start time is between 8:00 AM and 5:00 PM ${timezoneAbbr}.`
       };
     }
 
@@ -388,7 +425,7 @@ export default function NewJobPage() {
 
       return {
         isValid: false,
-        warning: `⚠️ This job will end at ${endTimeStr} PST, which is after 8:00 PM PST. Please adjust the start time or duration.`
+        warning: `⚠️ This job will end at ${endTimeStr} ${timezoneAbbr}, which is after 8:00 PM ${timezoneAbbr}. Please adjust the start time or duration.`
       };
     }
 
@@ -517,11 +554,11 @@ export default function NewJobPage() {
               </p>
               <div className="bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 rounded-lg p-3 mb-4">
                 <p className="text-xs text-amber-900 dark:text-amber-100 font-semibold">
-                  <strong>PST Business Hours:</strong>
+                  <strong>Business Hours ({timezoneAbbr}):</strong>
                 </p>
                 <ul className="text-xs text-amber-800 dark:text-amber-200 mt-1 ml-4 list-disc">
-                  <li>Start time: 8:00 AM - 5:00 PM PST</li>
-                  <li>End time: No later than 8:00 PM PST</li>
+                  <li>Start time: 8:00 AM - 5:00 PM {timezoneAbbr}</li>
+                  <li>End time: No later than 8:00 PM {timezoneAbbr}</li>
                 </ul>
               </div>
               <div className="flex gap-3">
@@ -618,7 +655,7 @@ export default function NewJobPage() {
           <div>
             <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Schedule</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-              ⏰ All times are in <strong>Pacific Time (PST/PDT)</strong>
+              ⏰ All times are in <strong>{timezoneAbbr}</strong> (Business Local Time)
             </p>
           </div>
 
@@ -646,7 +683,7 @@ export default function NewJobPage() {
                 required
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Recommended: 8:00 AM - 5:00 PM PST
+                Recommended: 8:00 AM - 5:00 PM {timezoneAbbr}
               </p>
             </div>
           </div>
@@ -661,7 +698,7 @@ export default function NewJobPage() {
                   const endMinutes = startMinutes + parseInt(formData.duration);
                   const endHours = Math.floor(endMinutes / 60);
                   const endMins = endMinutes % 60;
-                  return `${endHours % 12 || 12}:${endMins.toString().padStart(2, '0')} ${endHours >= 12 ? 'PM' : 'AM'} PST`;
+                  return `${endHours % 12 || 12}:${endMins.toString().padStart(2, '0')} ${endHours >= 12 ? 'PM' : 'AM'} ${timezoneAbbr}`;
                 })()}
                 {(() => {
                   const [hours, minutes] = formData.scheduledTime.split(':').map(Number);

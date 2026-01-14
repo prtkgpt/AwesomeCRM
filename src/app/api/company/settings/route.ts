@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
         morningOfReminderTime: true,
         businessType: true,
         enabledFeatures: true,
+        timezone: true,
         createdAt: true,
         // Don't send auth tokens for security
       },
