@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime, formatCurrency, formatDuration } from '@/lib/utils';
 import type { ClientWithAddresses, BookingWithRelations } from '@/types';
+import { PreferenceForm } from '@/components/client/preference-form';
 
 export default function ClientDetailPage() {
   const router = useRouter();
@@ -464,6 +465,17 @@ export default function ClientDetailPage() {
             )}
           </div>
         )}
+      </Card>
+
+      {/* Customer Preferences Section */}
+      <Card className="p-4 md:p-6 space-y-3">
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <StickyNote className="h-5 w-5" />
+          Customer Preferences
+        </h2>
+        <div className="pt-2">
+          <PreferenceForm clientId={clientId} />
+        </div>
       </Card>
 
       {/* Invoices Section */}

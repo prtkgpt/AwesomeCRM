@@ -24,6 +24,24 @@ interface Job {
   client: {
     name: string;
     phone: string | null;
+    preferences?: {
+      cleaningSequence?: string | null;
+      areasToFocus?: string | null;
+      areasToAvoid?: string | null;
+      productAllergies?: string | null;
+      preferredProducts?: string | null;
+      avoidScents?: boolean;
+      scentPreferences?: string | null;
+      petHandlingInstructions?: string | null;
+      petFeedingNeeded?: boolean;
+      petFeedingInstructions?: string | null;
+      keyLocation?: string | null;
+      alarmCode?: string | null;
+      entryInstructions?: string | null;
+      specialRequests?: string | null;
+      thingsToKnow?: string | null;
+      temperaturePreferences?: string | null;
+    } | null;
   };
   address: {
     street: string;
@@ -329,6 +347,103 @@ export default function CleanerDashboardPage() {
                         )}
                         {job.clockedOutAt && (
                           <p>✅ Clocked Out: {formatTime(job.clockedOutAt)}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer Preferences */}
+                  {job.client.preferences && (
+                    <div className="mt-3 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border-2 border-indigo-200 dark:border-indigo-800 rounded-lg">
+                      <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100 mb-3 flex items-center gap-2">
+                        <span className="text-lg">⭐</span> Customer Preferences
+                      </p>
+                      <div className="space-y-2 text-sm">
+                        {job.client.preferences.cleaningSequence && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">Cleaning Order:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.cleaningSequence}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.areasToFocus && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-green-800 dark:text-green-300">Focus Areas:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.areasToFocus}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.areasToAvoid && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-red-800 dark:text-red-300">⚠️ Areas to Avoid:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.areasToAvoid}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.productAllergies && (
+                          <div className="bg-red-50 dark:bg-red-950/30 p-2 rounded border border-red-200 dark:border-red-800">
+                            <p className="text-xs font-semibold text-red-800 dark:text-red-300">🚨 ALLERGIES:</p>
+                            <p className="font-medium text-red-900 dark:text-red-200">{job.client.preferences.productAllergies}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.preferredProducts && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Preferred Products:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.preferredProducts}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.avoidScents && (
+                          <div className="bg-yellow-50 dark:bg-yellow-950/30 p-2 rounded border border-yellow-200 dark:border-yellow-800">
+                            <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300">⚠️ Scent-Free Required</p>
+                            {job.client.preferences.scentPreferences && (
+                              <p className="text-gray-700 dark:text-gray-300 text-xs mt-1">{job.client.preferences.scentPreferences}</p>
+                            )}
+                          </div>
+                        )}
+                        {job.client.preferences.petHandlingInstructions && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">🐾 Pet Instructions:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.petHandlingInstructions}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.petFeedingNeeded && job.client.preferences.petFeedingInstructions && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">🍖 Pet Feeding:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.petFeedingInstructions}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.keyLocation && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-300">🔑 Key Location:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.keyLocation}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.alarmCode && (
+                          <div className="bg-orange-50 dark:bg-orange-950/30 p-2 rounded border border-orange-200 dark:border-orange-800">
+                            <p className="text-xs font-semibold text-orange-800 dark:text-orange-300">🔐 Alarm Code:</p>
+                            <p className="font-mono font-bold text-orange-900 dark:text-orange-200">{job.client.preferences.alarmCode}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.entryInstructions && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-300">🚪 Entry Instructions:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.entryInstructions}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.temperaturePreferences && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-300">🌡️ Temperature:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.temperaturePreferences}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.specialRequests && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">📝 Special Requests:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.specialRequests}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.thingsToKnow && (
+                          <div className="bg-blue-50 dark:bg-blue-950/30 p-2 rounded border border-blue-200 dark:border-blue-800">
+                            <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">💡 Important Info:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.thingsToKnow}</p>
+                          </div>
                         )}
                       </div>
                     </div>

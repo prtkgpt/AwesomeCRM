@@ -291,6 +291,9 @@ model Client {
   referralTierBonusEarned  Float     @default(0) // Total bonus credits from achieving tiers
   referralCreditTransactions ReferralCreditTransaction[] // Individual credit transactions
 
+  // Customer Preferences
+  preferences              ClientPreference?
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -328,6 +331,57 @@ model ReferralCreditTransaction {
   @@index([status])
   @@index([expiresAt])
   @@index([createdAt])
+}
+
+// ============================================
+// CUSTOMER PREFERENCES
+// ============================================
+
+model ClientPreference {
+  id              String    @id @default(cuid())
+
+  clientId        String    @unique
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Cleaning Sequence & Priorities
+  cleaningSequence        String?   // e.g., "Start with kitchen, then bathrooms"
+  areasToFocus            String?   // e.g., "Extra attention to kitchen counters and floors"
+  areasToAvoid            String?   // e.g., "Don't move items on desk, avoid master bedroom closet"
+
+  // Product Sensitivities & Allergies
+  productAllergies        String?   // e.g., "Allergic to bleach, use only natural products"
+  preferredProducts       String?   // e.g., "Customer provides own eco-friendly products"
+  avoidScents             Boolean   @default(false)
+  scentPreferences        String?   // e.g., "Lavender OK, no citrus"
+
+  // Pet Handling
+  petHandlingInstructions String?   // e.g., "Keep dog in backyard during cleaning, cat is shy"
+  petFeedingNeeded        Boolean   @default(false)
+  petFeedingInstructions  String?   // e.g., "Feed cat if visit is over 2 hours"
+
+  // Communication Preferences
+  preferredContactMethod  String?   // "SMS", "Email", "Phone"
+  notificationPreferences String?   // e.g., "Text 30 min before arrival, no calls"
+  languagePreference      String?   // e.g., "Spanish", "English"
+
+  // Access & Entry
+  keyLocation             String?   // e.g., "Spare key under flower pot"
+  alarmCode               String?   // Home alarm code
+  entryInstructions       String?   // e.g., "Use back door, front door lock is broken"
+
+  // Special Instructions
+  specialRequests         String?   // e.g., "Please water plants in living room"
+  thingsToKnow            String?   // e.g., "Toilet in hall bath doesn't flush well"
+  temperaturePreferences  String?   // e.g., "Please keep AC at 72°F"
+
+  // Previous Visit Notes (auto-populated)
+  lastVisitNotes          String?   // Notes from cleaner's last visit
+  lastVisitDate           DateTime? // When was last cleaned
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([clientId])
 }
 
 model Address {

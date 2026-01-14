@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
           select: {
             name: true,
             phone: true,
+            preferences: true, // Include client preferences
           },
         },
         address: {
@@ -129,6 +130,7 @@ export async function GET(request: NextRequest) {
           select: {
             name: true,
             phone: true,
+            preferences: true, // Include client preferences
           },
         },
         address: {
