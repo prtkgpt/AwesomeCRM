@@ -169,6 +169,53 @@ This document helps verify that all new features are properly deployed and funct
     - Monitor cash flow and receivables
     - Comprehensive financial visibility
 
+### 9. Recurring Booking Management (Subscriptions) ✅
+- **Location**: `/subscriptions`
+- **Access**: Owner/Admin only
+- **Features**:
+  - **Subscription Dashboard**:
+    - View all recurring booking subscriptions
+    - Filter by status (All, Active, Paused, Completed)
+    - Summary statistics cards
+    - Total subscriptions count
+    - Monthly recurring revenue estimate
+    - Active subscriptions tracking
+  - **Subscription Details**:
+    - Client and address information
+    - Service type and pricing
+    - Frequency (Weekly, Biweekly, Monthly)
+    - Start date and end date
+    - Next booking date
+    - Assigned cleaner
+    - Booking counts (total, completed, upcoming)
+    - Revenue metrics (total, paid, unpaid)
+  - **Pause/Resume Functionality**:
+    - Pause active subscriptions
+    - Cancels all future scheduled bookings
+    - Resume paused subscriptions
+    - Generates new future bookings
+    - Confirmation dialogs for safety
+    - Loading states during operations
+  - **Status Tracking**:
+    - ACTIVE: Currently generating bookings
+    - PAUSED: Temporarily stopped
+    - COMPLETED: Reached end date
+    - CANCELLED: Permanently stopped
+  - **Visual Design**:
+    - Color-coded status badges
+    - Gradient statistic cards
+    - Responsive layout
+    - Dark mode support
+    - Action buttons (Pause/Resume/View Jobs)
+  - **Benefits**:
+    - Manage recurring revenue streams
+    - Handle customer pause requests easily
+    - Track subscription performance
+    - Identify high-value subscriptions
+    - Improve customer retention
+    - Reduce manual booking creation
+    - Automated revenue generation
+
 ## Verification Steps
 
 ### For Performance Dashboard
@@ -361,6 +408,89 @@ This document helps verify that all new features are properly deployed and funct
 3. Try to access `/reports/financial`
 4. Should be redirected or see "Forbidden" message
 5. Verify CUSTOMER role also cannot access
+
+### For Recurring Booking Management
+
+**Creating a Recurring Booking:**
+1. Log in as OWNER or ADMIN user
+2. Go to "Jobs" → "New Job" (`/jobs/new`)
+3. Fill in client, address, and service details
+4. Scroll to "Recurring Job" section
+5. Check "Make this a recurring job"
+6. Select frequency (Weekly, Biweekly, or Monthly)
+7. Optionally set end date (or leave blank for 1 year)
+8. Click "Create Job"
+9. Verify confirmation message shows number of bookings created
+
+**Accessing Subscription Management:**
+1. Log in as OWNER or ADMIN user
+2. Click "Subscriptions" in sidebar navigation
+3. Should load `/subscriptions` page
+4. Verify subscription dashboard displays
+
+**Testing Dashboard Statistics:**
+1. On subscriptions page, verify 4 stat cards:
+   - Total Subscriptions (blue)
+   - Monthly Recurring (green - estimated monthly revenue)
+   - Total Revenue (purple - all subscription revenue)
+   - Active Subscriptions (orange - currently active count)
+2. Numbers should match subscription data
+
+**Testing Filters:**
+1. Click "ALL" filter - shows all subscriptions
+2. Click "ACTIVE" filter - shows only active subscriptions
+3. Click "PAUSED" filter - shows only paused subscriptions
+4. Click "COMPLETED" filter - shows only completed subscriptions
+5. Badge counts should update correctly
+
+**Testing Subscription Cards:**
+1. Each subscription card should display:
+   - Client name with status badge
+   - Frequency badge (Weekly/Biweekly/Monthly)
+   - Address, service type, price
+   - Assigned cleaner (if any)
+   - Start date, end date, next booking date
+   - Total bookings count
+   - Completed and upcoming counts
+   - Revenue metrics (total and paid)
+2. Verify all information is accurate
+
+**Testing Pause Functionality:**
+1. Find an ACTIVE subscription
+2. Click "Pause" button
+3. Confirm in dialog
+4. Wait for "Paused. X future bookings cancelled" message
+5. Subscription status should change to "PAUSED"
+6. "Pause" button should change to "Resume" button
+7. Go to Jobs page - verify future bookings are cancelled
+
+**Testing Resume Functionality:**
+1. Find a PAUSED subscription
+2. Click "Resume" button
+3. Confirm in dialog
+4. Wait for "Resumed. X future bookings created" message
+5. Subscription status should change back to "ACTIVE"
+6. "Resume" button should change to "Pause" button
+7. Go to Jobs page - verify new future bookings exist
+
+**Testing View Jobs:**
+1. On any subscription card, click "View Jobs" button
+2. Should navigate to Jobs page filtered by that client
+3. All bookings for that client should display
+
+**Testing Access Control:**
+1. Log out from OWNER/ADMIN account
+2. Log in as CLEANER user
+3. Verify "Subscriptions" link doesn't appear in sidebar
+4. Try to access `/subscriptions` directly
+5. Should be redirected or see "Forbidden" message
+6. CUSTOMER role also should not have access
+
+**Error Handling:**
+1. Try pausing an already paused subscription - should show error
+2. Try resuming an active subscription - should show error
+3. Test with subscription that has no future bookings
+4. Verify loading states during pause/resume operations
 
 ## Common Issues & Solutions
 
@@ -563,6 +693,7 @@ npm run dev
 | Customer Self-Service Portal | ✅ Completed | Committed in c0c98df |
 | Customer Review System | ✅ Completed | Committed in c3c1494 |
 | Financial Dashboard Enhancement | ✅ Completed | Committed in 268d0af |
+| Recurring Booking Management | ✅ Completed | Committed in 99a5317 |
 
 ## Contact
 
