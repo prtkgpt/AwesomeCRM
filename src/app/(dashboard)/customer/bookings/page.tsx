@@ -5,8 +5,9 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, MapPin, DollarSign } from 'lucide-react';
+import { Calendar, Clock, MapPin, DollarSign, Star } from 'lucide-react';
 import { formatDuration } from '@/lib/utils';
+import { ReviewModal } from '@/components/review/review-modal';
 
 interface Booking {
   id: string;
@@ -16,6 +17,13 @@ interface Booking {
   status: string;
   price: number;
   notes: string | null;
+  customerRating: number | null;
+  customerFeedback: string | null;
+  assignee?: {
+    user: {
+      name: string;
+    };
+  } | null;
   address: {
     street: string;
     city: string;
@@ -30,6 +38,8 @@ export default function CustomerBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed'>('upcoming');
   const [loading, setLoading] = useState(true);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -88,6 +98,16 @@ export default function CustomerBookingsPage() {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleLeaveReview = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setReviewModalOpen(true);
+  };
+
+  const handleReviewSuccess = () => {
+    // Refresh bookings to show the new review
+    fetchBookings();
   };
 
   if (loading) {
@@ -183,8 +203,56 @@ export default function CustomerBookingsPage() {
               </div>
 
               {booking.notes && (
-                <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded">
-                  <p className="text-sm text-gray-700">{booking.notes}</p>
+                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{booking.notes}</p>
+                </div>
+              )}
+
+              {/* Review Display/Button */}
+              {booking.status === 'COMPLETED' && (
+                <div className="mt-4">
+                  {booking.customerRating ? (
+                    <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/30 dark:to-orange-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Your Review
+                          </p>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-5 w-5 ${
+                                  star <= (booking.customerRating || 0)
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300 dark:text-gray-600'
+                                }`}
+                              />
+                            ))}
+                            <span className="ml-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                              {booking.customerRating}/5
+                            </span>
+                          </div>
+                          {booking.customerFeedback && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                              "{booking.customerFeedback}"
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-green-600 dark:text-green-400 text-sm font-medium">
+                          ✓ Reviewed
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => handleLeaveReview(booking)}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white"
+                    >
+                      <Star className="h-4 w-4 mr-2" />
+                      Leave a Review
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -200,6 +268,20 @@ export default function CustomerBookingsPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewModalOpen && selectedBooking && (
+        <ReviewModal
+          bookingId={selectedBooking.id}
+          serviceType={selectedBooking.serviceType}
+          cleanerName={selectedBooking.assignee?.user?.name}
+          onClose={() => {
+            setReviewModalOpen(false);
+            setSelectedBooking(null);
+          }}
+          onSuccess={handleReviewSuccess}
+        />
       )}
     </div>
   );
