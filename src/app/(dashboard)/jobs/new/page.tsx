@@ -59,6 +59,11 @@ export default function NewJobPage() {
   const [error, setError] = useState('');
   const [useDetailedPricing, setUseDetailedPricing] = useState(false);
 
+  // Time validation state
+  const [timeWarning, setTimeWarning] = useState('');
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const [overrideTimeValidation, setOverrideTimeValidation] = useState(false);
+
   // Booking adjustments
   const [adjustPrice, setAdjustPrice] = useState(false);
   const [adjustTime, setAdjustTime] = useState(false);
@@ -342,6 +347,54 @@ export default function NewJobPage() {
     }));
   };
 
+  // Validate time is within PST business hours
+  const validateScheduleTime = (): { isValid: boolean; warning: string } => {
+    if (!formData.scheduledTime || !formData.duration) {
+      return { isValid: true, warning: '' };
+    }
+
+    // Parse the time (format: HH:MM)
+    const [hours, minutes] = formData.scheduledTime.split(':').map(Number);
+    const startTimeMinutes = hours * 60 + minutes;
+
+    // PST business hours: 8am (480 min) to 5pm (1020 min)
+    const MIN_START_TIME = 8 * 60; // 8am in minutes
+    const MAX_START_TIME = 17 * 60; // 5pm in minutes
+    const MAX_END_TIME = 20 * 60; // 8pm in minutes
+
+    // Calculate end time
+    const endTimeMinutes = startTimeMinutes + parseInt(formData.duration);
+
+    // Check start time
+    if (startTimeMinutes < MIN_START_TIME) {
+      return {
+        isValid: false,
+        warning: `⚠️ Start time is before 8:00 AM PST. Recommended start time is between 8:00 AM and 5:00 PM PST.`
+      };
+    }
+
+    if (startTimeMinutes > MAX_START_TIME) {
+      return {
+        isValid: false,
+        warning: `⚠️ Start time is after 5:00 PM PST. Recommended start time is between 8:00 AM and 5:00 PM PST.`
+      };
+    }
+
+    // Check end time
+    if (endTimeMinutes > MAX_END_TIME) {
+      const endHours = Math.floor(endTimeMinutes / 60);
+      const endMins = endTimeMinutes % 60;
+      const endTimeStr = `${endHours % 12 || 12}:${endMins.toString().padStart(2, '0')} ${endHours >= 12 ? 'PM' : 'AM'}`;
+
+      return {
+        isValid: false,
+        warning: `⚠️ This job will end at ${endTimeStr} PST, which is after 8:00 PM PST. Please adjust the start time or duration.`
+      };
+    }
+
+    return { isValid: true, warning: '' };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -364,6 +417,18 @@ export default function NewJobPage() {
       console.error('Form validation failed. Missing fields:', missingFields);
       console.error('Current form data:', formData);
       return;
+    }
+
+    // Validate schedule time (PST business hours)
+    if (!overrideTimeValidation) {
+      const timeValidation = validateScheduleTime();
+      if (!timeValidation.isValid) {
+        setTimeWarning(timeValidation.warning);
+        setShowTimeWarning(true);
+        setLoading(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
     }
 
     try {
@@ -436,6 +501,63 @@ export default function NewJobPage() {
         <div className="bg-red-100 border-2 border-red-400 text-red-800 p-4 rounded-lg text-sm font-semibold shadow-md flex items-start gap-3">
           <span className="text-2xl">⚠️</span>
           <div className="flex-1">{error}</div>
+        </div>
+      )}
+
+      {showTimeWarning && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-400 dark:border-amber-600 p-6 rounded-xl shadow-lg space-y-4">
+          <div className="flex items-start gap-3">
+            <span className="text-3xl">⏰</span>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-amber-900 dark:text-amber-100 mb-2">
+                Schedule Time Warning
+              </h3>
+              <p className="text-sm text-amber-800 dark:text-amber-200 mb-4">
+                {timeWarning}
+              </p>
+              <div className="bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 rounded-lg p-3 mb-4">
+                <p className="text-xs text-amber-900 dark:text-amber-100 font-semibold">
+                  <strong>PST Business Hours:</strong>
+                </p>
+                <ul className="text-xs text-amber-800 dark:text-amber-200 mt-1 ml-4 list-disc">
+                  <li>Start time: 8:00 AM - 5:00 PM PST</li>
+                  <li>End time: No later than 8:00 PM PST</li>
+                </ul>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowTimeWarning(false);
+                    setTimeWarning('');
+                  }}
+                  className="flex-1"
+                >
+                  Cancel & Edit Time
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setOverrideTimeValidation(true);
+                    setShowTimeWarning(false);
+                    setTimeWarning('');
+                    // Re-trigger form submission
+                    setTimeout(() => {
+                      const form = document.querySelector('form');
+                      if (form) {
+                        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                        form.dispatchEvent(submitEvent);
+                      }
+                    }, 100);
+                  }}
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  Override & Continue
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -523,8 +645,33 @@ export default function NewJobPage() {
                 onChange={handleChange}
                 required
               />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Recommended: 8:00 AM - 5:00 PM PST
+              </p>
             </div>
           </div>
+
+          {formData.scheduledTime && formData.duration && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+              <p className="text-xs text-blue-800 dark:text-blue-200">
+                <strong>Estimated completion:</strong>{' '}
+                {(() => {
+                  const [hours, minutes] = formData.scheduledTime.split(':').map(Number);
+                  const startMinutes = hours * 60 + minutes;
+                  const endMinutes = startMinutes + parseInt(formData.duration);
+                  const endHours = Math.floor(endMinutes / 60);
+                  const endMins = endMinutes % 60;
+                  return `${endHours % 12 || 12}:${endMins.toString().padStart(2, '0')} ${endHours >= 12 ? 'PM' : 'AM'} PST`;
+                })()}
+                {(() => {
+                  const [hours, minutes] = formData.scheduledTime.split(':').map(Number);
+                  const startMinutes = hours * 60 + minutes;
+                  const endMinutes = startMinutes + parseInt(formData.duration);
+                  return endMinutes > 20 * 60 ? ' ⚠️ (After 8:00 PM)' : '';
+                })()}
+              </p>
+            </div>
+          )}
         </Card>
 
         <Card className="p-6 md:p-8 space-y-6">
