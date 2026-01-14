@@ -34,30 +34,109 @@ export function formatPhoneNumber(phone: string): string {
 }
 
 /**
- * Format date for display in user's local timezone
- * Dates are stored in UTC and automatically converted to user's browser timezone
+ * Format date for display in PST timezone
+ * All dates shown in PST regardless of user location
+ * Example: 10 AM PST job shows as "10:00 AM PST" for everyone
  */
 export function formatDate(date: Date | string, formatStr: string = 'MMM d, yyyy'): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return format(d, formatStr);
+
+  // Convert to PST timezone for display
+  const pstString = d.toLocaleString('en-US', {
+    timeZone: COMPANY_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  // Parse the PST string back to a Date object for formatting
+  const [datePart, timePart] = pstString.split(', ');
+  const [month, day, year] = datePart.split('/');
+  const [hour, minute, second] = timePart.split(':');
+  const pstDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+                           parseInt(hour), parseInt(minute), parseInt(second));
+
+  return format(pstDate, formatStr);
 }
 
 /**
- * Format date and time for display in user's local timezone
- * Example: 10 AM PST job shows as "10:00 AM" in California, "1:00 PM" in New York
+ * Format date and time for display in PST timezone
+ * All bookings shown in PST regardless of user location
+ * Example: 10 AM PST job shows as "10:00 AM PST" for everyone
  */
 export function formatDateTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return format(d, 'MMM d, yyyy h:mm a');
+
+  // Convert to PST timezone for display
+  const pstString = d.toLocaleString('en-US', {
+    timeZone: COMPANY_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  // Parse the PST string back to a Date object for formatting
+  const [datePart, timePart] = pstString.split(', ');
+  const [month, day, year] = datePart.split('/');
+  const [hour, minute, second] = timePart.split(':');
+  const pstDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+                           parseInt(hour), parseInt(minute), parseInt(second));
+
+  const formatted = format(pstDate, 'MMM d, yyyy h:mm a');
+
+  // Add PST/PDT indicator
+  const monthNum = pstDate.getMonth();
+  // DST runs roughly March-November in PST
+  const isDST = monthNum >= 2 && monthNum <= 10;
+  const tzAbbr = isDST ? 'PDT' : 'PST';
+
+  return `${formatted} ${tzAbbr}`;
 }
 
 /**
- * Format time only in user's local timezone
- * Example: 10 AM PST job shows as "10:00 AM" in California, "1:00 PM" in New York
+ * Format time only in PST timezone
+ * All times shown in PST regardless of user location
+ * Example: 10 AM PST job shows as "10:00 AM PST" for everyone
  */
 export function formatTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return format(d, 'h:mm a');
+
+  // Convert to PST timezone for display
+  const pstString = d.toLocaleString('en-US', {
+    timeZone: COMPANY_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  // Parse the PST string back to a Date object for formatting
+  const [datePart, timePart] = pstString.split(', ');
+  const [month, day, year] = datePart.split('/');
+  const [hour, minute, second] = timePart.split(':');
+  const pstDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+                           parseInt(hour), parseInt(minute), parseInt(second));
+
+  const formatted = format(pstDate, 'h:mm a');
+
+  // Add PST/PDT indicator
+  const monthNum = pstDate.getMonth();
+  // DST runs roughly March-November in PST
+  const isDST = monthNum >= 2 && monthNum <= 10;
+  const tzAbbr = isDST ? 'PDT' : 'PST';
+
+  return `${formatted} ${tzAbbr}`;
 }
 
 /**

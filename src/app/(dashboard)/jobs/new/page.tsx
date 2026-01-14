@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import type { ClientWithAddresses } from '@/types';
+import { createPSTDate } from '@/lib/timezone';
 
 // Pricing configuration
 const HOURLY_RATE = 50.00;
@@ -366,14 +367,13 @@ export default function NewJobPage() {
     }
 
     try {
-      const scheduledDateTime = new Date(
-        `${formData.scheduledDate}T${formData.scheduledTime}`
-      );
+      // Convert date/time to PST timezone
+      const scheduledDateISO = createPSTDate(formData.scheduledDate, formData.scheduledTime);
 
       const payload = {
         clientId: formData.clientId,
         addressId: formData.addressId,
-        scheduledDate: scheduledDateTime.toISOString(),
+        scheduledDate: scheduledDateISO,
         duration: parseInt(formData.duration),
         serviceType: formData.serviceType,
         price: parseFloat(formData.price),
@@ -384,7 +384,7 @@ export default function NewJobPage() {
           ? formData.recurrenceFrequency
           : 'NONE',
         recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate
-          ? new Date(formData.recurrenceEndDate).toISOString()
+          ? createPSTDate(formData.recurrenceEndDate, '23:59')
           : undefined,
         // Insurance payment fields
         hasInsuranceCoverage: formData.hasInsuranceCoverage,
@@ -489,6 +489,9 @@ export default function NewJobPage() {
 
         <Card className="p-4 space-y-4">
           <h2 className="font-semibold text-lg">Schedule</h2>
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            ⏰ All times are in <strong>Pacific Time (PST/PDT)</strong>
+          </p>
 
           <div className="grid grid-cols-2 gap-4">
             <div>

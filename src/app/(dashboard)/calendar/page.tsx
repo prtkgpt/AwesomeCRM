@@ -651,7 +651,12 @@ export default function CalendarPage() {
           {/* Header */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl md:text-4xl font-bold">Calendar</h1>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold">Calendar</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  ⏰ All times displayed in <strong>Pacific Time (PST/PDT)</strong>
+                </p>
+              </div>
               <Link href="/jobs/new">
                 <Button size="sm">
                   <Plus className="h-4 w-4 mr-2" />
