@@ -57,6 +57,38 @@ This document helps verify that all new features are properly deployed and funct
   - Color-coded sections for easy scanning
   - Critical info highlighting (allergies, codes)
 
+### 6. Customer Self-Service Portal ✅
+- **Location**: `/customer/dashboard`, `/customer/preferences`, `/customer/profile`
+- **Features**:
+  - **Dashboard Enhancements** (`/customer/dashboard`):
+    - Personalized welcome greeting with first name
+    - New customer onboarding card with feature highlights
+    - 6 quick action shortcuts
+    - Stats overview (bookings, spending, invoices)
+  - **Preference Management** (`/customer/preferences`):
+    - Customers manage their own cleaning preferences
+    - Full access to all 20+ preference fields
+    - Same comprehensive form as admin view
+    - Real-time save feedback
+    - Organized into 6 categories with icons
+  - **Profile Management** (`/customer/profile`):
+    - Update contact information (name, email, phone)
+    - View all service addresses
+    - View account details
+    - Simple, user-friendly interface
+  - **Quick Actions Available**:
+    - View All Bookings → `/customer/bookings`
+    - View Invoices → `/customer/invoices`
+    - My Preferences → `/customer/preferences`
+    - Refer & Earn → `/referrals`
+    - My Profile → `/customer/profile`
+    - Request New Service (placeholder)
+  - **Benefits**:
+    - Reduces admin workload (customers manage own data)
+    - 24/7 self-service access
+    - Professional customer experience
+    - Empowers customers to control their service
+
 ## Verification Steps
 
 ### For Performance Dashboard
@@ -106,6 +138,43 @@ This document helps verify that all new features are properly deployed and funct
 4. Check for "⭐ Customer Preferences" section in job card
 5. Verify preferences are displayed with proper color coding
 6. Check that allergies and alarm codes are prominently highlighted
+
+### For Customer Self-Service Portal
+
+**Dashboard:**
+1. Log in as CUSTOMER user
+2. Verify personalized greeting shows first name
+3. Check stats cards display correctly (bookings, spending, etc.)
+4. Verify all 6 quick action buttons are present
+5. New customers should see onboarding welcome card
+
+**Preferences:**
+1. From dashboard, click "My Preferences" quick action
+2. Should load `/customer/preferences` page
+3. Fill out various preference fields:
+   - Cleaning order
+   - Product allergies (test alert styling)
+   - Pet instructions
+   - Alarm code
+   - Special requests
+4. Click "Save Preferences"
+5. Verify success message appears
+6. Refresh page - preferences should persist
+
+**Profile:**
+1. From dashboard, click "My Profile" quick action
+2. Should load `/customer/profile` page
+3. Update name, email, or phone
+4. Click "Save Changes"
+5. Verify success message
+6. Check that addresses are displayed (read-only)
+
+**Integration:**
+1. Set preferences as customer
+2. Log out and log in as cleaner
+3. View a job for that customer
+4. Verify preferences appear in cleaner's job card
+5. Confirm all fields display correctly
 
 ## Common Issues & Solutions
 
@@ -305,6 +374,7 @@ npm run dev
 | Referral Tiers | ✅ Completed | Committed in 84383b1 |
 | Theme Toggle Fix | ✅ Completed | Improved visibility |
 | Customer Preferences | ✅ Completed | Committed in 358065b |
+| Customer Self-Service Portal | ✅ Completed | Committed in c0c98df |
 
 ## Contact
 
