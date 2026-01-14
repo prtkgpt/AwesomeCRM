@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, TrendingUp } from 'lucide-react';
+import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, TrendingUp, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -33,6 +33,11 @@ const ownerAdminNavItems = [
     href: '/jobs',
     label: 'Jobs',
     icon: Briefcase,
+  },
+  {
+    href: '/subscriptions',
+    label: 'Subscriptions',
+    icon: Repeat,
   },
   {
     href: '/estimates',
