@@ -55,6 +55,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     // Handle animated button
     if (!disableAnimation && !disabled) {
+      // Remove drag-related props that conflict with framer-motion
+      const { onDrag, onDragEnd, onDragStart, ...motionProps } = props as any;
+
       return (
         <motion.button
           className={cn(buttonVariants({ variant, size, className }))}
@@ -62,7 +65,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           disabled={disabled}
           whileHover={{ scale: 1.02, transition: { duration: 0.15, ease: "easeOut" } }}
           whileTap={{ scale: 0.98, transition: { duration: 0.1, ease: "easeOut" } }}
-          {...props}
+          {...motionProps}
         />
       );
     }
