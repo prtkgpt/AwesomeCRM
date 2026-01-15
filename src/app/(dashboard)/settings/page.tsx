@@ -29,10 +29,16 @@ import {
   Copy,
   Check,
   Globe,
+  Plus,
+  Edit,
+  Trash2,
+  X,
+  Gift,
+  Users,
+  TrendingUp,
 } from 'lucide-react';
-import Link from 'next/link';
 
-type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import' | 'pricing';
+type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import' | 'pricing' | 'operations' | 'referral';
 
 interface UserProfile {
   id: string;
@@ -347,22 +353,17 @@ export default function SettingsPage() {
       ? [
           { id: 'company', label: 'Company', icon: Building2 },
           { id: 'import', label: 'Import Data', icon: Upload },
+          { id: 'pricing', label: 'Pricing Configuration', icon: DollarSign },
         ]
       : []),
     { id: 'preferences', label: 'Preferences', icon: Bell },
-    { id: 'about', label: 'About', icon: Info },
-  ];
-
-  const externalLinks = [
-    ...(userRole === 'OWNER' || userRole === 'ADMIN'
-      ? [{ href: '/settings/pricing', label: 'Pricing Configuration', icon: DollarSign }]
-      : []),
     ...(userRole === 'OWNER'
       ? [
-          { href: '/settings/operations', label: 'Operations', icon: Briefcase },
-          { href: '/settings/referral', label: 'Referral Program', icon: User },
+          { id: 'operations', label: 'Operations', icon: Briefcase },
+          { id: 'referral', label: 'Referral Program', icon: Gift },
         ]
       : []),
+    { id: 'about', label: 'About', icon: Info },
   ];
 
   return (
@@ -391,19 +392,6 @@ export default function SettingsPage() {
               <Icon className="h-4 w-4" />
               <span>{tab.label}</span>
             </button>
-          );
-        })}
-        {externalLinks.map((link) => {
-          const Icon = link.icon;
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all duration-200 border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300"
-            >
-              <Icon className="h-4 w-4" />
-              <span>{link.label}</span>
-            </Link>
           );
         })}
       </div>
@@ -1491,7 +1479,984 @@ export default function SettingsPage() {
               </div>
             </Card>
           )}
+
+          {/* Pricing Configuration Tab */}
+          {activeTab === 'pricing' && <PricingTabContent />}
+
+          {/* Operations Tab */}
+          {activeTab === 'operations' && <OperationsTabContent />}
+
+          {/* Referral Program Tab */}
+          {activeTab === 'referral' && <ReferralTabContent />}
       </div>
     </div>
+  );
+}
+
+// Pricing Tab Component (extracted from /settings/pricing/page.tsx)
+function PricingTabContent() {
+  const [loading, setLoading] = useState(true);
+  const [bedroomRules, setBedroomRules] = useState<any[]>([]);
+  const [bathroomRules, setBathroomRules] = useState<any[]>([]);
+  const [addonRules, setAddonRules] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [isAddingBedroom, setIsAddingBedroom] = useState(false);
+  const [isAddingBathroom, setIsAddingBathroom] = useState(false);
+  const [isAddingAddon, setIsAddingAddon] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchPricingRules();
+  }, []);
+
+  const fetchPricingRules = async () => {
+    try {
+      const response = await fetch('/api/pricing/rules');
+      const data = await response.json();
+
+      if (data.success) {
+        const bedrooms = data.data.filter((r: any) => r.type === 'BEDROOM');
+        const bathrooms = data.data.filter((r: any) => r.type === 'BATHROOM');
+        const addons = data.data.filter((r: any) => r.type === 'ADDON' || r.type === 'CUSTOM');
+
+        setBedroomRules(bedrooms);
+        setBathroomRules(bathrooms);
+        setAddonRules(addons);
+      }
+    } catch (error) {
+      console.error('Failed to fetch pricing rules:', error);
+      alert('Failed to load pricing rules');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (rule: any) => {
+    setEditingId(rule.id);
+    setEditForm(rule);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditForm({});
+    setIsAddingBedroom(false);
+    setIsAddingBathroom(false);
+    setIsAddingAddon(false);
+  };
+
+  const handleSave = async () => {
+    if (!editForm.name || editForm.price === undefined || editForm.duration === undefined) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let response;
+
+      if (editingId) {
+        response = await fetch(`/api/pricing/rules/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editForm),
+        });
+      } else {
+        response = await fetch('/api/pricing/rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editForm),
+        });
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        await fetchPricingRules();
+        handleCancelEdit();
+      } else {
+        alert(data.error || 'Failed to save pricing rule');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this pricing rule?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/pricing/rules/${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await fetchPricingRules();
+      } else {
+        alert(data.error || 'Failed to delete pricing rule');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    }
+  };
+
+  const startAddingBedroom = () => {
+    setIsAddingBedroom(true);
+    setEditForm({
+      type: 'BEDROOM',
+      name: '',
+      price: 0,
+      duration: 120,
+      display: 'BOTH',
+      sortOrder: bedroomRules.length,
+      quantity: null,
+      serviceType: null,
+      frequency: null,
+      isActive: true,
+    });
+  };
+
+  const startAddingBathroom = () => {
+    setIsAddingBathroom(true);
+    setEditForm({
+      type: 'BATHROOM',
+      name: '',
+      price: 0,
+      duration: 40,
+      display: 'BOTH',
+      sortOrder: bathroomRules.length,
+      quantity: null,
+      serviceType: null,
+      frequency: null,
+      isActive: true,
+    });
+  };
+
+  const startAddingAddon = () => {
+    setIsAddingAddon(true);
+    setEditForm({
+      type: 'ADDON',
+      name: '',
+      price: 0,
+      duration: 30,
+      display: 'BOTH',
+      sortOrder: addonRules.length,
+      quantity: null,
+      serviceType: null,
+      frequency: null,
+      isActive: true,
+    });
+  };
+
+  const formatDuration = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+
+    if (hours === 0) return `${mins}Min`;
+    if (mins === 0) return `${hours}Hr`;
+    return `${hours}Hr ${mins}Min`;
+  };
+
+  const renderTable = (rules: any[], type: string, isAdding: boolean, startAdding: () => void) => {
+    const isEditing = (isAdding && editForm.type === type) || editingId;
+
+    return (
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">{type === 'BEDROOM' ? 'Bedrooms' : type === 'BATHROOM' ? 'Bathrooms' : 'Add-ons'}</h2>
+          <Button onClick={startAdding} size="sm" disabled={!!isEditing}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add {type === 'BEDROOM' ? 'Bedroom' : type === 'BATHROOM' ? 'Bathroom' : 'Add-on'}
+          </Button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Name</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Price</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Time</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Display</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Service Category</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Frequency</th>
+                {type !== 'ADDON' && (
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</th>
+                )}
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {isAdding && editForm.type === type && (
+                <tr className="bg-blue-50 dark:bg-blue-900/20">
+                  <td className="px-4 py-3">
+                    <input
+                      type="text"
+                      value={editForm.name || ''}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                      placeholder="e.g., Studio Apartment"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="number"
+                      value={editForm.price || 0}
+                      onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                      className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                      step="0.01"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="number"
+                      value={editForm.duration || 0}
+                      onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) })}
+                      className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                      placeholder="Minutes"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={editForm.display || 'BOTH'}
+                      onChange={(e) => setEditForm({ ...editForm, display: e.target.value as any })}
+                      className="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                    >
+                      <option value="BOTH">Both</option>
+                      <option value="BOOKING">Booking</option>
+                      <option value="ESTIMATE">Estimate</option>
+                      <option value="HIDDEN">Hidden</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={editForm.serviceType || ''}
+                      onChange={(e) => setEditForm({ ...editForm, serviceType: e.target.value || null })}
+                      className="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                    >
+                      <option value="">-NA-</option>
+                      <option value="STANDARD">Standard</option>
+                      <option value="DEEP">Deep</option>
+                      <option value="MOVE_OUT">Move-Out</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={editForm.frequency || ''}
+                      onChange={(e) => setEditForm({ ...editForm, frequency: e.target.value || null })}
+                      className="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                    >
+                      <option value="">-NA-</option>
+                      <option value="ONE_TIME">One Time</option>
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="BIWEEKLY">Biweekly</option>
+                      <option value="MONTHLY">Monthly</option>
+                    </select>
+                  </td>
+                  {type !== 'ADDON' && (
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        value={editForm.quantity ?? ''}
+                        onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value ? parseFloat(e.target.value) : null })}
+                        className="w-20 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                        step="0.5"
+                        placeholder="e.g., 1"
+                      />
+                    </td>
+                  )}
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <Button onClick={handleSave} size="sm" disabled={saving}>
+                        <Save className="h-4 w-4" />
+                      </Button>
+                      <Button onClick={handleCancelEdit} size="sm" variant="outline">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {rules.map((rule) => (
+                editingId === rule.id ? (
+                  <tr key={rule.id} className="bg-blue-50 dark:bg-blue-900/20">
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        value={editForm.name || ''}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        value={editForm.price ?? 0}
+                        onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                        className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                        step="0.01"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        value={editForm.duration ?? 0}
+                        onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) })}
+                        className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={editForm.display || 'BOTH'}
+                        onChange={(e) => setEditForm({ ...editForm, display: e.target.value as any })}
+                        className="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                      >
+                        <option value="BOTH">Both</option>
+                        <option value="BOOKING">Booking</option>
+                        <option value="ESTIMATE">Estimate</option>
+                        <option value="HIDDEN">Hidden</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={editForm.serviceType || ''}
+                        onChange={(e) => setEditForm({ ...editForm, serviceType: e.target.value || null })}
+                        className="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                      >
+                        <option value="">-NA-</option>
+                        <option value="STANDARD">Standard</option>
+                        <option value="DEEP">Deep</option>
+                        <option value="MOVE_OUT">Move-Out</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={editForm.frequency || ''}
+                        onChange={(e) => setEditForm({ ...editForm, frequency: e.target.value || null })}
+                        className="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                      >
+                        <option value="">-NA-</option>
+                        <option value="ONE_TIME">One Time</option>
+                        <option value="WEEKLY">Weekly</option>
+                        <option value="BIWEEKLY">Biweekly</option>
+                        <option value="MONTHLY">Monthly</option>
+                      </select>
+                    </td>
+                    {type !== 'ADDON' && (
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          value={editForm.quantity ?? ''}
+                          onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value ? parseFloat(e.target.value) : null })}
+                          className="w-20 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                          step="0.5"
+                        />
+                      </td>
+                    )}
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <Button onClick={handleSave} size="sm" disabled={saving}>
+                          <Save className="h-4 w-4" />
+                        </Button>
+                        <Button onClick={handleCancelEdit} size="sm" variant="outline">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={rule.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td className="px-4 py-3 text-sm">{rule.name}</td>
+                    <td className="px-4 py-3 text-sm">${rule.price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm">{formatDuration(rule.duration)}</td>
+                    <td className="px-4 py-3 text-sm">{rule.display}</td>
+                    <td className="px-4 py-3 text-sm">{rule.serviceType || '-NA-'}</td>
+                    <td className="px-4 py-3 text-sm">{rule.frequency || '-NA-'}</td>
+                    {type !== 'ADDON' && (
+                      <td className="px-4 py-3 text-sm">{rule.quantity !== null ? rule.quantity : '-'}</td>
+                    )}
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <Button onClick={() => handleEdit(rule)} size="sm" variant="outline" disabled={!!isEditing}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button onClick={() => handleDelete(rule.id)} size="sm" variant="outline" disabled={!!isEditing}>
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              ))}
+              {rules.length === 0 && !isAdding && (
+                <tr>
+                  <td colSpan={type !== 'ADDON' ? 8 : 7} className="px-4 py-8 text-center text-gray-500">
+                    No pricing rules configured. Click "Add {type === 'BEDROOM' ? 'Bedroom' : type === 'BATHROOM' ? 'Bathroom' : 'Add-on'}" to get started.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading pricing settings...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Pricing Configuration</h2>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">
+          Configure your pricing for bedrooms, bathrooms, and add-on services
+        </p>
+      </div>
+
+      {renderTable(bedroomRules, 'BEDROOM', isAddingBedroom, startAddingBedroom)}
+      {renderTable(bathroomRules, 'BATHROOM', isAddingBathroom, startAddingBathroom)}
+      {renderTable(addonRules, 'ADDON', isAddingAddon, startAddingAddon)}
+    </div>
+  );
+}
+
+// Operations Tab Component (extracted from /settings/operations/page.tsx)
+function OperationsTabContent() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [expenses, setExpenses] = useState({
+    insuranceCost: 0,
+    bondCost: 0,
+    workersCompCost: 0,
+    cleaningSuppliesCost: 0,
+    gasReimbursementRate: 0,
+    vaAdminSalary: 0,
+    ownerSalary: 0,
+    otherExpenses: 0,
+  });
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/company/operations');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          setExpenses({
+            insuranceCost: data.data.insuranceCost || 0,
+            bondCost: data.data.bondCost || 0,
+            workersCompCost: data.data.workersCompCost || 0,
+            cleaningSuppliesCost: data.data.cleaningSuppliesCost || 0,
+            gasReimbursementRate: data.data.gasReimbursementRate || 0,
+            vaAdminSalary: data.data.vaAdminSalary || 0,
+            ownerSalary: data.data.ownerSalary || 0,
+            otherExpenses: data.data.otherExpenses || 0,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch expenses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch('/api/company/operations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expenses),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setMessage({ type: 'success', text: 'Operational expenses saved successfully!' });
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Failed to save expenses' });
+      }
+    } catch (error) {
+      console.error('Failed to save expenses:', error);
+      setMessage({ type: 'error', text: 'Failed to save expenses' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleInputChange = (field: keyof typeof expenses, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setExpenses((prev) => ({ ...prev, [field]: numValue }));
+  };
+
+  const totalMonthlyExpenses =
+    expenses.insuranceCost +
+    expenses.bondCost +
+    expenses.workersCompCost +
+    expenses.cleaningSuppliesCost +
+    expenses.vaAdminSalary +
+    expenses.ownerSalary +
+    expenses.otherExpenses;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading operational expenses...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Operational Expenses</h2>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">
+          Configure your monthly business expenses for accurate profit tracking
+        </p>
+      </div>
+
+      {message && (
+        <div
+          className={`p-4 rounded-lg flex items-center gap-2 ${
+            message.type === 'success'
+              ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+              : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+          }`}
+        >
+          {message.type === 'success' ? (
+            <DollarSign className="h-5 w-5" />
+          ) : (
+            <AlertCircle className="h-5 w-5" />
+          )}
+          {message.text}
+        </div>
+      )}
+
+      <Card className="p-6">
+        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <DollarSign className="h-5 w-5 text-blue-600" />
+          Monthly Fixed Expenses
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Insurance (Monthly)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={expenses.insuranceCost}
+                onChange={(e) => handleInputChange('insuranceCost', e.target.value)}
+                className="pl-7 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Business liability insurance</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Bond (Monthly)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={expenses.bondCost}
+                onChange={(e) => handleInputChange('bondCost', e.target.value)}
+                className="pl-7 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Surety bond cost</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Workers Compensation (Monthly)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={expenses.workersCompCost}
+                onChange={(e) => handleInputChange('workersCompCost', e.target.value)}
+                className="pl-7 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Workers comp insurance</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Cleaning Supplies (Monthly)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={expenses.cleaningSuppliesCost}
+                onChange={(e) => handleInputChange('cleaningSuppliesCost', e.target.value)}
+                className="pl-7 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Equipment & supplies</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              VA/Admin Salary (Monthly)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={expenses.vaAdminSalary}
+                onChange={(e) => handleInputChange('vaAdminSalary', e.target.value)}
+                className="pl-7 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Administrative staff salary</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Owner Salary (Monthly)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={expenses.ownerSalary}
+                onChange={(e) => handleInputChange('ownerSalary', e.target.value)}
+                className="pl-7 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Owner compensation</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Gas Reimbursement Rate
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={expenses.gasReimbursementRate}
+                onChange={(e) => handleInputChange('gasReimbursementRate', e.target.value)}
+                className="pl-7 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Per mile or per job</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Other Expenses (Monthly)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={expenses.otherExpenses}
+                onChange={(e) => handleInputChange('otherExpenses', e.target.value)}
+                className="pl-7 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Miscellaneous costs</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-700">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Total Monthly Operational Expenses
+            </h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Excludes gas reimbursement (calculated per job)
+            </p>
+          </div>
+          <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">
+            ${totalMonthlyExpenses.toFixed(2)}
+          </div>
+        </div>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving}>
+          <Save className="h-4 w-4 mr-2" />
+          {saving ? 'Saving...' : 'Save Expenses'}
+        </Button>
+      </div>
+
+      <Card className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700">
+        <div className="flex gap-3">
+          <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-yellow-800 dark:text-yellow-200">
+            <p className="font-medium mb-1">How this affects profit calculations:</p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              <li>These expenses are used for financial reporting and profit analysis</li>
+              <li>Monthly expenses are distributed across all jobs in that month</li>
+              <li>Gas reimbursement is calculated per job based on distance or fixed rate</li>
+              <li>Only owners can see the full profit breakdown</li>
+            </ul>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// Referral Tab Component (extracted from /settings/referral/page.tsx)
+function ReferralTabContent() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState({
+    referralEnabled: false,
+    referralReferrerReward: 25,
+    referralRefereeReward: 25,
+  });
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch('/api/company/referral-settings');
+      const data = await response.json();
+
+      if (data.success) {
+        setSettings(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch referral settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const response = await fetch('/api/company/referral-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('✅ Referral settings saved successfully!');
+      } else {
+        alert(`❌ ${data.error || 'Failed to save settings'}`);
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading referral settings...</div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Referral Program</h2>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">
+          Configure your customer referral program to grow through word-of-mouth
+        </p>
+      </div>
+
+      <Card className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="text-xl font-semibold mb-2 flex items-center gap-2">
+              <Gift className="h-5 w-5 text-purple-600" />
+              Enable Referral Program
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Allow customers to refer friends and earn rewards. When enabled, customers will see their unique referral code and can track referrals.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer ml-4">
+            <input
+              type="checkbox"
+              checked={settings.referralEnabled}
+              onChange={(e) => setSettings({ ...settings, referralEnabled: e.target.checked })}
+              className="sr-only peer"
+            />
+            <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+          </label>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <DollarSign className="h-5 w-5 text-green-600" />
+          Reward Amounts
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Reward for Referrer
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</div>
+              <Input
+                type="number"
+                value={settings.referralReferrerReward}
+                onChange={(e) => setSettings({ ...settings, referralReferrerReward: parseFloat(e.target.value) || 0 })}
+                className="pl-7"
+                min="0"
+                step="0.01"
+                placeholder="25.00"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Credit given to existing customer who refers a friend
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Reward for New Customer
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</div>
+              <Input
+                type="number"
+                value={settings.referralRefereeReward}
+                onChange={(e) => setSettings({ ...settings, referralRefereeReward: parseFloat(e.target.value) || 0 })}
+                className="pl-7"
+                min="0"
+                step="0.01"
+                placeholder="25.00"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Credit given to the new customer being referred
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg">
+          <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-2 flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            How It Works
+          </h4>
+          <div className="text-sm text-purple-800 dark:text-purple-200 space-y-1">
+            <p>
+              1. <strong>Sarah</strong> (existing customer) shares her referral code with <strong>John</strong>
+            </p>
+            <p>
+              2. <strong>John</strong> signs up using Sarah's code
+            </p>
+            <p>
+              3. <strong>Sarah</strong> gets <span className="font-bold">${settings.referralReferrerReward.toFixed(2)} credit</span> added to her account
+            </p>
+            <p>
+              4. <strong>John</strong> gets <span className="font-bold">${settings.referralRefereeReward.toFixed(2)} credit</span> off his first booking
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-700">
+        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2 text-blue-900 dark:text-blue-100">
+          <TrendingUp className="h-5 w-5" />
+          Benefits of Referral Program
+        </h3>
+        <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+          <li className="flex items-start gap-2">
+            <span className="text-green-600 mt-0.5">✓</span>
+            <span><strong>Lower acquisition cost:</strong> Referred customers cost less than paid ads</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-green-600 mt-0.5">✓</span>
+            <span><strong>Higher trust:</strong> People trust recommendations from friends</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-green-600 mt-0.5">✓</span>
+            <span><strong>Better retention:</strong> Referred customers tend to stay longer</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-green-600 mt-0.5">✓</span>
+            <span><strong>Automatic marketing:</strong> Your happy customers become your sales team</span>
+          </li>
+        </ul>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button
+          type="submit"
+          disabled={saving}
+          className="bg-purple-600 hover:bg-purple-700"
+        >
+          <Save className="h-5 w-5 mr-2" />
+          {saving ? 'Saving...' : 'Save Settings'}
+        </Button>
+      </div>
+    </form>
   );
 }
