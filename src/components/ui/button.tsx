@@ -42,19 +42,37 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, disableAnimation = false, disabled, ...props }, ref) => {
-    const Comp = asChild ? Slot : motion.button;
+    // Handle asChild case separately (no animation)
+    if (asChild) {
+      return (
+        <Slot
+          className={cn(buttonVariants({ variant, size, className }))}
+          ref={ref}
+          {...props}
+        />
+      );
+    }
 
-    const animationProps = !asChild && !disableAnimation && !disabled ? {
-      whileHover: { scale: 1.02, transition: { duration: 0.15, ease: "easeOut" } },
-      whileTap: { scale: 0.98, transition: { duration: 0.1, ease: "easeOut" } },
-    } : {};
+    // Handle animated button
+    if (!disableAnimation && !disabled) {
+      return (
+        <motion.button
+          className={cn(buttonVariants({ variant, size, className }))}
+          ref={ref}
+          disabled={disabled}
+          whileHover={{ scale: 1.02, transition: { duration: 0.15, ease: "easeOut" } }}
+          whileTap={{ scale: 0.98, transition: { duration: 0.1, ease: "easeOut" } }}
+          {...props}
+        />
+      );
+    }
 
+    // Handle non-animated button
     return (
-      <Comp
+      <button
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         disabled={disabled}
-        {...animationProps}
         {...props}
       />
     );
