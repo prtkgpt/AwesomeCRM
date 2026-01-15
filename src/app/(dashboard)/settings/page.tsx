@@ -367,61 +367,49 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Settings</h1>
         <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-2">
-          Manage your account and preferences
+          Manage your business settings and preferences
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar Tabs */}
-        <div className="lg:col-span-1">
-          <Card className="p-3">
-            <nav className="space-y-1.5">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as TabType)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-semibold transition-all duration-200 ${
-                      activeTab === tab.id
-                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-[1.02]'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 hover:scale-[1.01]'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-              {externalLinks.map((link) => {
-                const Icon = link.icon;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-semibold transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 hover:scale-[1.01]"
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span>{link.label}</span>
-                  </Link>
-                );
-              })}
-              <button
-                onClick={handleSignOut}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-semibold transition-all duration-200 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:scale-[1.01]"
-              >
-                <LogOut className="h-5 w-5" />
-                <span>Sign Out</span>
-              </button>
-            </nav>
-          </Card>
-        </div>
+      {/* Horizontal Tab Navigation */}
+      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto pb-px">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as TabType)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all duration-200 border-b-2 ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+        {externalLinks.map((link) => {
+          const Icon = link.icon;
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all duration-200 border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300"
+            >
+              <Icon className="h-4 w-4" />
+              <span>{link.label}</span>
+            </Link>
+          );
+        })}
+      </div>
 
-        {/* Content Area */}
-        <div className="lg:col-span-3">
+      {/* Content Area */}
+      <div>
           {/* Profile Tab */}
           {activeTab === 'profile' && (
             <Card className="p-6">
@@ -1503,7 +1491,6 @@ export default function SettingsPage() {
               </div>
             </Card>
           )}
-        </div>
       </div>
     </div>
   );

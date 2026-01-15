@@ -15,16 +15,6 @@ const ownerAdminNavItems = [
     icon: Home,
   },
   {
-    href: '/feed',
-    label: 'Feed',
-    icon: Activity,
-  },
-  {
-    href: '/reports',
-    label: 'Reports',
-    icon: TrendingUp,
-  },
-  {
     href: '/calendar',
     label: 'Calendar',
     icon: Calendar,
@@ -33,16 +23,6 @@ const ownerAdminNavItems = [
     href: '/jobs',
     label: 'Jobs',
     icon: Briefcase,
-  },
-  {
-    href: '/subscriptions',
-    label: 'Subscriptions',
-    icon: Repeat,
-  },
-  {
-    href: '/estimates',
-    label: 'Estimates',
-    icon: Receipt,
   },
   {
     href: '/clients',
@@ -58,6 +38,11 @@ const ownerAdminNavItems = [
     href: '/invoices',
     label: 'Invoices',
     icon: FileText,
+  },
+  {
+    href: '/reports',
+    label: 'Reports',
+    icon: TrendingUp,
   },
   {
     href: '/settings',
