@@ -28,6 +28,7 @@ import {
   DollarSign,
   Copy,
   Check,
+  Globe,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -58,6 +59,7 @@ interface CompanySettings {
   stripeSecretKey: string | null;
   stripePublishableKey: string | null;
   stripeWebhookSecret: string | null;
+  timezone: string;
 }
 
 export default function SettingsPage() {
@@ -101,6 +103,7 @@ export default function SettingsPage() {
     stripeSecretKey: '',
     stripePublishableKey: '',
     stripeWebhookSecret: '',
+    timezone: 'America/Los_Angeles',
   });
 
   // Import data state
@@ -163,6 +166,7 @@ export default function SettingsPage() {
           stripeSecretKey: data.data.stripeSecretKey || '',
           stripePublishableKey: data.data.stripePublishableKey || '',
           stripeWebhookSecret: data.data.stripeWebhookSecret || '',
+          timezone: data.data.timezone || 'America/Los_Angeles',
         });
       }
     } catch (error) {
@@ -773,6 +777,47 @@ export default function SettingsPage() {
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       Used for sending emails (e.g., estimates@yourdomain.com)
+                    </p>
+                  </div>
+
+                  {/* Business Timezone */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Business Timezone
+                    </label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <select
+                        value={companyForm.timezone}
+                        onChange={(e) =>
+                          setCompanyForm({
+                            ...companyForm,
+                            timezone: e.target.value,
+                          })
+                        }
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <optgroup label="US Timezones">
+                          <option value="America/New_York">Eastern Time (EST/EDT)</option>
+                          <option value="America/Chicago">Central Time (CST/CDT)</option>
+                          <option value="America/Denver">Mountain Time (MST/MDT)</option>
+                          <option value="America/Phoenix">Arizona (MST - No DST)</option>
+                          <option value="America/Los_Angeles">Pacific Time (PST/PDT)</option>
+                          <option value="America/Anchorage">Alaska Time (AKST/AKDT)</option>
+                          <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
+                        </optgroup>
+                        <optgroup label="Other Timezones">
+                          <option value="America/Toronto">Toronto (EST/EDT)</option>
+                          <option value="America/Vancouver">Vancouver (PST/PDT)</option>
+                          <option value="Europe/London">London (GMT/BST)</option>
+                          <option value="Europe/Paris">Paris (CET/CEST)</option>
+                          <option value="Asia/Tokyo">Tokyo (JST)</option>
+                          <option value="Australia/Sydney">Sydney (AEDT/AEST)</option>
+                        </optgroup>
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      All job scheduling times will be displayed in this timezone. Business hours validation (8am-5pm start, 8pm end) applies in this timezone.
                     </p>
                   </div>
 
