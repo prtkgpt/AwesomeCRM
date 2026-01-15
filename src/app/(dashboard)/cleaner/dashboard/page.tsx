@@ -169,47 +169,51 @@ export default function CleanerDashboardPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-1">
+        <h1 className="text-2xl md:text-3xl font-bold mb-1">
           Welcome, {session?.user?.name?.split(' ')[0] || 'there'}!
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">Here are your jobs for today and upcoming schedule</p>
+        <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">Here are your jobs for today and upcoming schedule</p>
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
-          <AlertCircle className="h-4 w-4" />
+        <div className="mb-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm flex items-center gap-2 border-2 border-red-200 dark:border-red-800">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
           {error}
         </div>
       )}
 
       {/* Today's Jobs */}
       <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4">Today's Schedule</h2>
+        <h2 className="text-xl md:text-2xl font-semibold mb-4">Today's Schedule</h2>
         {todayJobs.length === 0 ? (
-          <Card className="p-8 text-center text-gray-500">
-            No jobs scheduled for today. Enjoy your day off!
+          <Card className="p-8 md:p-12 text-center text-gray-500">
+            <div className="text-4xl mb-3">☕</div>
+            <p className="text-lg font-medium">No jobs scheduled for today.</p>
+            <p className="text-sm mt-1">Enjoy your day off!</p>
           </Card>
         ) : (
           <div className="space-y-4">
             {todayJobs.map((job) => (
-              <Card key={job.id} className="p-6">
-                <div className="flex justify-between items-start mb-4">
+              <Card key={job.id} className="p-4 md:p-6 hover:shadow-lg transition-shadow">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold mb-1">{job.client.name}</h3>
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>{formatTime(job.scheduledDate)}</span>
-                      <span className="mx-2">•</span>
+                    <h3 className="text-lg md:text-xl font-semibold mb-2">{job.client.name}</h3>
+                    <div className="flex flex-wrap items-center text-gray-600 dark:text-gray-400 text-sm md:text-base gap-x-3 gap-y-1 mb-2">
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        <span className="font-medium">{formatTime(job.scheduledDate)}</span>
+                      </div>
+                      <span className="hidden md:inline">•</span>
                       <span>{formatDuration(job.duration)}</span>
-                      <span className="mx-2">•</span>
-                      <span className="font-medium">{job.serviceType}</span>
+                      <span className="hidden md:inline">•</span>
+                      <span className="font-medium text-blue-600 dark:text-blue-400">{job.serviceType}</span>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col gap-2">
+                  {/* Action Buttons - Stacked on mobile */}
+                  <div className="flex flex-row md:flex-col gap-2 flex-wrap">
                     {/* On My Way Button */}
                     {!job.onMyWaySentAt && job.status === 'SCHEDULED' && (
                       <Button
@@ -217,7 +221,7 @@ export default function CleanerDashboardPage() {
                         disabled={actionLoading === `${job.id}-on-my-way`}
                         size="sm"
                         variant="outline"
-                        className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                        className="bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 h-10 md:h-9 flex-1 md:flex-none md:min-w-[140px]"
                       >
                         <Navigation className="h-4 w-4 mr-2" />
                         {actionLoading === `${job.id}-on-my-way` ? 'Sending...' : 'On My Way'}
@@ -230,7 +234,7 @@ export default function CleanerDashboardPage() {
                         onClick={() => handleAction(job.id, 'clock-in')}
                         disabled={actionLoading === `${job.id}-clock-in`}
                         size="sm"
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 h-10 md:h-9 flex-1 md:flex-none md:min-w-[140px]"
                       >
                         <LogIn className="h-4 w-4 mr-2" />
                         {actionLoading === `${job.id}-clock-in` ? 'Clocking In...' : 'Clock In'}
@@ -243,7 +247,7 @@ export default function CleanerDashboardPage() {
                         onClick={() => handleAction(job.id, 'clock-out')}
                         disabled={actionLoading === `${job.id}-clock-out`}
                         size="sm"
-                        className="bg-orange-600 hover:bg-orange-700"
+                        className="bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800 h-10 md:h-9 flex-1 md:flex-none md:min-w-[140px]"
                       >
                         <LogOut className="h-4 w-4 mr-2" />
                         {actionLoading === `${job.id}-clock-out` ? 'Clocking Out...' : 'Clock Out'}
@@ -256,6 +260,7 @@ export default function CleanerDashboardPage() {
                         onClick={() => handleMarkComplete(job.id)}
                         disabled={actionLoading === `${job.id}-complete`}
                         size="sm"
+                        className="h-10 md:h-9 flex-1 md:flex-none md:min-w-[140px]"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
                         {actionLoading === `${job.id}-complete` ? 'Completing...' : 'Mark Complete'}
@@ -263,11 +268,11 @@ export default function CleanerDashboardPage() {
                     )}
 
                     {/* View Checklist Button */}
-                    <Link href={`/cleaner/jobs/${job.id}/checklist`}>
+                    <Link href={`/cleaner/jobs/${job.id}/checklist`} className="flex-1 md:flex-none">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                        className="w-full bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 h-10 md:h-9 md:min-w-[140px]"
                       >
                         <ClipboardList className="h-4 w-4 mr-2" />
                         View Checklist
@@ -276,23 +281,23 @@ export default function CleanerDashboardPage() {
 
                     {/* Status Badges */}
                     {job.onMyWaySentAt && !job.clockedInAt && (
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 text-center">
-                        En Route
+                      <span className="px-3 py-2 text-xs font-medium rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 text-center border border-blue-200 dark:border-blue-800">
+                        🚗 En Route
                       </span>
                     )}
                     {job.clockedInAt && !job.clockedOutAt && (
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 text-center">
-                        In Progress
+                      <span className="px-3 py-2 text-xs font-medium rounded-lg bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 text-center border border-green-200 dark:border-green-800">
+                        ⏱️ In Progress
                       </span>
                     )}
                     {job.status === 'CLEANER_COMPLETED' && (
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 text-center">
-                        ⏳ Pending Admin Review
+                      <span className="px-3 py-2 text-xs font-medium rounded-lg bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 text-center border border-yellow-200 dark:border-yellow-800">
+                        ⏳ Pending Review
                       </span>
                     )}
                     {job.status === 'COMPLETED' && (
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 text-center">
-                        ✅ Completed & Approved
+                      <span className="px-3 py-2 text-xs font-medium rounded-lg bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 text-center border border-green-200 dark:border-green-800">
+                        ✅ Completed
                       </span>
                     )}
                   </div>
