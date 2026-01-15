@@ -11,6 +11,9 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, animated = false, hoverable = true, ...props }, ref) => {
     if (animated) {
+      // Remove drag-related props that conflict with framer-motion
+      const { onDrag, onDragEnd, onDragStart, ...motionProps } = props as any;
+
       return (
         <motion.div
           ref={ref}
@@ -23,7 +26,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
             "rounded-2xl border border-border/50 bg-card text-card-foreground shadow-lg",
             className
           )}
-          {...props}
+          {...motionProps}
         />
       );
     }
