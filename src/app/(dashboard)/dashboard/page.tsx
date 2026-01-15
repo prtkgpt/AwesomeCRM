@@ -690,10 +690,13 @@ export default function DashboardPage() {
                 });
 
                 return sortedActivities.map((activity) => {
-                  const isUnassignedJob = activity.metadata?.isUnassigned ||
-                    (activity.category === 'booking_created' && activity.metadata?.assignee === null);
-                  const isCompletedJob = activity.category === 'booking_completed';
-                  const isUpcomingJob = activity.category === 'booking_created' && !isUnassignedJob;
+                  const isUnassignedJob = activity.metadata?.cleanerName === 'Unassigned' ||
+                    (activity.category === 'booking_created' && activity.metadata?.cleanerName === 'Unassigned');
+                  const isCompletedJob = activity.category === 'cleaning_completed';
+                  const isPendingReview = activity.category === 'pending_admin_review';
+                  const isUpcomingJob = (activity.category === 'booking_created' ||
+                    activity.category === 'cleaning_starting' ||
+                    activity.category === 'reminder_needed') && !isUnassignedJob;
                   const jobId = activity.metadata?.jobId;
 
                   return (
@@ -734,11 +737,26 @@ export default function DashboardPage() {
                             <div className="flex gap-2 mt-3">
                               {isUnassignedJob && (
                                 <Link href={`/jobs/${jobId}`}>
-                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-pink-50 dark:bg-pink-900/20 border-pink-300 dark:border-pink-700 text-pink-700 dark:text-pink-300 hover:bg-pink-100 dark:hover:bg-pink-900/40">
                                     <UserPlus className="h-3 w-3" />
                                     Assign Cleaner
                                   </Button>
                                 </Link>
+                              )}
+                              {isPendingReview && (
+                                <>
+                                  <Link href={`/jobs/${jobId}`}>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Review & Approve
+                                    </Button>
+                                  </Link>
+                                  <Link href={`/jobs/${jobId}`}>
+                                    <Button size="sm" variant="ghost" className="h-7 text-xs">
+                                      View Details
+                                    </Button>
+                                  </Link>
+                                </>
                               )}
                               {isUpcomingJob && (
                                 <>
@@ -756,9 +774,9 @@ export default function DashboardPage() {
                               {isCompletedJob && (
                                 <>
                                   <Link href={`/jobs/${jobId}`}>
-                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-green-50 border-green-300 text-green-700 hover:bg-green-100">
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40">
                                       <CreditCard className="h-3 w-3" />
-                                      Collect $$
+                                      Collect $
                                     </Button>
                                   </Link>
                                   <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => alert('Send review request')}>
