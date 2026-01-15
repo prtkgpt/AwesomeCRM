@@ -14,6 +14,11 @@ import {
   Clock,
   User as UserIcon,
   Receipt,
+  MessageSquare,
+  CreditCard,
+  Star,
+  UserPlus,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -382,10 +387,10 @@ export default function DashboardPage() {
               <div>
                 {/* Day headers */}
                 <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 mb-px">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
                     <div
                       key={day}
-                      className="bg-gray-50 dark:bg-gray-800 px-2 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
+                      className="bg-gray-50 dark:bg-gray-800 px-3 py-3 text-center text-sm font-bold text-gray-700 dark:text-gray-300"
                     >
                       {day}
                     </div>
@@ -403,7 +408,7 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={index}
-                        className={`bg-white dark:bg-gray-900 min-h-[100px] p-2 ${
+                        className={`bg-white dark:bg-gray-900 min-h-[140px] p-3 ${
                           !isCurrentMonth ? 'opacity-40' : ''
                         } ${isToday ? 'ring-2 ring-blue-500 ring-inset' : ''} ${
                           hasUnassignedJobs ? 'bg-pink-50/50 dark:bg-pink-900/10' : ''
@@ -419,24 +424,25 @@ export default function DashboardPage() {
                           {date.getDate()}
                         </div>
 
-                        <div className="space-y-1">
-                          {dayJobs.slice(0, 3).map((job) => {
+                        <div className="space-y-1.5">
+                          {dayJobs.slice(0, 4).map((job) => {
                             const isUnassigned = !job.assignee;
                             return (
                               <Link key={job.id} href={`/jobs/${job.id}`}>
-                                <div className={`text-[10px] px-1.5 py-1 rounded truncate cursor-pointer transition-colors ${
+                                <div className={`text-xs px-2 py-1.5 rounded-lg truncate cursor-pointer transition-all hover:scale-[1.02] ${
                                   isUnassigned
-                                    ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-900 dark:text-pink-100 border border-pink-200 dark:border-pink-800 hover:bg-pink-200 dark:hover:bg-pink-900/60'
+                                    ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-900 dark:text-pink-100 border border-pink-200 dark:border-pink-800 hover:bg-pink-200 dark:hover:bg-pink-900/60 font-semibold'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 hover:bg-blue-200 dark:hover:bg-blue-900/50'
                                 }`}>
-                                  {isUnassigned && '⚠️ '}{formatTime(job.scheduledDate)} {job.client.name}
+                                  <div className="font-medium">{isUnassigned && '⚠️ '}{formatTime(job.scheduledDate)}</div>
+                                  <div className="text-[10px] opacity-90 truncate">{job.client.name}</div>
                                 </div>
                               </Link>
                             );
                           })}
-                          {dayJobs.length > 3 && (
-                            <div className="text-[10px] text-gray-500 dark:text-gray-400 px-1.5">
-                              +{dayJobs.length - 3} more
+                          {dayJobs.length > 4 && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+                              +{dayJobs.length - 4} more
                             </div>
                           )}
                         </div>
@@ -686,11 +692,14 @@ export default function DashboardPage() {
                 return sortedActivities.map((activity) => {
                   const isUnassignedJob = activity.metadata?.isUnassigned ||
                     (activity.category === 'booking_created' && activity.metadata?.assignee === null);
+                  const isCompletedJob = activity.category === 'booking_completed';
+                  const isUpcomingJob = activity.category === 'booking_created' && !isUnassignedJob;
+                  const jobId = activity.metadata?.jobId;
 
                   return (
                     <div
                       key={activity.id}
-                      className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
+                      className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
                         isUnassignedJob
                           ? 'border-pink-200 bg-pink-50 dark:border-pink-900 dark:bg-pink-900/10'
                           : activity.priority === 'high'
@@ -719,6 +728,47 @@ export default function DashboardPage() {
                           <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 font-medium">
                             {getTimeAgo(activity.timestamp)}
                           </div>
+
+                          {/* Action Buttons */}
+                          {jobId && (
+                            <div className="flex gap-2 mt-3">
+                              {isUnassignedJob && (
+                                <Link href={`/jobs/${jobId}`}>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+                                    <UserPlus className="h-3 w-3" />
+                                    Assign Cleaner
+                                  </Button>
+                                </Link>
+                              )}
+                              {isUpcomingJob && (
+                                <>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => alert('Send reminder SMS')}>
+                                    <MessageSquare className="h-3 w-3" />
+                                    Remind
+                                  </Button>
+                                  <Link href={`/jobs/${jobId}`}>
+                                    <Button size="sm" variant="ghost" className="h-7 text-xs">
+                                      View
+                                    </Button>
+                                  </Link>
+                                </>
+                              )}
+                              {isCompletedJob && (
+                                <>
+                                  <Link href={`/jobs/${jobId}`}>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-green-50 border-green-300 text-green-700 hover:bg-green-100">
+                                      <CreditCard className="h-3 w-3" />
+                                      Collect $$
+                                    </Button>
+                                  </Link>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => alert('Send review request')}>
+                                    <Star className="h-3 w-3" />
+                                    Send Review
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
