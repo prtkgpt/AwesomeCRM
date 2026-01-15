@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock,
   User as UserIcon,
+  Receipt,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -253,6 +254,12 @@ export default function DashboardPage() {
                 <Button variant="outline">
                   <Plus className="h-4 w-4" />
                   New Client
+                </Button>
+              </Link>
+              <Link href="/estimates">
+                <Button variant="outline">
+                  <Receipt className="h-4 w-4" />
+                  Estimates
                 </Button>
               </Link>
             </div>
