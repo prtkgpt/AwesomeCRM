@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  Skeleton,
+  SkeletonFormField,
+  SkeletonTableRow,
+  ProgressBar,
+} from '@/components/ui/skeleton';
+import {
   User,
   Lock,
   Building2,
@@ -1276,6 +1282,21 @@ export default function SettingsPage() {
                   )}
                 </div>
 
+                {/* Import Progress */}
+                {importing && (
+                  <div className="rounded-lg p-6 bg-blue-50 dark:bg-blue-950 border-2 border-blue-500">
+                    <ProgressBar
+                      progress={50}
+                      label={`Importing ${importType === 'clients' ? 'clients' : 'bookings'}...`}
+                      size="lg"
+                      showPercentage={false}
+                    />
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 text-center">
+                      Please wait while we process your file. This may take a moment.
+                    </p>
+                  </div>
+                )}
+
                 {/* Import Results */}
                 {importResults && (
                   <div
@@ -1910,8 +1931,38 @@ function PricingTabContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading pricing settings...</div>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        {/* Three table skeletons for bedrooms, bathrooms, addons */}
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i} className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-9 w-32" />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    {Array.from({ length: 8 }).map((_, j) => (
+                      <th key={j} className="px-4 py-3">
+                        <Skeleton className="h-4 w-20" />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 3 }).map((_, k) => (
+                    <SkeletonTableRow key={k} columns={8} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        ))}
       </div>
     );
   }
@@ -2021,8 +2072,33 @@ function OperationsTabContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading operational expenses...</div>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Card className="p-6">
+          <div className="space-y-2 mb-4">
+            <Skeleton className="h-6 w-64" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <SkeletonFormField key={i} />
+            ))}
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-56" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </Card>
+        <div className="flex justify-end">
+          <Skeleton className="h-10 w-40" />
+        </div>
       </div>
     );
   }
@@ -2312,8 +2388,48 @@ function ReferralTabContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading referral settings...</div>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Card className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-6 w-64" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <Skeleton className="w-14 h-7 rounded-full" />
+          </div>
+        </Card>
+        <Card className="p-6">
+          <Skeleton className="h-6 w-48 mb-4" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <SkeletonFormField />
+            <SkeletonFormField />
+          </div>
+          <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <Skeleton className="h-5 w-32 mb-2" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <Skeleton className="h-6 w-64 mb-3" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+        </Card>
+        <div className="flex justify-end">
+          <Skeleton className="h-10 w-40" />
+        </div>
       </div>
     );
   }

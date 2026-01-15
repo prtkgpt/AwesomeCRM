@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, MapPin, Phone, CheckCircle, Navigation, LogIn, LogOut, AlertCircle, ClipboardList } from 'lucide-react';
+import { Skeleton, SkeletonJobCard } from '@/components/ui/skeleton';
 import { formatDuration } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -162,8 +163,30 @@ export default function CleanerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-center">Loading your jobs...</div>
+      <div className="p-4 md:p-8 max-w-7xl mx-auto">
+        <div className="mb-6 space-y-2">
+          <Skeleton className="h-8 md:h-10 w-56" />
+          <Skeleton className="h-4 md:h-5 w-96" />
+        </div>
+
+        {/* Today's Jobs Skeleton */}
+        <div className="mb-8">
+          <Skeleton className="h-7 md:h-8 w-48 mb-4" />
+          <div className="space-y-4">
+            <SkeletonJobCard />
+            <SkeletonJobCard />
+          </div>
+        </div>
+
+        {/* Upcoming Jobs Skeleton */}
+        <div>
+          <Skeleton className="h-7 md:h-8 w-56 mb-4" />
+          <div className="space-y-4">
+            <SkeletonJobCard />
+            <SkeletonJobCard />
+            <SkeletonJobCard />
+          </div>
+        </div>
       </div>
     );
   }
