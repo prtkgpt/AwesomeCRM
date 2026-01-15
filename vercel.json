@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/send-reminders",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/send-greetings",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/send-review-requests",
+      "schedule": "0 */4 * * *"
     }
   ]
 }

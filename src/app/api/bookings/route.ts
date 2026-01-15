@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { createBookingSchema } from '@/lib/validations';
 import { generateRecurringDates } from '@/lib/utils';
 import { applyReferralCredits } from '@/lib/referral';
+import { sendBookingConfirmation } from '@/lib/notifications';
 
 // GET /api/bookings - List bookings
 export async function GET(request: NextRequest) {
@@ -299,6 +300,12 @@ export async function POST(request: NextRequest) {
         )
       );
     }
+
+    // Send booking confirmation email/SMS (async, don't await to avoid blocking)
+    sendBookingConfirmation(booking.id).catch(error => {
+      console.error('Failed to send booking confirmation:', error);
+      // Don't fail the booking creation if confirmation fails
+    });
 
     return NextResponse.json({
       success: true,

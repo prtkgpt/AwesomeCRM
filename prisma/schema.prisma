@@ -294,6 +294,19 @@ model Client {
   // Customer Preferences
   preferences              ClientPreference?
 
+  // Birthday & Anniversary Automation
+  birthday                     DateTime?  // Client's birthday
+  anniversary                  DateTime?  // Client's anniversary (e.g., first booking, wedding)
+  anniversaryType              String?    // "FIRST_BOOKING", "WEDDING", "CUSTOM"
+
+  // Communication preferences for greetings
+  enableBirthdayGreetings      Boolean @default(true)
+  enableAnniversaryGreetings   Boolean @default(true)
+
+  // Tracking sent greetings
+  lastBirthdayGreetingSent     DateTime?
+  lastAnniversaryGreetingSent  DateTime?
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -574,6 +587,9 @@ model Booking {
   tipPaidVia            String?                      // "STRIPE", "ZELLE", "VENMO", "CASHAPP", "CASH"
   feedbackSubmittedAt   DateTime?                    // When customer submitted feedback
 
+  // Review request automation
+  reviewRequestSentAt   DateTime?                    // When review request was sent (separate from feedback)
+
   // Job completion tracking
   completedAt           DateTime?                    // When job was marked as completed by cleaner
   completedBy           String?                      // User ID who marked job as completed (cleaner)
@@ -661,6 +677,9 @@ enum MessageType {
   THANK_YOU
   PAYMENT_REQUEST
   CUSTOM
+  BIRTHDAY_GREETING
+  ANNIVERSARY_GREETING
+  REVIEW_REQUEST
 }
 
 model Message {
