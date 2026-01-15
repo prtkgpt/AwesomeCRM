@@ -1,19 +1,46 @@
 import * as React from "react";
+import { motion, HTMLMotionProps } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { cardVariants } from "@/lib/animations";
 
-const Card = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-2xl border border-border/50 bg-card text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5",
-      className
-    )}
-    {...props}
-  />
-));
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  animated?: boolean;
+  hoverable?: boolean;
+}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, animated = false, hoverable = true, ...props }, ref) => {
+    if (animated) {
+      return (
+        <motion.div
+          ref={ref}
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          whileHover={hoverable ? "hover" : undefined}
+          whileTap={hoverable ? "tap" : undefined}
+          className={cn(
+            "rounded-2xl border border-border/50 bg-card text-card-foreground shadow-lg",
+            className
+          )}
+          {...props}
+        />
+      );
+    }
+
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card text-card-foreground shadow-lg transition-all duration-300",
+          hoverable && "hover:shadow-2xl hover:-translate-y-0.5",
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
 Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<

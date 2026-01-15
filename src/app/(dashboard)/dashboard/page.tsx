@@ -28,6 +28,7 @@ import {
   SkeletonActivityItem,
   SkeletonStatsCard,
 } from '@/components/ui/skeleton';
+import { PageTransition, AnimatedList, AnimatedListItem, FadeIn, SlideIn } from '@/components/ui/page-transition';
 
 interface DashboardStats {
   totalClients: number;
@@ -294,13 +295,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-      {/* Main Content - Center Panel */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6 md:p-8 space-y-8">
-          {/* Header with User Info */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+    <PageTransition>
+      <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+        {/* Main Content - Center Panel */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 md:p-8 space-y-8">
+            {/* Header with User Info */}
+            <FadeIn>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
               <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
                 <UserIcon className="h-7 w-7 text-white" />
               </div>
@@ -335,10 +338,12 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
+            </FadeIn>
 
           {/* Metrics - Small Boxes */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            <Card className="p-6 hover-lift cursor-default">
+          <AnimatedList className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <AnimatedListItem>
+              <Card animated hoverable className="p-6 cursor-default">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md">
                   <Users className="h-6 w-6 text-white" />
@@ -349,43 +354,50 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Card>
+            </AnimatedListItem>
 
-            <Card className="p-6 hover-lift cursor-default">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md">
-                  <CalendarIcon className="h-6 w-6 text-white" />
+            <AnimatedListItem>
+              <Card animated hoverable className="p-6 cursor-default">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md">
+                    <CalendarIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Upcoming</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.upcomingJobs || 0}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Upcoming</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.upcomingJobs || 0}</p>
-                </div>
+              </Card>
+            </AnimatedListItem>
+
+            <AnimatedListItem>
+              <Card animated hoverable className="p-6 cursor-default">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md">
+                    <TrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Completed</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.completedThisMonth || 0}</p>
+                  </div>
               </div>
             </Card>
+            </AnimatedListItem>
 
-            <Card className="p-6 hover-lift cursor-default">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md">
-                  <TrendingUp className="h-6 w-6 text-white" />
+            <AnimatedListItem>
+              <Card animated hoverable className="p-6 cursor-default">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-md">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Revenue MTD</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">${stats?.revenueThisMonth || 0}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.completedThisMonth || 0}</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 hover-lift cursor-default">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-md">
-                  <DollarSign className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Revenue MTD</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">${stats?.revenueThisMonth || 0}</p>
-                </div>
-              </div>
-            </Card>
-          </div>
+              </Card>
+            </AnimatedListItem>
+          </AnimatedList>
 
           {/* Calendar Section */}
           <Card className="p-8">
@@ -868,5 +880,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+    </PageTransition>
   );
 }

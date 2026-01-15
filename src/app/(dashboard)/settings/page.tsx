@@ -11,6 +11,8 @@ import {
   SkeletonTableRow,
   ProgressBar,
 } from '@/components/ui/skeleton';
+import { motion, AnimatePresence } from 'framer-motion';
+import { tabContentVariants } from '@/lib/animations';
 import {
   User,
   Lock,
@@ -403,7 +405,14 @@ export default function SettingsPage() {
       </div>
 
       {/* Content Area */}
-      <div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          variants={tabContentVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
           {/* Profile Tab */}
           {activeTab === 'profile' && (
             <Card className="p-6">
@@ -1509,7 +1518,8 @@ export default function SettingsPage() {
 
           {/* Referral Program Tab */}
           {activeTab === 'referral' && <ReferralTabContent />}
-      </div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
