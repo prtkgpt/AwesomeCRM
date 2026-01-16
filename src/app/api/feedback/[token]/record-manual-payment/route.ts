@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/feedback/[token]/record-manual-payment - Record manual payment (CashApp, Venmo, etc.)
 export async function POST(
   request: NextRequest,

@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { verifyAddress } from '@/lib/google-maps';
 import { z } from 'zod';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 const verifyAddressSchema = z.object({
   street: z.string().min(1, 'Street is required'),
   city: z.string().min(1, 'City is required'),

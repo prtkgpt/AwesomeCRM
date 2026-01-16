@@ -6,6 +6,9 @@ import { sendSMS, fillTemplate, twilioPhoneNumber } from '@/lib/twilio';
 import { sendMessageSchema } from '@/lib/validations';
 import { normalizePhoneNumber } from '@/lib/utils';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/messages/send - Send SMS message
 export async function POST(request: NextRequest) {
   try {

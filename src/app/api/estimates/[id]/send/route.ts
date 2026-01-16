@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import { sendEmail, getEstimateEmailTemplate } from '@/lib/email';
 import { sendSMS, getEstimateSMSMessage } from '@/lib/sms';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }

@@ -4,6 +4,9 @@ import { sendSMS } from '@/lib/twilio';
 import { sendEmail } from '@/lib/email';
 import { formatDate, formatTime, normalizePhoneNumber } from '@/lib/utils';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 /**
  * Automated Reminder Cron Job
  * Sends reminders to customers and cleaners before appointments

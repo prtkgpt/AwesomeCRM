@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendBookingConfirmation } from '@/lib/notifications';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/public/estimate/[token]/book - Accept estimate, process payment, and create booking
 export async function POST(
   request: NextRequest,

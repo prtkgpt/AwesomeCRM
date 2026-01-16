@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendReviewRequest } from '@/lib/notifications';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 /**
  * Cron job to send review requests to satisfied customers
  * Runs every 4 hours to check for recently completed bookings with high ratings

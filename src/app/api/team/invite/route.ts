@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import { sendEmail, getTeamInvitationEmailTemplate } from '@/lib/email';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/team/invite - Send team member invitation
 export async function POST(request: NextRequest) {
   try {

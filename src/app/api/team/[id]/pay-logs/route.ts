@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 const createPayLogSchema = z.object({
   type: z.enum(['PAYCHECK', 'SUPPLIES_REIMBURSEMENT', 'GAS_REIMBURSEMENT']),
   amount: z.number().min(0, 'Amount must be positive'),

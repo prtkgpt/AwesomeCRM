@@ -4,6 +4,9 @@ import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/payments/webhook - Stripe webhook handler
 export async function POST(request: NextRequest) {
   // Check if Stripe is configured

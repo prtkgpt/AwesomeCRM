@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { generateRecurringDates } from '@/lib/utils';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/subscriptions/[id]/resume - Resume a paused subscription
 export async function POST(
   request: NextRequest,

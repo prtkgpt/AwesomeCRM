@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // The 45 specific clients to restore for Awesome Maids LLC
 const TARGET_CLIENTS = [
   { id: 'cmkg63kgg0004ml9zmmixyomf', name: 'P Gupta', email: 'bizwithpg@gmail.com', phone: '4085719370', createdAt: new Date('2026-01-16 00:55:59.824') },

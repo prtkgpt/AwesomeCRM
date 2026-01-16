@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // Validation schema for updating pricing rules
 const updatePricingRuleSchema = z.object({
   type: z.enum(['BEDROOM', 'BATHROOM', 'ADDON', 'CUSTOM']).optional(),

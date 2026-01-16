@@ -3,14 +3,26 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { parseDateInCompanyTZ } from '@/lib/utils';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
+// Map frontend service types to database enum values
+const serviceTypeMap: Record<string, 'STANDARD' | 'DEEP' | 'MOVE_OUT'> = {
+  'REGULAR': 'STANDARD',
+  'STANDARD': 'STANDARD',
+  'DEEP': 'DEEP',
+  'MOVE_IN_OUT': 'MOVE_OUT',
+  'MOVE_OUT': 'MOVE_OUT',
+};
+
 const publicBookingSchema = z.object({
   // Client info
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   phone: z.string().min(1, 'Phone is required'),
 
-  // Service details
-  serviceType: z.enum(['REGULAR', 'DEEP', 'MOVE_IN_OUT'], {
+  // Service details - accept both frontend and database enum values
+  serviceType: z.enum(['REGULAR', 'STANDARD', 'DEEP', 'MOVE_IN_OUT', 'MOVE_OUT'], {
     errorMap: () => ({ message: 'Please select a service type' }),
   }),
   date: z.string().min(1, 'Date is required'),
@@ -194,6 +206,9 @@ export async function POST(
       // Combine user notes with extras
       const fullNotes = (validatedData.notes || '') + extrasNote;
 
+      // Map the service type to database enum value
+      const dbServiceType = serviceTypeMap[validatedData.serviceType] || 'STANDARD';
+
       const booking = await tx.booking.create({
         data: {
           companyId: company.id,
@@ -202,6 +217,7 @@ export async function POST(
           addressId: address.id,
           scheduledDate,
           duration: 180, // Default 3 hours - admin will adjust based on service type and extras
+          serviceType: dbServiceType,
           price: 0, // Price will be calculated later by admin
           status: 'SCHEDULED',
           notes: fullNotes || undefined,

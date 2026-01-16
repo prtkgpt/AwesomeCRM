@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { calculateReferralTier, getTierInfo, TIER_CONFIG, getExpiringCredits, CREDIT_EXPIRATION_DAYS } from '@/lib/referral';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/referrals/stats
  * Get referral statistics for the current user's client account

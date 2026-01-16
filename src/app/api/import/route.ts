@@ -220,9 +220,17 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          // Validate status
-          const validStatuses = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
-          if (!validStatuses.includes(row.status.toUpperCase())) {
+          // Validate status - must match BookingStatus enum in schema
+          const validStatuses = ['SCHEDULED', 'CLEANER_COMPLETED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
+          const statusUpper = row.status.toUpperCase();
+          // Map common alternative names to valid statuses
+          const statusMap: Record<string, string> = {
+            'IN_PROGRESS': 'SCHEDULED',
+            'PENDING': 'SCHEDULED',
+            'DONE': 'COMPLETED',
+          };
+          const mappedStatus = statusMap[statusUpper] || statusUpper;
+          if (!validStatuses.includes(mappedStatus)) {
             errors.push(`Row ${i + 2}: Invalid status '${row.status}'. Must be one of: ${validStatuses.join(', ')}`);
             failed++;
             continue;
@@ -252,7 +260,7 @@ export async function POST(request: NextRequest) {
               addressId: client.addresses[0].id,
               scheduledDate,
               duration: 120, // Default 2 hours
-              status: row.status.toUpperCase() as any,
+              status: mappedStatus as any,
               serviceType: validServiceType as any,
               price,
               userId: session.user.id,
