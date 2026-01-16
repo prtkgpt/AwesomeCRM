@@ -91,6 +91,12 @@ model Company {
   referralReferrerReward Float?  @default(25)     // Credit for referrer (e.g., $25)
   referralRefereeReward  Float?  @default(25)     // Credit for new customer (e.g., $25)
 
+  // Online Booking Configuration
+  onlineBookingEnabled  Boolean  @default(true)   // Enable/disable online booking
+  minimumLeadTimeHours  Int      @default(2)      // Minimum hours in advance (e.g., 2 hours)
+  maxDaysAhead          Int      @default(60)     // Maximum days in advance (e.g., 60 days)
+  requireApproval       Boolean  @default(false)  // Require manual approval for bookings
+
   // Subscription
   plan                String   @default("FREE")  // FREE, BASIC, PRO
   subscriptionStatus  String   @default("ACTIVE")

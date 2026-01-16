@@ -44,6 +44,8 @@ import {
   Gift,
   Users,
   TrendingUp,
+  Link,
+  ExternalLink,
 } from 'lucide-react';
 
 type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import' | 'pricing' | 'operations' | 'referral';
@@ -64,6 +66,7 @@ interface UserProfile {
 interface CompanySettings {
   id: string;
   name: string;
+  slug: string;
   emailDomain: string | null;
   googleReviewUrl: string | null;
   yelpReviewUrl: string | null;
@@ -74,6 +77,10 @@ interface CompanySettings {
   stripePublishableKey: string | null;
   stripeWebhookSecret: string | null;
   timezone: string;
+  onlineBookingEnabled: boolean;
+  minimumLeadTimeHours: number;
+  maxDaysAhead: number;
+  requireApproval: boolean;
 }
 
 export default function SettingsPage() {
@@ -118,6 +125,10 @@ export default function SettingsPage() {
     stripePublishableKey: '',
     stripeWebhookSecret: '',
     timezone: 'America/Los_Angeles',
+    onlineBookingEnabled: true,
+    minimumLeadTimeHours: 2,
+    maxDaysAhead: 60,
+    requireApproval: false,
   });
 
   // Import data state
@@ -190,6 +201,10 @@ export default function SettingsPage() {
           stripePublishableKey: data.data.stripePublishableKey || '',
           stripeWebhookSecret: data.data.stripeWebhookSecret || '',
           timezone: data.data.timezone || 'America/Los_Angeles',
+          onlineBookingEnabled: data.data.onlineBookingEnabled ?? true,
+          minimumLeadTimeHours: data.data.minimumLeadTimeHours ?? 2,
+          maxDaysAhead: data.data.maxDaysAhead ?? 60,
+          requireApproval: data.data.requireApproval ?? false,
         });
       }
     } catch (error) {
@@ -819,6 +834,224 @@ export default function SettingsPage() {
                     <p className="text-xs text-gray-500 mt-1">
                       All job scheduling times will be displayed in this timezone. Business hours validation (8am-5pm start, 8pm end) applies in this timezone.
                     </p>
+                  </div>
+
+                  {/* Online Booking Section */}
+                  <div className="border-t pt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Globe className="h-6 w-6 text-blue-600" />
+                      <div>
+                        <h3 className="font-semibold text-lg">Online Booking</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Allow customers to book appointments online
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Online Booking Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg mb-6">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          Enable Online Booking
+                        </label>
+                        <p className="text-xs text-gray-500">
+                          Allow customers to book appointments through your public booking page
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={companyForm.onlineBookingEnabled}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              onlineBookingEnabled: e.target.checked,
+                            })
+                          }
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Business URL */}
+                    {companySettings?.slug && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            Your Business URL <span className="text-red-500">*</span>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {typeof window !== 'undefined' ? window.location.origin : ''}/
+                            </span>
+                            <Input
+                              type="text"
+                              value={companySettings.slug}
+                              disabled
+                              className="flex-1 bg-gray-100 dark:bg-gray-800"
+                              placeholder="your-business-name"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Only lowercase letters, numbers, and hyphens allowed
+                          </p>
+                        </div>
+
+                        {/* Landing Page URL */}
+                        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                          <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                            <Link className="h-4 w-4" />
+                            Landing Page
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 text-sm bg-white dark:bg-gray-800 p-3 rounded border border-blue-200 dark:border-blue-700 font-mono break-all">
+                              {typeof window !== 'undefined' ? window.location.origin : ''}/{companySettings.slug}
+                            </code>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                window.open(`/${companySettings.slug}`, '_blank');
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const url = `${window.location.origin}/${companySettings.slug}`;
+                                  await navigator.clipboard.writeText(url);
+                                  alert('Landing page URL copied!');
+                                } catch (error) {
+                                  console.error('Failed to copy:', error);
+                                }
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Booking Page URL */}
+                        <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                          <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                            <Link className="h-4 w-4" />
+                            Booking Page
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 text-sm bg-white dark:bg-gray-800 p-3 rounded border border-green-200 dark:border-green-700 font-mono break-all">
+                              {typeof window !== 'undefined' ? window.location.origin : ''}/{companySettings.slug}/book
+                            </code>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                window.open(`/${companySettings.slug}/book`, '_blank');
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const url = `${window.location.origin}/${companySettings.slug}/book`;
+                                  await navigator.clipboard.writeText(url);
+                                  alert('Booking page URL copied!');
+                                } catch (error) {
+                                  console.error('Failed to copy:', error);
+                                }
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Booking Settings */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                      {/* Minimum Lead Time */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Minimum Lead Time (hours)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="168"
+                          value={companyForm.minimumLeadTimeHours}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              minimumLeadTimeHours: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          placeholder="2"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          How far in advance customers must book
+                        </p>
+                      </div>
+
+                      {/* Max Days Ahead */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Max Days Ahead
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={companyForm.maxDaysAhead}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              maxDaysAhead: parseInt(e.target.value) || 60,
+                            })
+                          }
+                          placeholder="60"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          How far in advance customers can book
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Require Approval Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          Require Approval
+                        </label>
+                        <p className="text-xs text-gray-500">
+                          Manually approve each online booking
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={companyForm.requireApproval}
+                          onChange={(e) =>
+                            setCompanyForm({
+                              ...companyForm,
+                              requireApproval: e.target.checked,
+                            })
+                          }
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="border-t pt-6">

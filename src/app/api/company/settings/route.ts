@@ -25,6 +25,11 @@ const updateCompanySettingsSchema = z.object({
   cleanerReminderHours: z.number().min(1).max(72).optional(),
   enableMorningOfReminder: z.boolean().optional(),
   morningOfReminderTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
+  // Online Booking settings
+  onlineBookingEnabled: z.boolean().optional(),
+  minimumLeadTimeHours: z.number().min(0).max(168).optional(), // Max 7 days
+  maxDaysAhead: z.number().min(1).max(365).optional(), // Max 1 year
+  requireApproval: z.boolean().optional(),
 });
 
 // GET /api/company/settings - Get company settings
@@ -67,6 +72,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
+        slug: true,
         emailDomain: true,
         hourlyRate: true,
         googleReviewUrl: true,
@@ -83,6 +89,10 @@ export async function GET(request: NextRequest) {
         cleanerReminderHours: true,
         enableMorningOfReminder: true,
         morningOfReminderTime: true,
+        onlineBookingEnabled: true,
+        minimumLeadTimeHours: true,
+        maxDaysAhead: true,
+        requireApproval: true,
         businessType: true,
         enabledFeatures: true,
         timezone: true,
@@ -242,6 +252,20 @@ export async function PATCH(request: NextRequest) {
       updateData.morningOfReminderTime = validatedData.morningOfReminderTime;
     }
 
+    // Online Booking settings
+    if (validatedData.onlineBookingEnabled !== undefined) {
+      updateData.onlineBookingEnabled = validatedData.onlineBookingEnabled;
+    }
+    if (validatedData.minimumLeadTimeHours !== undefined) {
+      updateData.minimumLeadTimeHours = validatedData.minimumLeadTimeHours;
+    }
+    if (validatedData.maxDaysAhead !== undefined) {
+      updateData.maxDaysAhead = validatedData.maxDaysAhead;
+    }
+    if (validatedData.requireApproval !== undefined) {
+      updateData.requireApproval = validatedData.requireApproval;
+    }
+
     // Update company settings
     const updatedCompany = await prisma.company.update({
       where: { id: user.companyId },
@@ -249,6 +273,7 @@ export async function PATCH(request: NextRequest) {
       select: {
         id: true,
         name: true,
+        slug: true,
         emailDomain: true,
         hourlyRate: true,
         googleReviewUrl: true,
@@ -265,6 +290,10 @@ export async function PATCH(request: NextRequest) {
         cleanerReminderHours: true,
         enableMorningOfReminder: true,
         morningOfReminderTime: true,
+        onlineBookingEnabled: true,
+        minimumLeadTimeHours: true,
+        maxDaysAhead: true,
+        requireApproval: true,
       },
     });
 
