@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/cleaner/jobs - Get cleaner's assigned jobs
+// GET /api/cleaner/jobs - Get cleaner's assigned jobs + unassigned jobs
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -46,20 +46,25 @@ export async function GET(request: NextRequest) {
     console.log('🟢 CLEANER JOBS - Today range:', todayStart, 'to', todayEnd);
     console.log('🟢 CLEANER JOBS - Current time:', now);
 
-    // Get today's jobs
-    const todayJobs = await prisma.booking.findMany({
+    // Get today's jobs (assigned to this cleaner OR unassigned)
+    const todayJobsRaw = await prisma.booking.findMany({
       where: {
-        assignedTo: teamMember.id,
+        companyId: user.companyId, // Only jobs from the same company
         scheduledDate: {
           gte: todayStart,
           lte: todayEnd,
         },
+        OR: [
+          { assignedTo: teamMember.id }, // Assigned to this cleaner
+          { assignedTo: null },          // Unassigned jobs
+        ],
       },
       include: {
         client: {
           select: {
             name: true,
             phone: true,
+            preferences: true, // Include client preferences
           },
         },
         address: {
@@ -80,6 +85,20 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Calculate wage for each job (hide total price from cleaners)
+    const todayJobs = todayJobsRaw.map(job => {
+      const durationHours = job.duration / 60; // Convert minutes to hours
+      const wage = teamMember.hourlyRate ? teamMember.hourlyRate * durationHours : 0;
+
+      // Return job without price, add wage and hourlyRate instead
+      const { price, ...jobWithoutPrice } = job;
+      return {
+        ...jobWithoutPrice,
+        wage: parseFloat(wage.toFixed(2)), // Cleaner's wage
+        hourlyRate: teamMember.hourlyRate || 0, // Cleaner's hourly rate
+      };
+    });
+
     console.log('🟢 CLEANER JOBS - Found today jobs:', todayJobs.length);
     if (todayJobs.length > 0) {
       console.log('🟢 CLEANER JOBS - Today jobs:', todayJobs.map(j => ({
@@ -89,24 +108,29 @@ export async function GET(request: NextRequest) {
       })));
     }
 
-    // Get upcoming jobs (next 7 days)
+    // Get upcoming jobs (next 7 days) - assigned to this cleaner OR unassigned
     const nextWeek = new Date(tomorrow);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
-    const upcomingJobs = await prisma.booking.findMany({
+    const upcomingJobsRaw = await prisma.booking.findMany({
       where: {
-        assignedTo: teamMember.id,
+        companyId: user.companyId, // Only jobs from the same company
         scheduledDate: {
           gte: tomorrow,
           lt: nextWeek,
         },
         status: 'SCHEDULED',
+        OR: [
+          { assignedTo: teamMember.id }, // Assigned to this cleaner
+          { assignedTo: null },          // Unassigned jobs
+        ],
       },
       include: {
         client: {
           select: {
             name: true,
             phone: true,
+            preferences: true, // Include client preferences
           },
         },
         address: {
@@ -122,6 +146,20 @@ export async function GET(request: NextRequest) {
         scheduledDate: 'asc',
       },
       take: 10,
+    });
+
+    // Calculate wage for upcoming jobs (hide total price from cleaners)
+    const upcomingJobs = upcomingJobsRaw.map(job => {
+      const durationHours = job.duration / 60; // Convert minutes to hours
+      const wage = teamMember.hourlyRate ? teamMember.hourlyRate * durationHours : 0;
+
+      // Return job without price, add wage and hourlyRate instead
+      const { price, ...jobWithoutPrice } = job;
+      return {
+        ...jobWithoutPrice,
+        wage: parseFloat(wage.toFixed(2)), // Cleaner's wage
+        hourlyRate: teamMember.hourlyRate || 0, // Cleaner's hourly rate
+      };
     });
 
     console.log('🟢 CLEANER JOBS - Found upcoming jobs:', upcomingJobs.length);

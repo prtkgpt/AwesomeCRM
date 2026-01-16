@@ -43,9 +43,17 @@ interface CleanerStats {
   email: string;
   jobCount: number;
   color: string;
+  availability?: {
+    recurring?: {
+      [key: string]: { available: boolean; start: string; end: string };
+    };
+    overrides?: {
+      [key: string]: { available: boolean; start?: string; end?: string };
+    };
+  };
 }
 
-type ViewMode = 'month' | 'list';
+type ViewMode = 'month' | 'week' | 'day' | 'list';
 
 export default function CalendarPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -92,9 +100,29 @@ export default function CalendarPage() {
           email: member.user.email,
           jobCount: 0,
           color: colors[index % colors.length],
+          teamMemberId: member.id, // Store team member ID for fetching availability
         }));
 
-        setCleaners(stats);
+        // Fetch availability for each cleaner
+        const statsWithAvailability = await Promise.all(
+          stats.map(async (cleaner: any) => {
+            try {
+              const availRes = await fetch(`/api/team/members/${cleaner.teamMemberId}/availability`);
+              if (availRes.ok) {
+                const availData = await availRes.json();
+                return {
+                  ...cleaner,
+                  availability: availData.data?.availability,
+                };
+              }
+            } catch (err) {
+              console.error(`Failed to fetch availability for ${cleaner.name}`, err);
+            }
+            return cleaner;
+          })
+        );
+
+        setCleaners(statsWithAvailability);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -149,8 +177,31 @@ export default function CalendarPage() {
     setCurrentDate(newDate);
   };
 
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(currentDate.getDate() + (direction === 'next' ? 7 : -7));
+    setCurrentDate(newDate);
+  };
+
+  const navigateDay = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(currentDate.getDate() + (direction === 'next' ? 1 : -1));
+    setCurrentDate(newDate);
+  };
+
   const goToToday = () => {
     setCurrentDate(new Date());
+  };
+
+  const getWeekDays = () => {
+    const start = new Date(currentDate);
+    start.setDate(currentDate.getDate() - currentDate.getDay()); // Start from Sunday
+
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+      return date;
+    });
   };
 
   const getBookingsForDate = (date: Date) => {
@@ -166,6 +217,31 @@ export default function CalendarPage() {
         bookingDate.getFullYear() === date.getFullYear() &&
         cleanerMatch
       );
+    });
+  };
+
+  // Check if any selected cleaners are unavailable on this date
+  const getUnavailableCleaners = (date: Date) => {
+    if (selectedCleaners.length === 0) return [];
+
+    const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
+    const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    return selectedCleaners.filter(cleanerId => {
+      const cleaner = cleaners.find(c => c.id === cleanerId);
+      if (!cleaner?.availability) return false;
+
+      // Check override first
+      if (cleaner.availability.overrides?.[dateKey]) {
+        return !cleaner.availability.overrides[dateKey].available;
+      }
+
+      // Check recurring schedule
+      if (cleaner.availability.recurring?.[dayName]) {
+        return !cleaner.availability.recurring[dayName].available;
+      }
+
+      return false;
     });
   };
 
@@ -189,10 +265,12 @@ export default function CalendarPage() {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       const dayBookings = getBookingsForDate(date);
+      const unavailableCleaners = getUnavailableCleaners(date);
       const isToday =
         date.getDate() === new Date().getDate() &&
         date.getMonth() === new Date().getMonth() &&
         date.getFullYear() === new Date().getFullYear();
+      const hasUnavailable = unavailableCleaners.length > 0;
 
       cells.push(
         <div
@@ -200,17 +278,29 @@ export default function CalendarPage() {
           className={`min-h-24 p-2 border border-gray-200 dark:border-gray-700 overflow-hidden ${
             isToday
               ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500'
+              : hasUnavailable
+              ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
               : 'bg-white dark:bg-gray-800'
           }`}
+          style={hasUnavailable ? {
+            backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(239, 68, 68, 0.1) 10px, rgba(239, 68, 68, 0.1) 20px)'
+          } : undefined}
         >
-          <div
-            className={`text-sm font-semibold mb-1 ${
-              isToday
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            {day}
+          <div className="flex items-center justify-between mb-1">
+            <div
+              className={`text-sm font-semibold ${
+                isToday
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              {day}
+            </div>
+            {hasUnavailable && (
+              <div className="text-xs text-red-600 dark:text-red-400" title={`${unavailableCleaners.length} cleaner(s) unavailable`}>
+                🔒
+              </div>
+            )}
           </div>
           <div className="space-y-1">
             {dayBookings.slice(0, 3).map((booking) => {
@@ -261,6 +351,181 @@ export default function CalendarPage() {
           ))}
         </div>
         <div className="grid grid-cols-7 gap-0">{cells}</div>
+      </div>
+    );
+  };
+
+  const renderWeekView = () => {
+    const weekDays = getWeekDays();
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return (
+      <div>
+        <div className="grid grid-cols-7 gap-2">
+          {weekDays.map((date, index) => {
+            const dayBookings = getBookingsForDate(date);
+            const unavailableCleaners = getUnavailableCleaners(date);
+            const isToday =
+              date.getDate() === new Date().getDate() &&
+              date.getMonth() === new Date().getMonth() &&
+              date.getFullYear() === new Date().getFullYear();
+            const hasUnavailable = unavailableCleaners.length > 0;
+
+            return (
+              <div
+                key={index}
+                className={`border rounded-lg p-3 min-h-[200px] ${
+                  isToday
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10'
+                    : hasUnavailable
+                    ? 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10'
+                    : 'border-gray-200 dark:border-gray-700'
+                }`}
+                style={hasUnavailable ? {
+                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(239, 68, 68, 0.1) 10px, rgba(239, 68, 68, 0.1) 20px)'
+                } : undefined}
+              >
+                <div className="text-center mb-2">
+                  <div className="flex items-center justify-center gap-1">
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      {dayNames[index]}
+                    </div>
+                    {hasUnavailable && (
+                      <div className="text-xs text-red-600 dark:text-red-400" title={`${unavailableCleaners.length} cleaner(s) unavailable`}>
+                        🔒
+                      </div>
+                    )}
+                  </div>
+                  <div className={`text-lg font-bold ${
+                    isToday ? 'text-blue-600 dark:text-blue-400' : ''
+                  }`}>
+                    {date.getDate()}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  {dayBookings.map((booking) => {
+                    const cleaner = cleaners.find(
+                      (c) => c.id === booking.assignee?.id
+                    );
+                    const isUnassigned = !booking.assignee;
+                    return (
+                      <Link key={booking.id} href={`/jobs/${booking.id}`}>
+                        <div
+                          className="text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
+                          style={{
+                            backgroundColor: isUnassigned ? '#ec4899' : (cleaner?.color || '#6b7280'),
+                            color: 'white',
+                          }}
+                          title={`${booking.client.name} - ${new Date(booking.scheduledDate).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}`}
+                        >
+                          {isUnassigned && '⚠️ '}
+                          {new Date(booking.scheduledDate).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                          {' - '}
+                          {booking.client.name}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDayView = () => {
+    const dayBookings = getBookingsForDate(currentDate).sort(
+      (a, b) =>
+        new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+    );
+
+    if (dayBookings.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          No bookings scheduled for this day
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {dayBookings.map((booking) => {
+          const cleaner = cleaners.find((c) => c.id === booking.assignee?.id);
+          const isUnassigned = !booking.assignee;
+          return (
+            <Link key={booking.id} href={`/jobs/${booking.id}`}>
+              <Card className={`p-4 hover:shadow-md transition-shadow ${
+                isUnassigned
+                  ? 'bg-pink-50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-900'
+                  : ''
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      {isUnassigned ? (
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: '#ec4899' }}
+                        />
+                      ) : cleaner && (
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: cleaner.color }}
+                        />
+                      )}
+                      <h3 className="font-semibold">{booking.client.name}</h3>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {booking.serviceType}
+                      </span>
+                      {isUnassigned && (
+                        <span className="text-xs px-2 py-1 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 rounded-full">
+                          ⚠️ No Cleaner
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                      <p>
+                        {new Date(booking.scheduledDate).toLocaleTimeString(
+                          'en-US',
+                          {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          }
+                        )}
+                      </p>
+                      <p>
+                        {booking.address.street}, {booking.address.city}
+                      </p>
+                      {booking.assignee && (
+                        <p>
+                          Assigned to:{' '}
+                          {booking.assignee.user.name ||
+                            booking.assignee.user.email}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                      ${booking.price.toFixed(2)}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {formatDuration(booking.duration)}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     );
   };
@@ -379,17 +644,22 @@ export default function CalendarPage() {
   const unassignedCount = bookings.filter((b) => !b.assignee).length;
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-6 md:p-8">
       <div className="flex gap-6">
         {/* Main Calendar Area */}
         <div className="flex-1">
           {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl md:text-4xl font-bold">Calendar</h1>
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Calendar</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  ⏰ All times displayed in <strong className="text-blue-600 dark:text-blue-400">Pacific Time (PST/PDT)</strong>
+                </p>
+              </div>
               <Link href="/jobs/new">
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button>
+                  <Plus className="h-4 w-4" />
                   New Job
                 </Button>
               </Link>
@@ -402,7 +672,11 @@ export default function CalendarPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigateMonth('prev')}
+                  onClick={() => {
+                    if (viewMode === 'month') navigateMonth('prev');
+                    else if (viewMode === 'week') navigateWeek('prev');
+                    else if (viewMode === 'day') navigateDay('prev');
+                  }}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -412,7 +686,11 @@ export default function CalendarPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigateMonth('next')}
+                  onClick={() => {
+                    if (viewMode === 'month') navigateMonth('next');
+                    else if (viewMode === 'week') navigateWeek('next');
+                    else if (viewMode === 'day') navigateDay('next');
+                  }}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -420,39 +698,52 @@ export default function CalendarPage() {
 
               {/* Current Date Display */}
               <div className="text-lg font-semibold">
-                {currentDate.toLocaleDateString('en-US', {
+                {viewMode === 'month' && currentDate.toLocaleDateString('en-US', {
                   month: 'long',
                   year: 'numeric',
                 })}
+                {viewMode === 'week' && `Week of ${currentDate.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}`}
+                {viewMode === 'day' && currentDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                {viewMode === 'list' && 'All Bookings'}
               </div>
 
               {/* View Mode Selector */}
-              <div className="ml-auto flex gap-2">
-                <Button
-                  variant={viewMode === 'month' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('month')}
-                >
-                  Month
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  List
-                </Button>
+              <div className="ml-auto flex gap-1 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl">
+                {(['month', 'week', 'day', 'list'] as ViewMode[]).map((view) => (
+                  <button
+                    key={view}
+                    onClick={() => setViewMode(view)}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      viewMode === view
+                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md scale-105'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {view.charAt(0).toUpperCase() + view.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
           {/* Calendar Display */}
-          <Card className="p-4 overflow-hidden">
+          <Card className="p-6 overflow-hidden">
             {loading ? (
               <div className="text-center py-12 text-gray-500">Loading...</div>
             ) : (
               <>
                 {viewMode === 'month' && renderMonthView()}
+                {viewMode === 'week' && renderWeekView()}
+                {viewMode === 'day' && renderDayView()}
                 {viewMode === 'list' && renderListView()}
               </>
             )}
@@ -461,19 +752,19 @@ export default function CalendarPage() {
 
         {/* Providers Sidebar */}
         <div className="w-80 hidden lg:block">
-          <Card className="p-4 sticky top-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Providers</h2>
+          <Card className="p-6 sticky top-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Providers</h2>
             </div>
 
             {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="relative mb-6">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search by name"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-11"
               />
             </div>
 

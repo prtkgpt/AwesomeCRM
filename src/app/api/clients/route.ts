@@ -4,6 +4,11 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createClientSchema } from '@/lib/validations';
 import { stripe } from '@/lib/stripe';
+import { generateReferralCode, validateReferralCode, awardReferralCredits } from '@/lib/referral';
+import { sendEmail, getReferralUsedEmailTemplate } from '@/lib/email';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 // GET /api/clients - List all clients
 export async function GET(request: NextRequest) {
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/clients error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch clients' },
+      { success: false, error: 'Failed to fetch clients', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -102,6 +107,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate referral code if provided
+    let referrerId: string | undefined;
+    const referralCodeInput = (body as any).referralCode;
+    if (referralCodeInput) {
+      const validation = await validateReferralCode(referralCodeInput, user.companyId);
+      if (validation.valid && validation.clientId) {
+        referrerId = validation.clientId;
+        console.log('🎁 Valid referral code used:', referralCodeInput, 'from:', validation.clientName);
+      } else {
+        console.warn('⚠️ Invalid referral code provided:', referralCodeInput);
+      }
+    }
+
+    // Generate unique referral code for this client
+    let referralCode = generateReferralCode(validatedData.name, '');
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      // Check if code already exists
+      const existing = await prisma.client.findFirst({
+        where: { referralCode, companyId: user.companyId },
+      });
+
+      if (!existing) {
+        break; // Code is unique
+      }
+
+      // Generate new code and try again
+      attempts++;
+      referralCode = generateReferralCode(validatedData.name, '');
+    }
+
     // Create client with addresses
     const client = await prisma.client.create({
       data: {
@@ -113,6 +151,9 @@ export async function POST(request: NextRequest) {
         tags: validatedData.tags,
         notes: validatedData.notes,
         stripeCustomerId,
+        // Referral program
+        referralCode,
+        referredById: referrerId,
         // Insurance & Helper Bee's fields
         hasInsurance: validatedData.hasInsurance || false,
         helperBeesReferralId: validatedData.helperBeesReferralId,
@@ -161,8 +202,73 @@ export async function POST(request: NextRequest) {
       name: client.name,
       hasInsurance: client.hasInsurance,
       insuranceProvider: client.insuranceProvider,
-      helperBeesReferralId: client.helperBeesReferralId
+      helperBeesReferralId: client.helperBeesReferralId,
+      referralCode: client.referralCode,
+      referredById: client.referredById,
     }, null, 2));
+
+    // Award referral credits if client was referred
+    if (referrerId && client.id) {
+      try {
+        const result = await awardReferralCredits(referrerId, client.id, user.companyId);
+        if (result.success) {
+          console.log('🎁 Referral credits awarded successfully');
+
+          // Send email notification to referrer
+          try {
+            // Fetch referrer details
+            const referrer = await prisma.client.findUnique({
+              where: { id: referrerId },
+              select: {
+                name: true,
+                email: true,
+                referralCode: true,
+                referralCreditsBalance: true,
+              },
+            });
+
+            // Fetch company details
+            const company = await prisma.company.findUnique({
+              where: { id: user.companyId },
+              select: {
+                name: true,
+                resendApiKey: true,
+                referralReferrerReward: true,
+              },
+            });
+
+            if (referrer?.email && company) {
+              const emailHtml = getReferralUsedEmailTemplate({
+                referrerName: referrer.name,
+                newCustomerName: client.name,
+                companyName: company.name,
+                creditsEarned: company.referralReferrerReward || 25,
+                creditsBalance: referrer.referralCreditsBalance,
+                referralCode: referrer.referralCode || '',
+              });
+
+              await sendEmail({
+                to: referrer.email,
+                subject: `🎉 ${client.name} used your referral code!`,
+                html: emailHtml,
+                type: 'notification',
+                apiKey: company.resendApiKey || undefined,
+              });
+
+              console.log('📧 Referral notification email sent to', referrer.email);
+            }
+          } catch (emailError) {
+            console.error('❌ Failed to send referral notification email:', emailError);
+            // Don't fail the request if email fails
+          }
+        } else {
+          console.error('❌ Failed to award referral credits:', result.error);
+        }
+      } catch (error) {
+        console.error('❌ Error awarding referral credits:', error);
+        // Don't fail client creation if credits fail
+      }
+    }
 
     return NextResponse.json({
       success: true,

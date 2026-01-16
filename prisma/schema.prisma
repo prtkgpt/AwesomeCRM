@@ -39,6 +39,11 @@ model Company {
   timezone            String   @default("America/New_York")
   currency            String   @default("USD")
 
+  // Business Configuration
+  businessType        String[] @default(["RESIDENTIAL"])  // ["RESIDENTIAL", "COMMERCIAL"] or both
+  enabledFeatures     Json?                               // Feature flags: { "insuranceBilling": true, ... }
+  // Example enabledFeatures: { "insuranceBilling": true, "recurringBilling": true, "teamManagement": true }
+
   // API Integrations
   emailDomain         String?             // Custom domain for emails
   twilioAccountSid    String?             // Twilio Account SID
@@ -70,6 +75,21 @@ model Company {
   hourlyRate            Float?   @default(50.00)  // Base hourly rate (default $50/hr)
   serviceTypeMultipliers Json?               // Service type pricing multipliers
   // Example: { "STANDARD": 1.0, "DEEP": 1.2, "MOVE_OUT": 1.2, "WEEKLY": 0.75, "BIWEEKLY": 0.85, "MONTHLY": 0.9, "POST_CONSTRUCTION": 1.3, "POST_PARTY": 1.1 }
+
+  // Operational Expenses (Business Operations)
+  insuranceCost         Float?   @default(0)      // Monthly insurance cost
+  bondCost              Float?   @default(0)      // Monthly bond cost
+  workersCompCost       Float?   @default(0)      // Monthly workers compensation cost
+  cleaningSuppliesCost  Float?   @default(0)      // Monthly cleaning supplies cost
+  gasReimbursementRate  Float?   @default(0)      // Gas reimbursement rate (per mile or per job)
+  vaAdminSalary         Float?   @default(0)      // Monthly VA/Admin salary
+  ownerSalary           Float?   @default(0)      // Monthly owner salary
+  otherExpenses         Float?   @default(0)      // Other monthly operational expenses
+
+  // Referral Program Configuration
+  referralEnabled       Boolean  @default(false)  // Enable/disable referral program
+  referralReferrerReward Float?  @default(25)     // Credit for referrer (e.g., $25)
+  referralRefereeReward  Float?  @default(25)     // Credit for new customer (e.g., $25)
 
   // Subscription
   plan                String   @default("FREE")  // FREE, BASIC, PRO
@@ -124,8 +144,11 @@ model User {
   customerClient  Client?   @relation("CustomerAccount")
   customerBookings Booking[] @relation("CustomerBookings")
 
-  // Jobs completed by this user
+  // Jobs completed by this user (cleaner)
   completedBookings Booking[] @relation("CompletedByUser")
+
+  // Jobs approved by this user (admin)
+  approvedBookings Booking[] @relation("ApprovedByUser")
 
   // Invitations sent
   sentInvitations Invitation[] @relation("InvitationSender")
@@ -256,6 +279,34 @@ model Client {
   customerUserId    String?   @unique
   customerUser      User?     @relation("CustomerAccount", fields: [customerUserId], references: [id])
 
+  // Referral Program
+  referralCode             String?   @unique  // Unique code for this client (e.g., "JOHN-ABC123")
+  referredById             String?              // Client ID who referred this client
+  referredBy               Client?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals                Client[]  @relation("Referrals") // Clients referred by this client
+  referralCreditsEarned    Float     @default(0) // Total credits earned from referrals
+  referralCreditsUsed      Float     @default(0) // Credits used on bookings
+  referralCreditsBalance   Float     @default(0) // Available credits
+  referralTier             ReferralTier @default(NONE) // Current referral tier level
+  referralTierBonusEarned  Float     @default(0) // Total bonus credits from achieving tiers
+  referralCreditTransactions ReferralCreditTransaction[] // Individual credit transactions
+
+  // Customer Preferences
+  preferences              ClientPreference?
+
+  // Birthday & Anniversary Automation
+  birthday                     DateTime?  // Client's birthday
+  anniversary                  DateTime?  // Client's anniversary (e.g., first booking, wedding)
+  anniversaryType              String?    // "FIRST_BOOKING", "WEDDING", "CUSTOM"
+
+  // Communication preferences for greetings
+  enableBirthdayGreetings      Boolean @default(true)
+  enableAnniversaryGreetings   Boolean @default(true)
+
+  // Tracking sent greetings
+  lastBirthdayGreetingSent     DateTime?
+  lastAnniversaryGreetingSent  DateTime?
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -263,6 +314,87 @@ model Client {
   @@index([userId])
   @@index([email])
   @@index([helperBeesReferralId])
+  @@index([referralCode])
+  @@index([referredById])
+}
+
+model ReferralCreditTransaction {
+  id              String    @id @default(cuid())
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId       String
+
+  amount          Float     // Credit amount (positive for earned, negative for used)
+  type            ReferralCreditType // EARNED, USED, EXPIRED, TIER_BONUS
+  description     String?   // e.g., "Referral from John Doe", "Applied to booking #123"
+
+  // Expiration tracking
+  expiresAt       DateTime? // When this credit expires (null for used/expired)
+  status          ReferralCreditStatus @default(ACTIVE) // ACTIVE, USED, EXPIRED
+
+  // Relations
+  relatedReferralId String?  // ID of the client who was referred (for EARNED type)
+  relatedBookingId  String?  // ID of the booking where credit was used
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([companyId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([createdAt])
+}
+
+// ============================================
+// CUSTOMER PREFERENCES
+// ============================================
+
+model ClientPreference {
+  id              String    @id @default(cuid())
+
+  clientId        String    @unique
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Cleaning Sequence & Priorities
+  cleaningSequence        String?   // e.g., "Start with kitchen, then bathrooms"
+  areasToFocus            String?   // e.g., "Extra attention to kitchen counters and floors"
+  areasToAvoid            String?   // e.g., "Don't move items on desk, avoid master bedroom closet"
+
+  // Product Sensitivities & Allergies
+  productAllergies        String?   // e.g., "Allergic to bleach, use only natural products"
+  preferredProducts       String?   // e.g., "Customer provides own eco-friendly products"
+  avoidScents             Boolean   @default(false)
+  scentPreferences        String?   // e.g., "Lavender OK, no citrus"
+
+  // Pet Handling
+  petHandlingInstructions String?   // e.g., "Keep dog in backyard during cleaning, cat is shy"
+  petFeedingNeeded        Boolean   @default(false)
+  petFeedingInstructions  String?   // e.g., "Feed cat if visit is over 2 hours"
+
+  // Communication Preferences
+  preferredContactMethod  String?   // "SMS", "Email", "Phone"
+  notificationPreferences String?   // e.g., "Text 30 min before arrival, no calls"
+  languagePreference      String?   // e.g., "Spanish", "English"
+
+  // Access & Entry
+  keyLocation             String?   // e.g., "Spare key under flower pot"
+  alarmCode               String?   // Home alarm code
+  entryInstructions       String?   // e.g., "Use back door, front door lock is broken"
+
+  // Special Instructions
+  specialRequests         String?   // e.g., "Please water plants in living room"
+  thingsToKnow            String?   // e.g., "Toilet in hall bath doesn't flush well"
+  temperaturePreferences  String?   // e.g., "Please keep AC at 72°F"
+
+  // Previous Visit Notes (auto-populated)
+  lastVisitNotes          String?   // Notes from cleaner's last visit
+  lastVisitDate           DateTime? // When was last cleaned
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([clientId])
 }
 
 model Address {
@@ -312,7 +444,8 @@ model Address {
 
 enum BookingStatus {
   SCHEDULED
-  COMPLETED
+  CLEANER_COMPLETED    // Stage 1: Cleaner marked complete, pending admin review
+  COMPLETED            // Stage 2: Admin approved, ready for payment
   CANCELLED
   NO_SHOW
 }
@@ -321,6 +454,26 @@ enum ServiceType {
   STANDARD
   DEEP
   MOVE_OUT
+}
+
+enum ReferralTier {
+  NONE      // No referrals yet
+  BRONZE    // 1-4 referrals
+  SILVER    // 5-9 referrals
+  GOLD      // 10+ referrals
+}
+
+enum ReferralCreditType {
+  EARNED      // Credit earned from a referral
+  USED        // Credit used on a booking
+  EXPIRED     // Credit expired without being used
+  TIER_BONUS  // Bonus credit from tier achievement
+}
+
+enum ReferralCreditStatus {
+  ACTIVE   // Credit is available to use
+  USED     // Credit has been used
+  EXPIRED  // Credit has expired
 }
 
 enum RecurrenceFrequency {
@@ -368,6 +521,10 @@ model Booking {
   isPaid                Boolean             @default(false)
   paymentMethod         String?             // "card", "cash", "check", "zelle"
   paidAt                DateTime?
+
+  // Referral Credits Applied
+  referralCreditsApplied Float              @default(0)    // Credits used on this booking
+  finalPrice            Float?                              // Final price after credits (null if no credits applied)
 
   // Insurance & Copay Tracking
   hasInsuranceCoverage  Boolean             @default(false)
@@ -430,10 +587,18 @@ model Booking {
   tipPaidVia            String?                      // "STRIPE", "ZELLE", "VENMO", "CASHAPP", "CASH"
   feedbackSubmittedAt   DateTime?                    // When customer submitted feedback
 
+  // Review request automation
+  reviewRequestSentAt   DateTime?                    // When review request was sent (separate from feedback)
+
   // Job completion tracking
-  completedAt           DateTime?                    // When job was marked as completed
-  completedBy           String?                      // User ID who marked job as completed
+  completedAt           DateTime?                    // When job was marked as completed by cleaner
+  completedBy           String?                      // User ID who marked job as completed (cleaner)
   completedByUser       User?               @relation("CompletedByUser", fields: [completedBy], references: [id])
+
+  // Job approval tracking (Stage 2 of two-stage workflow)
+  approvedAt            DateTime?                    // When job was approved by admin
+  approvedBy            String?                      // User ID who approved the job (admin)
+  approvedByUser        User?               @relation("ApprovedByUser", fields: [approvedBy], references: [id])
 
   messages              Message[]
   invoice               Invoice?
@@ -452,6 +617,7 @@ model Booking {
   @@index([scheduledDate])
 
   reviews               CleaningReview[]
+  checklist             JobChecklist?
 }
 
 // ============================================
@@ -511,6 +677,9 @@ enum MessageType {
   THANK_YOU
   PAYMENT_REQUEST
   CUSTOM
+  BIRTHDAY_GREETING
+  ANNIVERSARY_GREETING
+  REVIEW_REQUEST
 }
 
 model Message {
@@ -726,4 +895,33 @@ model PricingRule {
 
   @@index([companyId, type])
   @@index([companyId, isActive])
+}
+
+// ============================================
+// JOB CHECKLISTS
+// ============================================
+
+model JobChecklist {
+  id              String    @id @default(cuid())
+
+  // Booking reference
+  bookingId       String    @unique
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Checklist data (stored as JSON)
+  // Format: { "kitchen": [{ "id": "k1", "task": "Wash dishes", "completed": true, "completedAt": "2024-01-01T10:00:00Z" }], ... }
+  checklistData   Json
+
+  // Summary stats
+  totalTasks      Int       @default(0)
+  completedTasks  Int       @default(0)
+
+  // Timestamps
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([bookingId])
 }

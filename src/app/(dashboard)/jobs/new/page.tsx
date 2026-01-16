@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import type { ClientWithAddresses } from '@/types';
+import { createPSTDate } from '@/lib/timezone';
 
 // Pricing configuration
 const HOURLY_RATE = 50.00;
@@ -58,6 +59,15 @@ export default function NewJobPage() {
   const [error, setError] = useState('');
   const [useDetailedPricing, setUseDetailedPricing] = useState(false);
 
+  // Business timezone
+  const [businessTimezone, setBusinessTimezone] = useState<string>('America/Los_Angeles');
+  const [timezoneAbbr, setTimezoneAbbr] = useState<string>('PST/PDT');
+
+  // Time validation state
+  const [timeWarning, setTimeWarning] = useState('');
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const [overrideTimeValidation, setOverrideTimeValidation] = useState(false);
+
   // Booking adjustments
   const [adjustPrice, setAdjustPrice] = useState(false);
   const [adjustTime, setAdjustTime] = useState(false);
@@ -98,10 +108,47 @@ export default function NewJobPage() {
     finalCopayAmount: '0',
   });
 
+  // Referral credits state
+  const [referralCreditsAvailable, setReferralCreditsAvailable] = useState(0);
+  const [applyCredits, setApplyCredits] = useState(false);
+
   useEffect(() => {
     fetchClients();
     fetchCleaners();
+    fetchBusinessTimezone();
   }, []);
+
+  const fetchBusinessTimezone = async () => {
+    try {
+      const response = await fetch('/api/company/settings');
+      const data = await response.json();
+
+      if (data.success && data.data.timezone) {
+        setBusinessTimezone(data.data.timezone);
+        // Get timezone abbreviation
+        const abbr = getTimezoneAbbreviation(data.data.timezone);
+        setTimezoneAbbr(abbr);
+      }
+    } catch (error) {
+      console.error('Failed to fetch business timezone:', error);
+      // Keep default PST/PDT if fetch fails
+    }
+  };
+
+  const getTimezoneAbbreviation = (timezone: string): string => {
+    // Common timezone mappings
+    const timezoneMap: Record<string, string> = {
+      'America/Los_Angeles': 'PST/PDT',
+      'America/New_York': 'EST/EDT',
+      'America/Chicago': 'CST/CDT',
+      'America/Denver': 'MST/MDT',
+      'America/Phoenix': 'MST',
+      'America/Anchorage': 'AKST/AKDT',
+      'Pacific/Honolulu': 'HST',
+    };
+
+    return timezoneMap[timezone] || timezone.split('/').pop()?.replace(/_/g, ' ') || 'Local Time';
+  };
 
   // Pre-fill form when duplicating a job
   useEffect(() => {
@@ -250,6 +297,9 @@ export default function NewJobPage() {
       const client = clients.find((c) => c.id === formData.clientId);
       setSelectedClient(client || null);
 
+      // Fetch client's referral credits
+      setReferralCreditsAvailable((client as any)?.referralCreditsBalance || 0);
+
       // Auto-populate address
       if (client && client.addresses.length > 0) {
         const updates: any = {
@@ -287,6 +337,8 @@ export default function NewJobPage() {
       }
     } else {
       setSelectedClient(null);
+      setReferralCreditsAvailable(0);
+      setApplyCredits(false);
     }
   }, [formData.clientId, clients]);
 
@@ -332,6 +384,54 @@ export default function NewJobPage() {
     }));
   };
 
+  // Validate time is within business hours
+  const validateScheduleTime = (): { isValid: boolean; warning: string } => {
+    if (!formData.scheduledTime || !formData.duration) {
+      return { isValid: true, warning: '' };
+    }
+
+    // Parse the time (format: HH:MM)
+    const [hours, minutes] = formData.scheduledTime.split(':').map(Number);
+    const startTimeMinutes = hours * 60 + minutes;
+
+    // Business hours: 8am to 5pm start, 8pm end (in business local time)
+    const MIN_START_TIME = 8 * 60; // 8am in minutes
+    const MAX_START_TIME = 17 * 60; // 5pm in minutes
+    const MAX_END_TIME = 20 * 60; // 8pm in minutes
+
+    // Calculate end time
+    const endTimeMinutes = startTimeMinutes + parseInt(formData.duration);
+
+    // Check start time
+    if (startTimeMinutes < MIN_START_TIME) {
+      return {
+        isValid: false,
+        warning: `⚠️ Start time is before 8:00 AM ${timezoneAbbr}. Recommended start time is between 8:00 AM and 5:00 PM ${timezoneAbbr}.`
+      };
+    }
+
+    if (startTimeMinutes > MAX_START_TIME) {
+      return {
+        isValid: false,
+        warning: `⚠️ Start time is after 5:00 PM ${timezoneAbbr}. Recommended start time is between 8:00 AM and 5:00 PM ${timezoneAbbr}.`
+      };
+    }
+
+    // Check end time
+    if (endTimeMinutes > MAX_END_TIME) {
+      const endHours = Math.floor(endTimeMinutes / 60);
+      const endMins = endTimeMinutes % 60;
+      const endTimeStr = `${endHours % 12 || 12}:${endMins.toString().padStart(2, '0')} ${endHours >= 12 ? 'PM' : 'AM'}`;
+
+      return {
+        isValid: false,
+        warning: `⚠️ This job will end at ${endTimeStr} ${timezoneAbbr}, which is after 8:00 PM ${timezoneAbbr}. Please adjust the start time or duration.`
+      };
+    }
+
+    return { isValid: true, warning: '' };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -356,15 +456,26 @@ export default function NewJobPage() {
       return;
     }
 
+    // Validate schedule time (PST business hours)
+    if (!overrideTimeValidation) {
+      const timeValidation = validateScheduleTime();
+      if (!timeValidation.isValid) {
+        setTimeWarning(timeValidation.warning);
+        setShowTimeWarning(true);
+        setLoading(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+    }
+
     try {
-      const scheduledDateTime = new Date(
-        `${formData.scheduledDate}T${formData.scheduledTime}`
-      );
+      // Convert date/time to PST timezone
+      const scheduledDateISO = createPSTDate(formData.scheduledDate, formData.scheduledTime);
 
       const payload = {
         clientId: formData.clientId,
         addressId: formData.addressId,
-        scheduledDate: scheduledDateTime.toISOString(),
+        scheduledDate: scheduledDateISO,
         duration: parseInt(formData.duration),
         serviceType: formData.serviceType,
         price: parseFloat(formData.price),
@@ -375,7 +486,7 @@ export default function NewJobPage() {
           ? formData.recurrenceFrequency
           : 'NONE',
         recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate
-          ? new Date(formData.recurrenceEndDate).toISOString()
+          ? createPSTDate(formData.recurrenceEndDate, '23:59')
           : undefined,
         // Insurance payment fields
         hasInsuranceCoverage: formData.hasInsuranceCoverage,
@@ -383,6 +494,8 @@ export default function NewJobPage() {
         copayAmount: parseFloat(formData.copayAmount),
         copayDiscountApplied: parseFloat(formData.copayDiscountApplied),
         finalCopayAmount: parseFloat(formData.finalCopayAmount),
+        // Referral credits application
+        applyCredits: applyCredits && referralCreditsAvailable > 0,
       };
 
       const response = await fetch('/api/bookings', {
@@ -408,12 +521,17 @@ export default function NewJobPage() {
   };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
+    <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-6 md:space-y-8">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold">New Job</h1>
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">New Job</h1>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">
+            Create a new cleaning job
+          </p>
+        </div>
       </div>
 
       {error && (
@@ -423,9 +541,66 @@ export default function NewJobPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Client & Location</h2>
+      {showTimeWarning && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-400 dark:border-amber-600 p-6 rounded-xl shadow-lg space-y-4">
+          <div className="flex items-start gap-3">
+            <span className="text-3xl">⏰</span>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-amber-900 dark:text-amber-100 mb-2">
+                Schedule Time Warning
+              </h3>
+              <p className="text-sm text-amber-800 dark:text-amber-200 mb-4">
+                {timeWarning}
+              </p>
+              <div className="bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 rounded-lg p-3 mb-4">
+                <p className="text-xs text-amber-900 dark:text-amber-100 font-semibold">
+                  <strong>Business Hours ({timezoneAbbr}):</strong>
+                </p>
+                <ul className="text-xs text-amber-800 dark:text-amber-200 mt-1 ml-4 list-disc">
+                  <li>Start time: 8:00 AM - 5:00 PM {timezoneAbbr}</li>
+                  <li>End time: No later than 8:00 PM {timezoneAbbr}</li>
+                </ul>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowTimeWarning(false);
+                    setTimeWarning('');
+                  }}
+                  className="flex-1"
+                >
+                  Cancel & Edit Time
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setOverrideTimeValidation(true);
+                    setShowTimeWarning(false);
+                    setTimeWarning('');
+                    // Re-trigger form submission
+                    setTimeout(() => {
+                      const form = document.querySelector('form');
+                      if (form) {
+                        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                        form.dispatchEvent(submitEvent);
+                      }
+                    }, 100);
+                  }}
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  Override & Continue
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+        <Card className="p-6 md:p-8 space-y-6">
+          <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Client & Location</h2>
 
           <div>
             <Label htmlFor="clientId">Client *</Label>
@@ -476,8 +651,13 @@ export default function NewJobPage() {
           )}
         </Card>
 
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Schedule</h2>
+        <Card className="p-6 md:p-8 space-y-6">
+          <div>
+            <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Schedule</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              ⏰ All times are in <strong>{timezoneAbbr}</strong> (Business Local Time)
+            </p>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -502,12 +682,37 @@ export default function NewJobPage() {
                 onChange={handleChange}
                 required
               />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Recommended: 8:00 AM - 5:00 PM {timezoneAbbr}
+              </p>
             </div>
           </div>
+
+          {formData.scheduledTime && formData.duration && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+              <p className="text-xs text-blue-800 dark:text-blue-200">
+                <strong>Estimated completion:</strong>{' '}
+                {(() => {
+                  const [hours, minutes] = formData.scheduledTime.split(':').map(Number);
+                  const startMinutes = hours * 60 + minutes;
+                  const endMinutes = startMinutes + parseInt(formData.duration);
+                  const endHours = Math.floor(endMinutes / 60);
+                  const endMins = endMinutes % 60;
+                  return `${endHours % 12 || 12}:${endMins.toString().padStart(2, '0')} ${endHours >= 12 ? 'PM' : 'AM'} ${timezoneAbbr}`;
+                })()}
+                {(() => {
+                  const [hours, minutes] = formData.scheduledTime.split(':').map(Number);
+                  const startMinutes = hours * 60 + minutes;
+                  const endMinutes = startMinutes + parseInt(formData.duration);
+                  return endMinutes > 20 * 60 ? ' ⚠️ (After 8:00 PM)' : '';
+                })()}
+              </p>
+            </div>
+          )}
         </Card>
 
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold text-lg">Service Details</h2>
+        <Card className="p-6 md:p-8 space-y-6">
+          <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Service Details</h2>
 
           <div>
             <Label htmlFor="serviceType">Service Type *</Label>
@@ -934,17 +1139,78 @@ export default function NewJobPage() {
           </div>
         </Card>
 
-        <Card className="p-4 space-y-4">
-          <div className="flex items-center gap-2">
+        {/* Referral Credits Section */}
+        {referralCreditsAvailable > 0 && (
+          <Card className="p-4 space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-semibold text-lg flex items-center gap-2">
+                  <span className="text-2xl">🎁</span>
+                  Referral Credits Available
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  This client has ${referralCreditsAvailable.toFixed(2)} in referral credits
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-purple-700">
+                  ${referralCreditsAvailable.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-purple-200">
+              <input
+                type="checkbox"
+                id="applyCredits"
+                checked={applyCredits}
+                onChange={(e) => setApplyCredits(e.target.checked)}
+                className="h-4 w-4 rounded border-purple-300"
+              />
+              <Label htmlFor="applyCredits" className="cursor-pointer font-medium">
+                Apply credits to this booking
+              </Label>
+            </div>
+
+            {applyCredits && (
+              <div className="bg-white p-4 rounded-lg border-2 border-purple-300 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Booking Price:</span>
+                  <span className="font-semibold">${parseFloat(formData.price).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Credits Applied:</span>
+                  <span className="font-semibold">
+                    -${Math.min(referralCreditsAvailable, parseFloat(formData.price) || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-base font-bold border-t border-purple-200 pt-2">
+                  <span>Final Price:</span>
+                  <span className="text-purple-700">
+                    ${Math.max(0, parseFloat(formData.price || '0') - Math.min(referralCreditsAvailable, parseFloat(formData.price) || 0)).toFixed(2)}
+                  </span>
+                </div>
+                {Math.min(referralCreditsAvailable, parseFloat(formData.price) || 0) < referralCreditsAvailable && (
+                  <p className="text-xs text-gray-600 pt-2 border-t border-purple-200">
+                    Remaining balance after booking: ${(referralCreditsAvailable - Math.min(referralCreditsAvailable, parseFloat(formData.price) || 0)).toFixed(2)}
+                  </p>
+                )}
+              </div>
+            )}
+          </Card>
+        )}
+
+        <Card className="p-6 md:p-8 space-y-6">
+          <div className="flex items-center gap-3">
             <input
               type="checkbox"
               id="isRecurring"
               name="isRecurring"
               checked={formData.isRecurring}
               onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-5 w-5 rounded border-gray-300"
             />
-            <Label htmlFor="isRecurring" className="cursor-pointer">
+            <Label htmlFor="isRecurring" className="cursor-pointer font-semibold text-base">
               Make this a recurring job
             </Label>
           </div>
@@ -983,11 +1249,11 @@ export default function NewJobPage() {
           )}
         </Card>
 
-        <div className="flex gap-3">
-          <Button type="submit" disabled={loading} className="flex-1">
+        <div className="flex gap-4 pt-4">
+          <Button type="submit" disabled={loading} className="flex-1 h-12 text-base font-semibold">
             {loading ? 'Creating...' : 'Create Job'}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} className="h-12 px-8 text-base font-semibold">
             Cancel
           </Button>
         </div>

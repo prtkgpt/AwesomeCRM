@@ -13,9 +13,22 @@ import {
   ChevronRight,
   Clock,
   User as UserIcon,
+  Receipt,
+  MessageSquare,
+  CreditCard,
+  Star,
+  UserPlus,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Skeleton,
+  SkeletonCalendarBox,
+  SkeletonActivityItem,
+  SkeletonStatsCard,
+} from '@/components/ui/skeleton';
+import { PageTransition, AnimatedList, AnimatedListItem, FadeIn, SlideIn } from '@/components/ui/page-transition';
 
 interface DashboardStats {
   totalClients: number;
@@ -215,111 +228,188 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-gray-500">Loading dashboard...</div>
+      <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+        {/* Main Content - Skeleton */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 md:p-8 space-y-8">
+            {/* Header Skeleton */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Skeleton className="w-14 h-14 rounded-2xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-48" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+            </div>
+
+            {/* Stats Cards Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <SkeletonStatsCard />
+              <SkeletonStatsCard />
+              <SkeletonStatsCard />
+              <SkeletonStatsCard />
+            </div>
+
+            {/* Calendar Skeleton */}
+            <Card className="p-6">
+              <div className="mb-6 space-y-2">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-64" />
+              </div>
+              <div className="flex items-center justify-between mb-6">
+                <Skeleton className="h-10 w-10 rounded-lg" />
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-10 w-10 rounded-lg" />
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <SkeletonCalendarBox key={i} />
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* Right Panel - Activity Feed Skeleton */}
+        <div className="hidden lg:block w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-y-auto">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-8">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-9 w-20" />
+            </div>
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <SkeletonActivityItem key={i} />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-      {/* Main Content - Center Panel */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 md:p-6 space-y-6">
-          {/* Header with User Info */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                <UserIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+    <PageTransition>
+      <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+        {/* Main Content - Center Panel */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 md:p-8 space-y-8">
+            {/* Header with User Info */}
+            <FadeIn>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+                <UserIcon className="h-7 w-7 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                   {userName}
                 </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
                   {userRole || 'USER'}
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Link href="/jobs/new">
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button>
+                  <Plus className="h-4 w-4" />
                   New Job
                 </Button>
               </Link>
               <Link href="/clients/new">
-                <Button variant="outline" size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button variant="outline">
+                  <Plus className="h-4 w-4" />
                   New Client
+                </Button>
+              </Link>
+              <Link href="/estimates">
+                <Button variant="outline">
+                  <Receipt className="h-4 w-4" />
+                  Estimates
                 </Button>
               </Link>
             </div>
           </div>
+            </FadeIn>
 
           {/* Metrics - Small Boxes */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <AnimatedList className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <AnimatedListItem>
+              <Card animated hoverable className="p-6 cursor-default">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md">
+                  <Users className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Clients</p>
-                  <p className="text-xl font-bold">{stats?.totalClients || 0}</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Clients</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.totalClients || 0}</p>
                 </div>
               </div>
             </Card>
+            </AnimatedListItem>
 
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <CalendarIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <AnimatedListItem>
+              <Card animated hoverable className="p-6 cursor-default">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md">
+                    <CalendarIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Upcoming</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.upcomingJobs || 0}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Upcoming</p>
-                  <p className="text-xl font-bold">{stats?.upcomingJobs || 0}</p>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </AnimatedListItem>
 
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Completed</p>
-                  <p className="text-xl font-bold">{stats?.completedThisMonth || 0}</p>
-                </div>
+            <AnimatedListItem>
+              <Card animated hoverable className="p-6 cursor-default">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md">
+                    <TrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Completed</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats?.completedThisMonth || 0}</p>
+                  </div>
               </div>
             </Card>
+            </AnimatedListItem>
 
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            <AnimatedListItem>
+              <Card animated hoverable className="p-6 cursor-default">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-md">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">Revenue MTD</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">${stats?.revenueThisMonth || 0}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Revenue MTD</p>
-                  <p className="text-xl font-bold">${stats?.revenueThisMonth || 0}</p>
-                </div>
-              </div>
-            </Card>
-          </div>
+              </Card>
+            </AnimatedListItem>
+          </AnimatedList>
 
           {/* Calendar Section */}
-          <Card className="p-6">
+          <Card className="p-8">
             {/* Calendar Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
               <div className="flex items-center gap-4">
-                <h2 className="text-lg font-semibold">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {viewType === 'day'
                     ? currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
                     : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </h2>
-                <div className="flex gap-1">
+                <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -353,14 +443,14 @@ export default function DashboardPage() {
               </div>
 
               {/* View Options */}
-              <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+              <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl">
                 {(['month', 'week', 'day', 'list'] as ViewType[]).map((view) => (
                   <button
                     key={view}
                     onClick={() => setViewType(view)}
-                    className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                       viewType === view
-                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow'
+                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md scale-105'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
                   >
@@ -375,10 +465,10 @@ export default function DashboardPage() {
               <div>
                 {/* Day headers */}
                 <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 mb-px">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
                     <div
                       key={day}
-                      className="bg-gray-50 dark:bg-gray-800 px-2 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
+                      className="bg-gray-50 dark:bg-gray-800 px-3 py-3 text-center text-sm font-bold text-gray-700 dark:text-gray-300"
                     >
                       {day}
                     </div>
@@ -396,7 +486,7 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={index}
-                        className={`bg-white dark:bg-gray-900 min-h-[100px] p-2 ${
+                        className={`bg-white dark:bg-gray-900 min-h-[140px] p-3 ${
                           !isCurrentMonth ? 'opacity-40' : ''
                         } ${isToday ? 'ring-2 ring-blue-500 ring-inset' : ''} ${
                           hasUnassignedJobs ? 'bg-pink-50/50 dark:bg-pink-900/10' : ''
@@ -412,24 +502,25 @@ export default function DashboardPage() {
                           {date.getDate()}
                         </div>
 
-                        <div className="space-y-1">
-                          {dayJobs.slice(0, 3).map((job) => {
+                        <div className="space-y-1.5">
+                          {dayJobs.slice(0, 4).map((job) => {
                             const isUnassigned = !job.assignee;
                             return (
                               <Link key={job.id} href={`/jobs/${job.id}`}>
-                                <div className={`text-[10px] px-1.5 py-1 rounded truncate cursor-pointer transition-colors ${
+                                <div className={`text-xs px-2 py-1.5 rounded-lg truncate cursor-pointer transition-all hover:scale-[1.02] ${
                                   isUnassigned
-                                    ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-900 dark:text-pink-100 border border-pink-200 dark:border-pink-800 hover:bg-pink-200 dark:hover:bg-pink-900/60'
+                                    ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-900 dark:text-pink-100 border border-pink-200 dark:border-pink-800 hover:bg-pink-200 dark:hover:bg-pink-900/60 font-semibold'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 hover:bg-blue-200 dark:hover:bg-blue-900/50'
                                 }`}>
-                                  {isUnassigned && '⚠️ '}{formatTime(job.scheduledDate)} {job.client.name}
+                                  <div className="font-medium">{isUnassigned && '⚠️ '}{formatTime(job.scheduledDate)}</div>
+                                  <div className="text-[10px] opacity-90 truncate">{job.client.name}</div>
                                 </div>
                               </Link>
                             );
                           })}
-                          {dayJobs.length > 3 && (
-                            <div className="text-[10px] text-gray-500 dark:text-gray-400 px-1.5">
-                              +{dayJobs.length - 3} more
+                          {dayJobs.length > 4 && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+                              +{dayJobs.length - 4} more
                             </div>
                           )}
                         </div>
@@ -652,8 +743,8 @@ export default function DashboardPage() {
       {/* Right Panel - Activity Feed */}
       <div className="hidden lg:block w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-y-auto">
         <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">Activity Feed</h3>
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Activity Feed</h3>
             <Link href="/feed">
               <Button variant="ghost" size="sm">View All</Button>
             </Link>
@@ -677,13 +768,19 @@ export default function DashboardPage() {
                 });
 
                 return sortedActivities.map((activity) => {
-                  const isUnassignedJob = activity.metadata?.isUnassigned ||
-                    (activity.category === 'booking_created' && activity.metadata?.assignee === null);
+                  const isUnassignedJob = activity.metadata?.cleanerName === 'Unassigned' ||
+                    (activity.category === 'booking_created' && activity.metadata?.cleanerName === 'Unassigned');
+                  const isCompletedJob = activity.category === 'cleaning_completed';
+                  const isPendingReview = activity.category === 'pending_admin_review';
+                  const isUpcomingJob = (activity.category === 'booking_created' ||
+                    activity.category === 'cleaning_starting' ||
+                    activity.category === 'reminder_needed') && !isUnassignedJob;
+                  const jobId = activity.metadata?.jobId;
 
                   return (
                     <div
                       key={activity.id}
-                      className={`p-3 rounded-lg border ${
+                      className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
                         isUnassignedJob
                           ? 'border-pink-200 bg-pink-50 dark:border-pink-900 dark:bg-pink-900/10'
                           : activity.priority === 'high'
@@ -693,25 +790,81 @@ export default function DashboardPage() {
                           : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
                       }`}
                     >
-                      <div className="flex items-start gap-2">
-                        <span className="text-lg">{getActivityIcon(activity.category)}</span>
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl">{getActivityIcon(activity.category)}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                               {activity.title}
                             </div>
                             {isUnassignedJob && (
-                              <span className="px-1.5 py-0.5 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 text-[10px] font-medium rounded">
-                                ⚠️ Needs Assignment
+                              <span className="px-2 py-0.5 bg-pink-200 dark:bg-pink-900/60 text-pink-900 dark:text-pink-100 text-[10px] font-bold rounded-full">
+                                ⚠️
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                          <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed">
                             {activity.description}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 font-medium">
                             {getTimeAgo(activity.timestamp)}
                           </div>
+
+                          {/* Action Buttons */}
+                          {jobId && (
+                            <div className="flex gap-2 mt-3">
+                              {isUnassignedJob && (
+                                <Link href={`/jobs/${jobId}`}>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-pink-50 dark:bg-pink-900/20 border-pink-300 dark:border-pink-700 text-pink-700 dark:text-pink-300 hover:bg-pink-100 dark:hover:bg-pink-900/40">
+                                    <UserPlus className="h-3 w-3" />
+                                    Assign Cleaner
+                                  </Button>
+                                </Link>
+                              )}
+                              {isPendingReview && (
+                                <>
+                                  <Link href={`/jobs/${jobId}`}>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Review & Approve
+                                    </Button>
+                                  </Link>
+                                  <Link href={`/jobs/${jobId}`}>
+                                    <Button size="sm" variant="ghost" className="h-7 text-xs">
+                                      View Details
+                                    </Button>
+                                  </Link>
+                                </>
+                              )}
+                              {isUpcomingJob && (
+                                <>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => alert('Send reminder SMS')}>
+                                    <MessageSquare className="h-3 w-3" />
+                                    Remind
+                                  </Button>
+                                  <Link href={`/jobs/${jobId}`}>
+                                    <Button size="sm" variant="ghost" className="h-7 text-xs">
+                                      View
+                                    </Button>
+                                  </Link>
+                                </>
+                              )}
+                              {isCompletedJob && (
+                                <>
+                                  <Link href={`/jobs/${jobId}`}>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40">
+                                      <CreditCard className="h-3 w-3" />
+                                      Collect $
+                                    </Button>
+                                  </Link>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => alert('Send review request')}>
+                                    <Star className="h-3 w-3" />
+                                    Send Review
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -727,5 +880,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+    </PageTransition>
   );
 }

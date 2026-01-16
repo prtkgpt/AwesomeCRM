@@ -17,21 +17,55 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user with companyId
+    // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const booking = await prisma.booking.findFirst({
-      where: {
+    // Build where clause based on role
+    let whereClause: any;
+
+    if (user.role === 'CLEANER') {
+      const teamMember = await prisma.teamMember.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      if (!teamMember) {
+        return NextResponse.json(
+          { success: false, error: 'Team member profile not found' },
+          { status: 404 }
+        );
+      }
+
+      // For cleaners: use AND to properly combine conditions with OR
+      whereClause = {
+        AND: [
+          { id: params.id },
+          { companyId: user.companyId },
+          {
+            OR: [
+              { assignedTo: teamMember.id },
+              { assignedTo: null },
+            ],
+          },
+        ],
+      };
+    } else {
+      // For admins/owners: standard query
+      whereClause = {
         id: params.id,
         companyId: user.companyId,
-      },
+      };
+    }
+
+    const booking = await prisma.booking.findFirst({
+      where: whereClause,
       include: {
         client: true,
         address: true,
@@ -46,6 +80,13 @@ export async function GET(
           },
         },
         completedByUser: {
+          select: {
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        approvedByUser: {
           select: {
             name: true,
             email: true,
@@ -91,14 +132,22 @@ export async function PUT(
     const body = await request.json();
     const validatedData = updateBookingSchema.parse(body);
 
-    // Get user with companyId
+    // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Cleaners cannot use PUT endpoint to update bookings
+    if (user.role === 'CLEANER') {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden - Cleaners cannot update bookings' },
+        { status: 403 }
+      );
     }
 
     // Verify ownership
@@ -336,14 +385,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user with companyId
+    // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Cleaners cannot delete bookings
+    if (user.role === 'CLEANER') {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden - Cleaners cannot delete bookings' },
+        { status: 403 }
+      );
     }
 
     // Verify ownership - use companyId for multi-tenant isolation
@@ -392,22 +449,56 @@ export async function PATCH(
 
     const body = await request.json();
 
-    // Get user with companyId
+    // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Verify ownership
-    const existingBooking = await prisma.booking.findFirst({
-      where: {
+    // Build where clause based on role
+    let whereClause: any;
+
+    if (user.role === 'CLEANER') {
+      const teamMember = await prisma.teamMember.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      if (!teamMember) {
+        return NextResponse.json(
+          { success: false, error: 'Team member profile not found' },
+          { status: 404 }
+        );
+      }
+
+      // For cleaners: use AND to properly combine conditions with OR
+      whereClause = {
+        AND: [
+          { id: params.id },
+          { companyId: user.companyId },
+          {
+            OR: [
+              { assignedTo: teamMember.id },
+              { assignedTo: null },
+            ],
+          },
+        ],
+      };
+    } else {
+      // For admins/owners: standard query
+      whereClause = {
         id: params.id,
         companyId: user.companyId,
-      },
+      };
+    }
+
+    // Verify ownership
+    const existingBooking = await prisma.booking.findFirst({
+      where: whereClause,
     });
 
     if (!existingBooking) {

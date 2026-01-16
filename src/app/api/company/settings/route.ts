@@ -17,6 +17,7 @@ const updateCompanySettingsSchema = z.object({
   stripeSecretKey: z.string().optional(),
   stripePublishableKey: z.string().optional(),
   stripeWebhookSecret: z.string().optional(),
+  timezone: z.string().optional(),
   // Reminder settings
   enableCustomerReminders: z.boolean().optional(),
   enableCleanerReminders: z.boolean().optional(),
@@ -82,6 +83,9 @@ export async function GET(request: NextRequest) {
         cleanerReminderHours: true,
         enableMorningOfReminder: true,
         morningOfReminderTime: true,
+        businessType: true,
+        enabledFeatures: true,
+        timezone: true,
         createdAt: true,
         // Don't send auth tokens for security
       },
@@ -211,6 +215,11 @@ export async function PATCH(request: NextRequest) {
     }
     if (validatedData.stripeWebhookSecret && !validatedData.stripeWebhookSecret.startsWith('••')) {
       updateData.stripeWebhookSecret = validatedData.stripeWebhookSecret;
+    }
+
+    // Timezone
+    if (validatedData.timezone !== undefined) {
+      updateData.timezone = validatedData.timezone;
     }
 
     // Reminder settings

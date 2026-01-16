@@ -5,8 +5,10 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Phone, CheckCircle, Navigation, LogIn, LogOut, AlertCircle } from 'lucide-react';
+import { Clock, MapPin, Phone, CheckCircle, Navigation, LogIn, LogOut, AlertCircle, ClipboardList } from 'lucide-react';
+import { Skeleton, SkeletonJobCard } from '@/components/ui/skeleton';
 import { formatDuration } from '@/lib/utils';
+import Link from 'next/link';
 
 interface Job {
   id: string;
@@ -14,7 +16,8 @@ interface Job {
   duration: number;
   serviceType: string;
   status: string;
-  price: number;
+  wage: number; // Cleaner's wage based on their hourly rate
+  hourlyRate: number; // Cleaner's hourly rate
   notes: string | null;
   onMyWaySentAt: string | null;
   clockedInAt: string | null;
@@ -22,6 +25,24 @@ interface Job {
   client: {
     name: string;
     phone: string | null;
+    preferences?: {
+      cleaningSequence?: string | null;
+      areasToFocus?: string | null;
+      areasToAvoid?: string | null;
+      productAllergies?: string | null;
+      preferredProducts?: string | null;
+      avoidScents?: boolean;
+      scentPreferences?: string | null;
+      petHandlingInstructions?: string | null;
+      petFeedingNeeded?: boolean;
+      petFeedingInstructions?: string | null;
+      keyLocation?: string | null;
+      alarmCode?: string | null;
+      entryInstructions?: string | null;
+      specialRequests?: string | null;
+      thingsToKnow?: string | null;
+      temperaturePreferences?: string | null;
+    } | null;
   };
   address: {
     street: string;
@@ -142,49 +163,80 @@ export default function CleanerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-center">Loading your jobs...</div>
+      <div className="p-4 md:p-8 max-w-7xl mx-auto">
+        <div className="mb-6 space-y-2">
+          <Skeleton className="h-8 md:h-10 w-56" />
+          <Skeleton className="h-4 md:h-5 w-96" />
+        </div>
+
+        {/* Today's Jobs Skeleton */}
+        <div className="mb-8">
+          <Skeleton className="h-7 md:h-8 w-48 mb-4" />
+          <div className="space-y-4">
+            <SkeletonJobCard />
+            <SkeletonJobCard />
+          </div>
+        </div>
+
+        {/* Upcoming Jobs Skeleton */}
+        <div>
+          <Skeleton className="h-7 md:h-8 w-56 mb-4" />
+          <div className="space-y-4">
+            <SkeletonJobCard />
+            <SkeletonJobCard />
+            <SkeletonJobCard />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">My Jobs</h1>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold mb-1">
+          Welcome, {session?.user?.name?.split(' ')[0] || 'there'}!
+        </h1>
+        <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">Here are your jobs for today and upcoming schedule</p>
+      </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
-          <AlertCircle className="h-4 w-4" />
+        <div className="mb-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm flex items-center gap-2 border-2 border-red-200 dark:border-red-800">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
           {error}
         </div>
       )}
 
       {/* Today's Jobs */}
       <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4">Today's Schedule</h2>
+        <h2 className="text-xl md:text-2xl font-semibold mb-4">Today's Schedule</h2>
         {todayJobs.length === 0 ? (
-          <Card className="p-8 text-center text-gray-500">
-            No jobs scheduled for today. Enjoy your day off!
+          <Card className="p-8 md:p-12 text-center text-gray-500">
+            <div className="text-4xl mb-3">☕</div>
+            <p className="text-lg font-medium">No jobs scheduled for today.</p>
+            <p className="text-sm mt-1">Enjoy your day off!</p>
           </Card>
         ) : (
           <div className="space-y-4">
             {todayJobs.map((job) => (
-              <Card key={job.id} className="p-6">
-                <div className="flex justify-between items-start mb-4">
+              <Card key={job.id} className="p-4 md:p-6 hover:shadow-lg transition-shadow">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold mb-1">{job.client.name}</h3>
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>{formatTime(job.scheduledDate)}</span>
-                      <span className="mx-2">•</span>
+                    <h3 className="text-lg md:text-xl font-semibold mb-2">{job.client.name}</h3>
+                    <div className="flex flex-wrap items-center text-gray-600 dark:text-gray-400 text-sm md:text-base gap-x-3 gap-y-1 mb-2">
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        <span className="font-medium">{formatTime(job.scheduledDate)}</span>
+                      </div>
+                      <span className="hidden md:inline">•</span>
                       <span>{formatDuration(job.duration)}</span>
-                      <span className="mx-2">•</span>
-                      <span className="font-medium">{job.serviceType}</span>
+                      <span className="hidden md:inline">•</span>
+                      <span className="font-medium text-blue-600 dark:text-blue-400">{job.serviceType}</span>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col gap-2">
+                  {/* Action Buttons - Stacked on mobile */}
+                  <div className="flex flex-row md:flex-col gap-2 flex-wrap">
                     {/* On My Way Button */}
                     {!job.onMyWaySentAt && job.status === 'SCHEDULED' && (
                       <Button
@@ -192,7 +244,7 @@ export default function CleanerDashboardPage() {
                         disabled={actionLoading === `${job.id}-on-my-way`}
                         size="sm"
                         variant="outline"
-                        className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                        className="bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 h-10 md:h-9 flex-1 md:flex-none md:min-w-[140px]"
                       >
                         <Navigation className="h-4 w-4 mr-2" />
                         {actionLoading === `${job.id}-on-my-way` ? 'Sending...' : 'On My Way'}
@@ -205,7 +257,7 @@ export default function CleanerDashboardPage() {
                         onClick={() => handleAction(job.id, 'clock-in')}
                         disabled={actionLoading === `${job.id}-clock-in`}
                         size="sm"
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 h-10 md:h-9 flex-1 md:flex-none md:min-w-[140px]"
                       >
                         <LogIn className="h-4 w-4 mr-2" />
                         {actionLoading === `${job.id}-clock-in` ? 'Clocking In...' : 'Clock In'}
@@ -218,7 +270,7 @@ export default function CleanerDashboardPage() {
                         onClick={() => handleAction(job.id, 'clock-out')}
                         disabled={actionLoading === `${job.id}-clock-out`}
                         size="sm"
-                        className="bg-orange-600 hover:bg-orange-700"
+                        className="bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800 h-10 md:h-9 flex-1 md:flex-none md:min-w-[140px]"
                       >
                         <LogOut className="h-4 w-4 mr-2" />
                         {actionLoading === `${job.id}-clock-out` ? 'Clocking Out...' : 'Clock Out'}
@@ -231,26 +283,44 @@ export default function CleanerDashboardPage() {
                         onClick={() => handleMarkComplete(job.id)}
                         disabled={actionLoading === `${job.id}-complete`}
                         size="sm"
+                        className="h-10 md:h-9 flex-1 md:flex-none md:min-w-[140px]"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
                         {actionLoading === `${job.id}-complete` ? 'Completing...' : 'Mark Complete'}
                       </Button>
                     )}
 
+                    {/* View Checklist Button */}
+                    <Link href={`/cleaner/jobs/${job.id}/checklist`} className="flex-1 md:flex-none">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 h-10 md:h-9 md:min-w-[140px]"
+                      >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        View Checklist
+                      </Button>
+                    </Link>
+
                     {/* Status Badges */}
                     {job.onMyWaySentAt && !job.clockedInAt && (
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 text-center">
-                        En Route
+                      <span className="px-3 py-2 text-xs font-medium rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 text-center border border-blue-200 dark:border-blue-800">
+                        🚗 En Route
                       </span>
                     )}
                     {job.clockedInAt && !job.clockedOutAt && (
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 text-center">
-                        In Progress
+                      <span className="px-3 py-2 text-xs font-medium rounded-lg bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 text-center border border-green-200 dark:border-green-800">
+                        ⏱️ In Progress
+                      </span>
+                    )}
+                    {job.status === 'CLEANER_COMPLETED' && (
+                      <span className="px-3 py-2 text-xs font-medium rounded-lg bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 text-center border border-yellow-200 dark:border-yellow-800">
+                        ⏳ Pending Review
                       </span>
                     )}
                     {job.status === 'COMPLETED' && (
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 text-center">
-                        Completed
+                      <span className="px-3 py-2 text-xs font-medium rounded-lg bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 text-center border border-green-200 dark:border-green-800">
+                        ✅ Completed
                       </span>
                     )}
                   </div>
@@ -277,6 +347,21 @@ export default function CleanerDashboardPage() {
                     </div>
                   )}
 
+                  {/* Wage Info */}
+                  {job.hourlyRate > 0 && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                      <p className="text-xs font-medium text-green-800 mb-1">Your Wage for this Job</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          ${job.hourlyRate.toFixed(2)}/hr × {formatDuration(job.duration)}
+                        </span>
+                        <span className="text-lg font-bold text-green-700">
+                          ${job.wage.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Time Tracking Info */}
                   {(job.onMyWaySentAt || job.clockedInAt || job.clockedOutAt) && (
                     <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded">
@@ -290,6 +375,103 @@ export default function CleanerDashboardPage() {
                         )}
                         {job.clockedOutAt && (
                           <p>✅ Clocked Out: {formatTime(job.clockedOutAt)}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer Preferences */}
+                  {job.client.preferences && (
+                    <div className="mt-3 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border-2 border-indigo-200 dark:border-indigo-800 rounded-lg">
+                      <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100 mb-3 flex items-center gap-2">
+                        <span className="text-lg">⭐</span> Customer Preferences
+                      </p>
+                      <div className="space-y-2 text-sm">
+                        {job.client.preferences.cleaningSequence && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">Cleaning Order:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.cleaningSequence}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.areasToFocus && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-green-800 dark:text-green-300">Focus Areas:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.areasToFocus}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.areasToAvoid && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-red-800 dark:text-red-300">⚠️ Areas to Avoid:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.areasToAvoid}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.productAllergies && (
+                          <div className="bg-red-50 dark:bg-red-950/30 p-2 rounded border border-red-200 dark:border-red-800">
+                            <p className="text-xs font-semibold text-red-800 dark:text-red-300">🚨 ALLERGIES:</p>
+                            <p className="font-medium text-red-900 dark:text-red-200">{job.client.preferences.productAllergies}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.preferredProducts && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Preferred Products:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.preferredProducts}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.avoidScents && (
+                          <div className="bg-yellow-50 dark:bg-yellow-950/30 p-2 rounded border border-yellow-200 dark:border-yellow-800">
+                            <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300">⚠️ Scent-Free Required</p>
+                            {job.client.preferences.scentPreferences && (
+                              <p className="text-gray-700 dark:text-gray-300 text-xs mt-1">{job.client.preferences.scentPreferences}</p>
+                            )}
+                          </div>
+                        )}
+                        {job.client.preferences.petHandlingInstructions && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">🐾 Pet Instructions:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.petHandlingInstructions}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.petFeedingNeeded && job.client.preferences.petFeedingInstructions && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">🍖 Pet Feeding:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.petFeedingInstructions}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.keyLocation && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-300">🔑 Key Location:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.keyLocation}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.alarmCode && (
+                          <div className="bg-orange-50 dark:bg-orange-950/30 p-2 rounded border border-orange-200 dark:border-orange-800">
+                            <p className="text-xs font-semibold text-orange-800 dark:text-orange-300">🔐 Alarm Code:</p>
+                            <p className="font-mono font-bold text-orange-900 dark:text-orange-200">{job.client.preferences.alarmCode}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.entryInstructions && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-300">🚪 Entry Instructions:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.entryInstructions}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.temperaturePreferences && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-300">🌡️ Temperature:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.temperaturePreferences}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.specialRequests && (
+                          <div className="bg-white/70 dark:bg-gray-900/30 p-2 rounded">
+                            <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">📝 Special Requests:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.specialRequests}</p>
+                          </div>
+                        )}
+                        {job.client.preferences.thingsToKnow && (
+                          <div className="bg-blue-50 dark:bg-blue-950/30 p-2 rounded border border-blue-200 dark:border-blue-800">
+                            <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">💡 Important Info:</p>
+                            <p className="text-gray-700 dark:text-gray-300">{job.client.preferences.thingsToKnow}</p>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -351,6 +533,11 @@ export default function CleanerDashboardPage() {
                   <div className="text-right">
                     <p className="text-sm font-medium">{job.serviceType}</p>
                     <p className="text-xs text-gray-500">{formatDuration(job.duration)}</p>
+                    {job.hourlyRate > 0 && (
+                      <p className="text-sm font-bold text-green-600 mt-1">
+                        ${job.wage.toFixed(2)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Card>

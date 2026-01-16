@@ -369,3 +369,321 @@ export function getTeamInvitationEmailTemplate(data: {
 </html>
   `;
 }
+
+export function getReferralUsedEmailTemplate(data: {
+  referrerName: string;
+  newCustomerName: string;
+  companyName: string;
+  creditsEarned: number;
+  creditsBalance: number;
+  referralCode: string;
+}) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Someone Used Your Referral Code!</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
+    <h1 style="margin: 0; font-size: 28px;">Great News!</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px;">Someone used your referral code</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Hi ${data.referrerName},</p>
+
+    <p style="font-size: 16px;">Exciting news! <strong>${data.newCustomerName}</strong> just signed up using your referral code <strong>${data.referralCode}</strong>.</p>
+
+    <div style="background: linear-gradient(135deg, #f3e7ff 0%, #fce7f3 100%); padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center; border: 2px solid #a855f7;">
+      <div style="font-size: 14px; color: #6b21a8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">You Earned</div>
+      <div style="font-size: 42px; font-weight: bold; color: #7c3aed; margin: 10px 0;">$${data.creditsEarned.toFixed(2)}</div>
+      <div style="font-size: 14px; color: #6b21a8; margin-top: 10px;">in referral credits</div>
+    </div>
+
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
+      <h2 style="margin-top: 0; color: #7c3aed; font-size: 20px;">Your Referral Summary</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>New Customer:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${data.newCustomerName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Your Referral Code:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right; font-family: monospace; background: #f3f4f6; padding: 5px 10px; border-radius: 4px;">${data.referralCode}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Credits Earned:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right; color: #059669; font-weight: bold;">+$${data.creditsEarned.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0;"><strong>Total Available Credits:</strong></td>
+          <td style="padding: 10px 0; text-align: right; font-size: 20px; color: #7c3aed; font-weight: bold;">$${data.creditsBalance.toFixed(2)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+      <p style="margin: 0; color: #1e40af;"><strong>💡 How to Use Your Credits</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #1e40af;">
+        Your referral credits will be automatically applied to your next booking. You can apply up to the full booking amount, and any remaining credits will stay in your account for future use.
+      </p>
+    </div>
+
+    <div style="background-color: #d1fae5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+      <p style="margin: 0; color: #065f46;"><strong>🎁 Keep Earning</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #065f46;">
+        Share your referral code <strong>${data.referralCode}</strong> with more friends and family to earn even more credits! There's no limit to how much you can earn.
+      </p>
+    </div>
+
+    <p style="font-size: 14px; margin-top: 30px;">
+      Thank you for spreading the word about ${data.companyName}! Your support means the world to us.
+    </p>
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Best regards,<br>
+      <strong>${data.companyName}</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>© ${new Date().getFullYear()} ${data.companyName}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export function getBirthdayGreetingEmailTemplate(data: {
+  customerName: string;
+  companyName: string;
+  specialOffer?: string;
+}) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Happy Birthday!</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 60px; margin-bottom: 15px;">🎉🎂🎈</div>
+    <h1 style="margin: 0; font-size: 32px;">Happy Birthday, ${data.customerName}!</h1>
+    <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">Wishing you a wonderful day filled with joy!</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Dear ${data.customerName},</p>
+
+    <p style="font-size: 16px;">On behalf of everyone at ${data.companyName}, we want to wish you a very happy birthday! 🎉</p>
+
+    <p style="font-size: 16px;">Thank you for being a valued member of our family. We truly appreciate your trust in us and hope we can continue to serve you for many years to come.</p>
+
+    ${data.specialOffer ? `
+    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center; border: 2px solid #f59e0b;">
+      <div style="font-size: 24px; margin-bottom: 10px;">🎁</div>
+      <p style="margin: 0; color: #92400e; font-size: 18px; font-weight: bold;">Birthday Special!</p>
+      <p style="margin: 10px 0 0 0; color: #92400e; font-size: 16px;">${data.specialOffer}</p>
+    </div>
+    ` : ''}
+
+    <div style="text-align: center; margin: 30px 0;">
+      <p style="font-size: 48px; margin: 0;">🎂</p>
+      <p style="font-size: 18px; margin: 15px 0; font-style: italic; color: #6b7280;">
+        "May all your birthday wishes come true!"
+      </p>
+    </div>
+
+    <p style="font-size: 16px;">We hope you have an amazing celebration surrounded by loved ones. You deserve the best!</p>
+
+    <p style="font-size: 16px; margin-top: 25px;">
+      With warmest wishes,<br>
+      <strong>The ${data.companyName} Team</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>© ${new Date().getFullYear()} ${data.companyName}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export function getAnniversaryGreetingEmailTemplate(data: {
+  customerName: string;
+  companyName: string;
+  yearsAgo: number;
+  anniversaryType: string;
+  specialOffer?: string;
+}) {
+  const getAnniversaryMessage = () => {
+    if (data.anniversaryType === 'FIRST_BOOKING') {
+      if (data.yearsAgo === 1) {
+        return `It's been one year since your first cleaning with us!`;
+      }
+      return `It's been ${data.yearsAgo} years since your first cleaning with us!`;
+    }
+    if (data.anniversaryType === 'WEDDING') {
+      return `Happy Wedding Anniversary!`;
+    }
+    return `Happy Anniversary!`;
+  };
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Happy Anniversary!</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 60px; margin-bottom: 15px;">🎊✨💙</div>
+    <h1 style="margin: 0; font-size: 32px;">Happy Anniversary!</h1>
+    <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">${getAnniversaryMessage()}</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Dear ${data.customerName},</p>
+
+    ${data.anniversaryType === 'FIRST_BOOKING' ? `
+      <p style="font-size: 16px;">Time flies when you're having fun! We can't believe it's been ${data.yearsAgo} ${data.yearsAgo === 1 ? 'year' : 'years'} since you first trusted us with your home cleaning needs.</p>
+
+      <p style="font-size: 16px;">Thank you for your continued loyalty and for making ${data.companyName} a part of your home care routine. It's customers like you that make what we do so rewarding!</p>
+    ` : `
+      <p style="font-size: 16px;">We wanted to take a moment to celebrate this special day with you!</p>
+
+      <p style="font-size: 16px;">Thank you for allowing ${data.companyName} to be a part of your journey. We're honored to serve you and wish you all the happiness in the world!</p>
+    `}
+
+    ${data.specialOffer ? `
+    <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center; border: 2px solid #3b82f6;">
+      <div style="font-size: 24px; margin-bottom: 10px;">🎁</div>
+      <p style="margin: 0; color: #1e40af; font-size: 18px; font-weight: bold;">Anniversary Special!</p>
+      <p style="margin: 10px 0 0 0; color: #1e40af; font-size: 16px;">${data.specialOffer}</p>
+    </div>
+    ` : ''}
+
+    <div style="text-align: center; margin: 30px 0; background-color: white; padding: 30px; border-radius: 12px; border: 2px solid #e5e7eb;">
+      ${data.yearsAgo > 0 ? `
+        <p style="font-size: 48px; margin: 0; color: #3b82f6; font-weight: bold;">${data.yearsAgo}</p>
+        <p style="font-size: 20px; margin: 10px 0 0 0; color: #6b7280; font-weight: bold;">AMAZING ${data.yearsAgo === 1 ? 'YEAR' : 'YEARS'}</p>
+      ` : `
+        <p style="font-size: 48px; margin: 0;">💙</p>
+        <p style="font-size: 20px; margin: 10px 0 0 0; color: #6b7280; font-weight: bold;">CELEBRATING WITH YOU</p>
+      `}
+    </div>
+
+    <p style="font-size: 16px;">Here's to many more wonderful years together!</p>
+
+    <p style="font-size: 16px; margin-top: 25px;">
+      With heartfelt gratitude,<br>
+      <strong>The ${data.companyName} Team</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>© ${new Date().getFullYear()} ${data.companyName}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export function getReviewRequestEmailTemplate(data: {
+  customerName: string;
+  companyName: string;
+  googleReviewUrl?: string | null;
+  yelpReviewUrl?: string | null;
+}) {
+  const hasReviewLinks = data.googleReviewUrl || data.yelpReviewUrl;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Share Your Experience</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 60px; margin-bottom: 15px;">⭐⭐⭐⭐⭐</div>
+    <h1 style="margin: 0; font-size: 32px;">We'd Love Your Feedback!</h1>
+    <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">Your opinion matters to us</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Hi ${data.customerName},</p>
+
+    <p style="font-size: 16px;">Thank you for choosing ${data.companyName} for your recent cleaning service! We hope you're thrilled with the results.</p>
+
+    <p style="font-size: 16px;">Your feedback is incredibly important to us and helps other customers make informed decisions. Would you mind taking a moment to share your experience?</p>
+
+    ${hasReviewLinks ? `
+      <div style="background-color: white; padding: 25px; border-radius: 12px; margin: 25px 0; border: 2px solid #f59e0b;">
+        <p style="margin: 0 0 20px 0; font-size: 18px; font-weight: bold; color: #92400e; text-align: center;">
+          ⭐ Leave a Review ⭐
+        </p>
+
+        ${data.googleReviewUrl ? `
+          <div style="margin-bottom: ${data.yelpReviewUrl ? '15px' : '0'};">
+            <a href="${data.googleReviewUrl}" style="display: block; background-color: #4285f4; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold; text-align: center;">
+              📝 Review us on Google
+            </a>
+          </div>
+        ` : ''}
+
+        ${data.yelpReviewUrl ? `
+          <div>
+            <a href="${data.yelpReviewUrl}" style="display: block; background-color: #d32323; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold; text-align: center;">
+              📝 Review us on Yelp
+            </a>
+          </div>
+        ` : ''}
+      </div>
+    ` : `
+      <div style="background-color: #dbeafe; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #2563eb; text-align: center;">
+        <p style="margin: 0; color: #1e40af; font-size: 16px;">
+          📧 <strong>Reply to this email</strong> with your feedback!<br>
+          We'd love to hear from you.
+        </p>
+      </div>
+    `}
+
+    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 20px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #f59e0b;">
+      <p style="margin: 0; color: #92400e; font-size: 14px;">
+        <strong>✨ Why your review matters:</strong>
+      </p>
+      <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #92400e; font-size: 14px;">
+        <li>Helps other customers discover great service</li>
+        <li>Helps us improve and grow</li>
+        <li>Takes less than 2 minutes</li>
+        <li>Makes a huge difference to our small business</li>
+      </ul>
+    </div>
+
+    <p style="font-size: 16px;">Your satisfaction is our top priority. If there's anything we could have done better, please don't hesitate to reach out to us directly.</p>
+
+    <p style="font-size: 16px; margin-top: 25px;">
+      Thank you for your support!<br>
+      <strong>The ${data.companyName} Team</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>We appreciate you taking the time to share your experience!</p>
+    <p>© ${new Date().getFullYear()} ${data.companyName}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}

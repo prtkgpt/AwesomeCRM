@@ -15,11 +15,13 @@ export default withAuth(
       path.startsWith('/compare') || // Public comparison page
       path.startsWith('/estimate/') || // Public estimate acceptance pages
       path.startsWith('/feedback/') || // Public feedback pages
+      path.endsWith('/book') || // Public booking pages (e.g., /awesome-maids/book)
       path.startsWith('/api/public/') || // Public API routes
       path.startsWith('/api/auth/') || // NextAuth API routes
       path.startsWith('/api/feedback/') || // Public feedback API routes
       path.startsWith('/api/team/invite/') || // Team invitation API routes
-      path.startsWith('/api/team/accept-invite') // Accept invitation API route
+      path.startsWith('/api/team/accept-invite') || // Accept invitation API route
+      path.startsWith('/api/debug/') // Debug API routes (authenticated users only)
     ) {
       return NextResponse.next();
     }
@@ -52,7 +54,13 @@ export default withAuth(
         path === '/dashboard' ||
         path.startsWith('/team') ||
         path.startsWith('/clients') ||
-        path.startsWith('/invoices')
+        path.startsWith('/invoices') ||
+        path.startsWith('/calendar') ||
+        path.startsWith('/jobs') ||
+        path.startsWith('/estimates') ||
+        path.startsWith('/reports') ||
+        path.startsWith('/feed') ||
+        path.startsWith('/settings')
       ) {
         return NextResponse.redirect(new URL('/cleaner/dashboard', req.url));
       }
@@ -87,11 +95,13 @@ export default withAuth(
           path.startsWith('/compare') || // Public comparison page
           path.startsWith('/estimate/') ||
           path.startsWith('/feedback/') ||
+          path.endsWith('/book') || // Public booking pages (e.g., /awesome-maids/book)
           path.startsWith('/api/public/') ||
           path.startsWith('/api/auth/') ||
           path.startsWith('/api/feedback/') ||
           path.startsWith('/api/team/invite/') || // Team invitation API routes
-          path.startsWith('/api/team/accept-invite') // Accept invitation API route
+          path.startsWith('/api/team/accept-invite') || // Accept invitation API route
+          path.startsWith('/api/debug/') // Debug API routes (authenticated users only)
         ) {
           return true;
         }

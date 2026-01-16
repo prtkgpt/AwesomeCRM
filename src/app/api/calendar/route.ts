@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getDayBoundaries, getWeekBoundaries, doTimeSlotsOverlap } from '@/lib/utils';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/calendar - Get calendar view with bookings and conflicts
 export async function GET(request: NextRequest) {
   try {
@@ -12,10 +15,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user with companyId
+    // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
 
     if (!user) {
@@ -32,15 +35,64 @@ export async function GET(request: NextRequest) {
     const boundaries =
       view === 'week' ? getWeekBoundaries(date) : getDayBoundaries(date);
 
-    // Fetch bookings for the date range
-    const bookings = await prisma.booking.findMany({
-      where: {
+    // Build where clause based on user role
+    let whereClause: any;
+
+    if (user.role === 'CLEANER') {
+      const teamMember = await prisma.teamMember.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      if (!teamMember) {
+        // If no team member found, return empty results
+        return NextResponse.json({
+          success: true,
+          data: {
+            bookings: [],
+            conflicts: [],
+            view,
+            date: date.toISOString(),
+            range: {
+              start: boundaries.start.toISOString(),
+              end: boundaries.end.toISOString(),
+            },
+          },
+        });
+      }
+
+      // For cleaners: company + date range + (assigned to them OR unassigned)
+      whereClause = {
+        AND: [
+          { companyId: user.companyId },
+          {
+            scheduledDate: {
+              gte: boundaries.start,
+              lte: boundaries.end,
+            },
+          },
+          {
+            OR: [
+              { assignedTo: teamMember.id },
+              { assignedTo: null },
+            ],
+          },
+        ],
+      };
+    } else {
+      // For admins/owners: just company + date range
+      whereClause = {
         companyId: user.companyId,
         scheduledDate: {
           gte: boundaries.start,
           lte: boundaries.end,
         },
-      },
+      };
+    }
+
+    // Fetch bookings for the date range
+    const bookings = await prisma.booking.findMany({
+      where: whereClause,
       include: {
         client: true,
         address: true,

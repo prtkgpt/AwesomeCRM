@@ -84,13 +84,28 @@ export default function JobDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<string>('stripe');
   const [copayPaymentMethod, setCopayPaymentMethod] = useState<string>('STRIPE');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [operationalExpenses, setOperationalExpenses] = useState<{
+    insuranceCost: number;
+    bondCost: number;
+    workersCompCost: number;
+    cleaningSuppliesCost: number;
+    gasReimbursementRate: number;
+    vaAdminSalary: number;
+    ownerSalary: number;
+    otherExpenses: number;
+  } | null>(null);
+  const [monthlyJobCount, setMonthlyJobCount] = useState<number>(0);
 
   useEffect(() => {
     fetchJob();
     checkInvoice();
     fetchReviews();
     fetchCleaners();
-  }, [jobId]);
+    if ((session?.user as any)?.role === 'OWNER') {
+      fetchOperationalExpenses();
+      fetchMonthlyJobCount();
+    }
+  }, [jobId, session]);
 
   const fetchJob = async () => {
     try {
@@ -178,6 +193,39 @@ export default function JobDetailPage() {
       }
     } catch (error) {
       console.error('Failed to fetch cleaners:', error);
+    }
+  };
+
+  const fetchOperationalExpenses = async () => {
+    try {
+      const response = await fetch('/api/company/operations');
+      const data = await response.json();
+
+      if (data.success) {
+        setOperationalExpenses(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch operational expenses:', error);
+    }
+  };
+
+  const fetchMonthlyJobCount = async () => {
+    try {
+      // Get current month's completed jobs count
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const response = await fetch(
+        `/api/bookings?status=COMPLETED&from=${firstDayOfMonth.toISOString()}&to=${lastDayOfMonth.toISOString()}`
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setMonthlyJobCount(data.data.length);
+      }
+    } catch (error) {
+      console.error('Failed to fetch monthly job count:', error);
     }
   };
 
@@ -311,6 +359,39 @@ export default function JobDetailPage() {
       alert('An error occurred. Please try again.');
     } finally {
       setCreatingPaymentLink(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!job) return;
+
+    if (!confirm('Approve this job as completed? This will enable payment options.')) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}/approve`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setJob(data.data);
+        alert('✅ Job approved! Payment options are now available.');
+
+        // Show payment modal after approval
+        if (!data.data.isPaid) {
+          setShowPaymentModal(true);
+        }
+      } else {
+        alert(data.error || 'Failed to approve job');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -570,6 +651,8 @@ export default function JobDetailPage() {
     switch (status) {
       case 'SCHEDULED':
         return 'bg-blue-100 text-blue-700';
+      case 'CLEANER_COMPLETED':
+        return 'bg-yellow-100 text-yellow-800';
       case 'COMPLETED':
         return 'bg-green-100 text-green-700';
       case 'CANCELLED':
@@ -854,6 +937,32 @@ export default function JobDetailPage() {
               </div>
             </div>
 
+            {/* Referral Credits Applied */}
+            {(job as any).referralCreditsApplied > 0 && (
+              <div className="pt-2 border-t">
+                <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🎁</span>
+                    <h3 className="font-semibold text-purple-900">Referral Credits Applied</h3>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Original Price:</span>
+                      <span className="font-semibold">{formatCurrency(job.price)}</span>
+                    </div>
+                    <div className="flex justify-between text-green-600">
+                      <span>Credits Applied:</span>
+                      <span className="font-semibold">-{formatCurrency((job as any).referralCreditsApplied)}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold border-t border-purple-200 pt-2">
+                      <span className="text-purple-900">Final Price:</span>
+                      <span className="text-purple-700">{formatCurrency((job as any).finalPrice || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="pt-2 border-t">
               <div className="text-sm font-medium text-gray-500 mb-1">Service Type</div>
               <div className="text-sm">{job.serviceType.replace('_', ' ')}</div>
@@ -877,6 +986,209 @@ export default function JobDetailPage() {
           </>
         )}
       </Card>
+
+      {/* Financial Breakdown - Admin Only */}
+      {(session?.user as any)?.role !== 'CLEANER' && job.assignee && job.assignee.hourlyRate && (
+        <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-600" />
+            Financial Breakdown
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Customer Payment */}
+            <div className="p-4 bg-white rounded-lg border border-green-200">
+              <div className="text-sm font-medium text-gray-600 mb-1">Customer Pays</div>
+              <div className="text-2xl font-bold text-green-700">
+                {formatCurrency(job.price)}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Total job price
+              </div>
+            </div>
+
+            {/* Cleaner Wage */}
+            <div className="p-4 bg-white rounded-lg border border-blue-200">
+              <div className="text-sm font-medium text-gray-600 mb-1">Cleaner Wage</div>
+              <div className="text-2xl font-bold text-blue-700">
+                {formatCurrency(
+                  (job.assignee.hourlyRate * job.duration) / 60
+                )}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                ${job.assignee.hourlyRate.toFixed(2)}/hr × {formatDuration(job.duration)}
+              </div>
+            </div>
+
+            {/* Time Spent */}
+            <div className="p-4 bg-white rounded-lg border border-purple-200">
+              <div className="text-sm font-medium text-gray-600 mb-1">Time Spent</div>
+              <div className="text-2xl font-bold text-purple-700">
+                {job.clockedInAt && job.clockedOutAt ? (
+                  <>
+                    {formatDuration(
+                      Math.round(
+                        (new Date(job.clockedOutAt).getTime() -
+                          new Date(job.clockedInAt).getTime()) /
+                          60000
+                      )
+                    )}
+                  </>
+                ) : (
+                  <>{formatDuration(job.duration)}</>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {job.clockedInAt && job.clockedOutAt ? (
+                  <>Actual (clocked in/out)</>
+                ) : (
+                  <>Scheduled duration</>
+                )}
+              </div>
+            </div>
+
+            {/* Tips */}
+            <div className="p-4 bg-white rounded-lg border border-yellow-200">
+              <div className="text-sm font-medium text-gray-600 mb-1">Tips</div>
+              <div className="text-2xl font-bold text-yellow-700">
+                {job.tipAmount ? formatCurrency(job.tipAmount) : '$0.00'}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {job.tipAmount ? `via ${job.tipPaidVia || 'N/A'}` : 'No tip yet'}
+              </div>
+            </div>
+          </div>
+
+          {/* Profit Analysis - Owner Only */}
+          {(session?.user as any)?.role === 'OWNER' && (() => {
+            const cleanerWage = (job.assignee.hourlyRate * job.duration) / 60;
+            const grossProfit = job.price - cleanerWage;
+
+            // Calculate total monthly operational expenses
+            const totalMonthlyExpenses = operationalExpenses
+              ? operationalExpenses.insuranceCost +
+                operationalExpenses.bondCost +
+                operationalExpenses.workersCompCost +
+                operationalExpenses.cleaningSuppliesCost +
+                operationalExpenses.vaAdminSalary +
+                operationalExpenses.ownerSalary +
+                operationalExpenses.otherExpenses
+              : 0;
+
+            // Calculate allocated operational cost per job
+            const allocatedCostPerJob = monthlyJobCount > 0
+              ? totalMonthlyExpenses / monthlyJobCount
+              : 0;
+
+            // Calculate net profit
+            const netProfit = grossProfit - allocatedCostPerJob;
+
+            // Calculate profit margin percentage
+            const profitMarginPercent = job.price > 0
+              ? (netProfit / job.price) * 100
+              : 0;
+
+            return (
+              <div className="mt-4 space-y-3">
+                {/* Gross Profit */}
+                <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border-2 border-indigo-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-700">Gross Profit</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Customer payment - cleaner wage
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-indigo-700">
+                      {formatCurrency(grossProfit)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Allocated Operational Costs */}
+                {operationalExpenses && monthlyJobCount > 0 && (
+                  <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border-2 border-orange-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-700">Allocated Operational Costs</div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          ${totalMonthlyExpenses.toFixed(2)}/month ÷ {monthlyJobCount} jobs this month
+                        </div>
+                        <Link
+                          href="/settings/operations"
+                          className="text-xs text-orange-600 hover:text-orange-700 hover:underline mt-1 inline-block"
+                        >
+                          View breakdown →
+                        </Link>
+                      </div>
+                      <div className="text-2xl font-bold text-orange-700">
+                        {formatCurrency(allocatedCostPerJob)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Net Profit */}
+                {operationalExpenses && monthlyJobCount > 0 && (
+                  <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg border-2 border-emerald-300">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-lg font-bold text-gray-800">Net Profit</div>
+                        <div className="text-xs text-gray-600 mt-0.5">
+                          Gross profit - allocated operational costs
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className={`text-sm font-semibold px-2 py-1 rounded ${
+                            profitMarginPercent > 0
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {profitMarginPercent > 0 ? '+' : ''}{profitMarginPercent.toFixed(1)}% margin
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`text-3xl font-black ${
+                        netProfit > 0 ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {formatCurrency(netProfit)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* No expenses configured message */}
+                {(!operationalExpenses || monthlyJobCount === 0) && (
+                  <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <div className="text-yellow-600 text-sm">⚠️</div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-yellow-800">
+                          {!operationalExpenses
+                            ? 'Operational expenses not configured'
+                            : 'No completed jobs this month yet'}
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          {!operationalExpenses
+                            ? 'Configure your monthly operational expenses to see true net profit and profit margins.'
+                            : 'Operational cost allocation will appear once you have completed jobs this month.'}
+                        </p>
+                        {!operationalExpenses && (
+                          <Link
+                            href="/settings/operations"
+                            className="text-xs text-yellow-800 hover:text-yellow-900 hover:underline mt-2 inline-block font-medium"
+                          >
+                            Configure expenses →
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </Card>
+      )}
 
       {/* Insurance Documentation - Only show if client has insurance */}
       {job.client.hasInsurance && (
@@ -1042,6 +1354,56 @@ export default function JobDetailPage() {
         <h2 className="font-semibold text-lg">Actions</h2>
 
         <div className="space-y-3">
+          {/* Stage 1: Cleaner Completed, Pending Admin Review */}
+          {job.status === 'CLEANER_COMPLETED' && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                <span className="text-sm font-medium text-yellow-800">
+                  Cleaner Marked Complete - Pending Your Review
+                </span>
+              </div>
+              <p className="text-xs text-yellow-700 mb-3">
+                {job.assignee?.user?.name || 'Cleaner'} has marked this job as completed.
+                Review and approve to enable payment options.
+              </p>
+              <Button
+                onClick={handleApprove}
+                disabled={updating}
+                size="sm"
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                {updating ? 'Approving...' : '✓ Review & Approve Job'}
+              </Button>
+            </div>
+          )}
+
+          {/* Completion Tracking */}
+          {(job.status === 'CLEANER_COMPLETED' || job.status === 'COMPLETED') && (job as any).completedByUser && (
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <label className="text-xs font-medium text-gray-700 mb-2 block">Completion Tracking</label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <span className="text-sm text-gray-700">
+                    <span className="font-medium">Stage 1 - Completed by:</span>{' '}
+                    {(job as any).completedByUser?.name || (job as any).completedByUser?.email || 'Unknown'}
+                  </span>
+                </div>
+                {job.status === 'COMPLETED' && (job as any).approvedByUser && (
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <span className="text-sm text-gray-700">
+                      <span className="font-medium">Stage 2 - Approved by:</span>{' '}
+                      {(job as any).approvedByUser?.name || (job as any).approvedByUser?.email || 'Unknown'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">
               Update Status
@@ -1049,15 +1411,12 @@ export default function JobDetailPage() {
             <div className="flex gap-2">
               <Button
                 onClick={() => handleStatusChange('COMPLETED')}
-                disabled={updating || job.status === 'COMPLETED'}
+                disabled={updating || job.status === 'COMPLETED' || job.status === 'CLEANER_COMPLETED'}
                 size="sm"
                 className="flex-1"
               >
                 <CheckCircle className="h-4 w-4 mr-1" />
-                {job.status === 'COMPLETED' && (job as any).completedByUser
-                  ? `Marked Complete by ${(job as any).completedByUser.name || (job as any).completedByUser.email}`
-                  : 'Mark Completed'
-                }
+                Mark Completed
               </Button>
               <Button
                 onClick={() => handleStatusChange('CANCELLED')}

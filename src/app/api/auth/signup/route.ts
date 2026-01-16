@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { signupSchema } from '@/lib/validations';
+import { getDefaultFeatures } from '@/lib/features';
 
 // Helper to generate slug from company name
 function generateSlug(name: string): string {
@@ -46,6 +47,10 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(validatedData.password, 10);
 
+    // Determine feature flags based on business type and other factors
+    const businessType = validatedData.businessType || ['RESIDENTIAL'];
+    const enabledFeatures = getDefaultFeatures();
+
     // Create company and user in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create company
@@ -55,6 +60,8 @@ export async function POST(request: NextRequest) {
           slug,
           email: validatedData.email,
           phone: validatedData.phone,
+          businessType,
+          enabledFeatures,
         },
       });
 

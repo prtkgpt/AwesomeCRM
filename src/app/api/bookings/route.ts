@@ -4,6 +4,11 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createBookingSchema } from '@/lib/validations';
 import { generateRecurringDates } from '@/lib/utils';
+import { applyReferralCredits } from '@/lib/referral';
+import { sendBookingConfirmation } from '@/lib/notifications';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 // GET /api/bookings - List bookings
 export async function GET(request: NextRequest) {
@@ -13,10 +18,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user with companyId
+    // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
 
     if (!user) {
@@ -49,13 +54,57 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const bookings = await prisma.booking.findMany({
-      where: {
+    // Build where clause based on user role
+    let whereClause: any;
+
+    if (user.role === 'CLEANER') {
+      const teamMember = await prisma.teamMember.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      console.log('🔍 CLEANER QUERY DEBUG:', {
+        userId: session.user.id,
+        userRole: user.role,
+        teamMemberId: teamMember?.id,
+        companyId: user.companyId,
+      });
+
+      if (!teamMember) {
+        console.log('❌ No team member found for cleaner');
+        // If no team member found, return empty array
+        return NextResponse.json({ success: true, data: [] });
+      }
+
+      // For cleaners: build query with OR filter for assignments
+      const conditions: any[] = [
+        { companyId: user.companyId },
+        {
+          OR: [
+            { assignedTo: teamMember.id },
+            { assignedTo: null },
+          ],
+        },
+      ];
+
+      if (status) conditions.push({ status: status as any });
+      if (clientId) conditions.push({ clientId });
+      if (Object.keys(dateFilter).length > 0) conditions.push({ scheduledDate: dateFilter });
+
+      whereClause = { AND: conditions };
+      console.log('📋 WHERE CLAUSE:', JSON.stringify(whereClause, null, 2));
+    } else {
+      // For admins/owners: standard query without assignment filter
+      whereClause = {
         companyId: user.companyId,
         ...(status && { status: status as any }),
         ...(clientId && { clientId }),
         ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
-      },
+      };
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: whereClause,
       include: {
         client: true,
         address: true,
@@ -74,6 +123,17 @@ export async function GET(request: NextRequest) {
         scheduledDate: 'asc',
       },
     });
+
+    if (user.role === 'CLEANER') {
+      console.log('📊 QUERY RESULTS:', {
+        totalBookings: bookings.length,
+        bookingAssignments: bookings.map(b => ({
+          client: b.client.name,
+          assignedTo: b.assignedTo,
+          assigneeName: b.assignee?.user?.name || 'UNASSIGNED',
+        })),
+      });
+    }
 
     return NextResponse.json({ success: true, data: bookings });
   } catch (error) {
@@ -135,6 +195,11 @@ export async function POST(request: NextRequest) {
         ))
       : validatedData.recurrenceEndDate;
 
+    // Check if credits should be applied
+    const applyCreditsFlag = (body as any).applyCredits === true;
+    let creditsApplied = 0;
+    let finalPrice = validatedData.price;
+
     // Create the main booking
     const booking = await prisma.booking.create({
       data: {
@@ -158,12 +223,44 @@ export async function POST(request: NextRequest) {
         copayAmount: validatedData.copayAmount || 0,
         copayDiscountApplied: validatedData.copayDiscountApplied || 0,
         finalCopayAmount: validatedData.finalCopayAmount || 0,
+        // Referral credits applied
+        referralCreditsApplied: creditsApplied,
+        finalPrice: creditsApplied > 0 ? finalPrice : null,
       },
       include: {
         client: true,
         address: true,
       },
     });
+
+    // Apply referral credits after booking is created
+    if (applyCreditsFlag && client.referralCreditsBalance > 0) {
+      const creditsToApply = Math.min(client.referralCreditsBalance, validatedData.price);
+
+      // Apply the credits with booking ID for audit trail
+      const result = await applyReferralCredits(client.id, creditsToApply, booking.id);
+      creditsApplied = result.creditsApplied;
+      finalPrice = validatedData.price - creditsApplied;
+
+      // Update booking with actual credits applied
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          referralCreditsApplied: creditsApplied,
+          finalPrice: creditsApplied > 0 ? finalPrice : null,
+        },
+      });
+
+      console.log('🎁 Referral credits applied:', {
+        bookingId: booking.id,
+        clientId: client.id,
+        clientName: client.name,
+        bookingPrice: validatedData.price,
+        creditsApplied,
+        finalPrice,
+        newBalance: result.newBalance,
+      });
+    }
 
     // Generate recurring bookings if needed
     let generatedBookings: any[] = [];
@@ -206,6 +303,12 @@ export async function POST(request: NextRequest) {
         )
       );
     }
+
+    // Send booking confirmation email/SMS (async, don't await to avoid blocking)
+    sendBookingConfirmation(booking.id).catch(error => {
+      console.error('Failed to send booking confirmation:', error);
+      // Don't fail the booking creation if confirmation fails
+    });
 
     return NextResponse.json({
       success: true,

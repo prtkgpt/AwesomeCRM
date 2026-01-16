@@ -155,33 +155,32 @@ export default function EstimatesPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-4 md:space-y-6">
+    <div className="p-6 md:p-8 space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold">Estimates</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base mt-1">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Estimates</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base mt-2">
             Create and manage customer estimates
           </p>
         </div>
-        <div className="flex gap-2 md:gap-3">
+        <div className="flex gap-3">
           <Button
             variant="outline"
-            size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className={hasActiveFilters ? 'border-blue-500 text-blue-600' : ''}
+            className={hasActiveFilters ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400' : ''}
           >
-            <Filter className="h-4 w-4 mr-1" />
+            <Filter className="h-4 w-4" />
             Filters
             {hasActiveFilters && (
-              <span className="ml-1 bg-blue-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
+              <span className="ml-2 bg-blue-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center font-bold">
                 !
               </span>
             )}
           </Button>
           <Link href="/estimates/new">
-            <Button size="sm" className="md:size-default">
-              <Plus className="h-4 w-4 mr-1 md:mr-2" />
+            <Button>
+              <Plus className="h-4 w-4" />
               New Estimate
             </Button>
           </Link>
@@ -190,12 +189,12 @@ export default function EstimatesPage() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <Card className="p-4 md:p-6 space-y-4 bg-gray-50 dark:bg-gray-900/50">
+        <Card className="p-6 md:p-8 space-y-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-900/30 border-2">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">Filters</h3>
+            <h3 className="font-bold text-xl text-gray-900 dark:text-gray-100">Filters</h3>
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="h-4 w-4 mr-1" />
+                <X className="h-4 w-4" />
                 Clear All
               </Button>
             )}

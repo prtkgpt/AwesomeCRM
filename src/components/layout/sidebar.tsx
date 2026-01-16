@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, TrendingUp } from 'lucide-react';
+import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, TrendingUp, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -15,16 +15,6 @@ const ownerAdminNavItems = [
     icon: Home,
   },
   {
-    href: '/feed',
-    label: 'Feed',
-    icon: Activity,
-  },
-  {
-    href: '/reports',
-    label: 'Reports',
-    icon: TrendingUp,
-  },
-  {
     href: '/calendar',
     label: 'Calendar',
     icon: Calendar,
@@ -33,11 +23,6 @@ const ownerAdminNavItems = [
     href: '/jobs',
     label: 'Jobs',
     icon: Briefcase,
-  },
-  {
-    href: '/estimates',
-    label: 'Estimates',
-    icon: Receipt,
   },
   {
     href: '/clients',
@@ -55,6 +40,11 @@ const ownerAdminNavItems = [
     icon: FileText,
   },
   {
+    href: '/reports',
+    label: 'Reports',
+    icon: TrendingUp,
+  },
+  {
     href: '/settings',
     label: 'Settings',
     icon: Settings,
@@ -66,6 +56,11 @@ const cleanerNavItems = [
     href: '/cleaner/dashboard',
     label: 'My Jobs',
     icon: Briefcase,
+  },
+  {
+    href: '/cleaner/performance',
+    label: 'Performance',
+    icon: TrendingUp,
   },
   {
     href: '/cleaner/schedule',
@@ -120,17 +115,17 @@ export function Sidebar() {
     <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-64 md:bg-white dark:md:bg-gray-900 md:border-r md:border-gray-200 dark:md:border-gray-700">
       <div className="flex flex-col flex-1 min-h-0">
         {/* Logo/Brand */}
-        <div className="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-          <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">CleanDay CRM</h1>
+        <div className="flex items-center h-20 px-6 border-b border-gray-200 dark:border-gray-700">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-400 dark:to-blue-300 bg-clip-text text-transparent tracking-tight">CleanDay CRM</h1>
         </div>
 
         {/* Global Search */}
-        <div className="px-3 pt-4 pb-2">
+        <div className="px-4 pt-6 pb-4">
           <GlobalSearch />
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
@@ -140,13 +135,13 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                  'flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200',
                   isActive
-                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-[1.02]'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 hover:scale-[1.01] hover:shadow-sm'
                 )}
               >
-                <Icon className={cn('h-5 w-5 mr-3', isActive && 'text-blue-600 dark:text-blue-400')} />
+                <Icon className={cn('h-5 w-5 mr-3', isActive && 'text-white')} />
                 {item.label}
               </Link>
             );
@@ -158,7 +153,7 @@ export function Sidebar() {
           <ThemeToggle />
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
-            className="flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+            className="flex items-center w-full px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 hover:scale-[1.01]"
           >
             <LogOut className="h-5 w-5 mr-3" />
             Sign Out

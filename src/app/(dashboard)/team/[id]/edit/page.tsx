@@ -167,11 +167,17 @@ export default function EditTeamMemberPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <Button variant="outline" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
+
+        <Link href={`/team/${memberId}/availability`}>
+          <Button variant="default" size="sm">
+            Manage Availability
+          </Button>
+        </Link>
       </div>
 
       <h1 className="text-3xl font-bold mb-6">Edit Team Member</h1>

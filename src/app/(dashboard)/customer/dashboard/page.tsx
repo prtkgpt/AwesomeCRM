@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, ClipboardList, Clock } from 'lucide-react';
+import { Calendar, DollarSign, ClipboardList, Clock, Sparkles, Gift, User } from 'lucide-react';
 import { formatDuration } from '@/lib/utils';
 
 interface DashboardStats {
@@ -99,9 +99,53 @@ export default function CustomerDashboardPage() {
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">My Dashboard</h1>
-        <p className="text-gray-600">Welcome back! Here's your cleaning service overview.</p>
+        <h1 className="text-3xl font-bold mb-2">
+          Welcome back, {session?.user?.name?.split(' ')[0] || 'there'}! 👋
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">Here's your cleaning service overview.</p>
       </div>
+
+      {/* New Customer Welcome */}
+      {stats.completedBookings === 0 && stats.upcomingBookings === 0 && (
+        <Card className="p-6 mb-8 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border-2 border-blue-200 dark:border-blue-800">
+          <h2 className="text-xl font-bold mb-3 text-blue-900 dark:text-blue-100">
+            🎉 Welcome to Your Self-Service Portal!
+          </h2>
+          <p className="text-gray-700 dark:text-gray-300 mb-4">
+            Manage your cleaning services, preferences, and referrals all in one place. Here's what you can do:
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Set Your Preferences</p>
+                <p className="text-gray-600 dark:text-gray-400">Tell us how you like your home cleaned</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Gift className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Earn Referral Credits</p>
+                <p className="text-gray-600 dark:text-gray-400">Refer friends and get rewards</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Calendar className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Track Your Bookings</p>
+                <p className="text-gray-600 dark:text-gray-400">View past and upcoming services</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <DollarSign className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Access Invoices</p>
+                <p className="text-gray-600 dark:text-gray-400">Download and view your invoices anytime</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -212,18 +256,36 @@ export default function CustomerDashboardPage() {
         <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link href="/customer/bookings">
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full justify-start">
               <Calendar className="h-4 w-4 mr-2" />
               View All Bookings
             </Button>
           </Link>
           <Link href="/customer/invoices">
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full justify-start">
               <DollarSign className="h-4 w-4 mr-2" />
               View Invoices
             </Button>
           </Link>
-          <Button variant="default" className="w-full">
+          <Link href="/customer/preferences">
+            <Button variant="outline" className="w-full justify-start">
+              <Sparkles className="h-4 w-4 mr-2" />
+              My Preferences
+            </Button>
+          </Link>
+          <Link href="/referrals">
+            <Button variant="outline" className="w-full justify-start">
+              <Gift className="h-4 w-4 mr-2" />
+              Refer & Earn
+            </Button>
+          </Link>
+          <Link href="/customer/profile">
+            <Button variant="outline" className="w-full justify-start">
+              <User className="h-4 w-4 mr-2" />
+              My Profile
+            </Button>
+          </Link>
+          <Button variant="default" className="w-full justify-start">
             <ClipboardList className="h-4 w-4 mr-2" />
             Request New Service
           </Button>

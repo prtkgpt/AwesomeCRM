@@ -31,7 +31,19 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
-        router.push('/calendar');
+        // Fetch session to get user role
+        const response = await fetch('/api/auth/session');
+        const session = await response.json();
+        const userRole = session?.user?.role;
+
+        // Redirect based on role
+        if (userRole === 'CLEANER') {
+          router.push('/cleaner/dashboard');
+        } else if (userRole === 'CUSTOMER') {
+          router.push('/customer/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
         router.refresh();
       }
     } catch (err) {
