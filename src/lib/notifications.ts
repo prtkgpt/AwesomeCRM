@@ -183,6 +183,19 @@ export async function sendBirthdayGreeting(clientId: string) {
       return { success: false, reason: 'Client not found or greetings disabled' };
     }
 
+    // Get system user (owner) for message logging
+    const systemUser = await prisma.user.findFirst({
+      where: {
+        companyId: client.companyId,
+        role: 'OWNER',
+      },
+    });
+
+    if (!systemUser) {
+      console.error('No system user found for company:', client.companyId);
+      return { success: false, reason: 'No system user found' };
+    }
+
     const { company } = client;
     const firstName = client.name.split(' ')[0];
 
@@ -205,7 +218,7 @@ export async function sendBirthdayGreeting(clientId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: company.users[0]?.id || client.userId, // System message
+            userId: systemUser.id,
             to: client.email,
             from: company.email || 'noreply@cleanday.com',
             body: 'Birthday greeting email sent',
@@ -232,7 +245,7 @@ export async function sendBirthdayGreeting(clientId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: company.users[0]?.id || client.userId,
+            userId: systemUser.id,
             to: client.phone,
             from: company.twilioPhoneNumber,
             body: smsBody,
@@ -274,6 +287,19 @@ export async function sendAnniversaryGreeting(clientId: string) {
       return { success: false, reason: 'Client not found or greetings disabled' };
     }
 
+    // Get system user (owner) for message logging
+    const systemUser = await prisma.user.findFirst({
+      where: {
+        companyId: client.companyId,
+        role: 'OWNER',
+      },
+    });
+
+    if (!systemUser) {
+      console.error('No system user found for company:', client.companyId);
+      return { success: false, reason: 'No system user found' };
+    }
+
     const { company } = client;
     const firstName = client.name.split(' ')[0];
 
@@ -303,7 +329,7 @@ export async function sendAnniversaryGreeting(clientId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: company.users[0]?.id || client.userId,
+            userId: systemUser.id,
             to: client.email,
             from: company.email || 'noreply@cleanday.com',
             body: 'Anniversary greeting email sent',
@@ -332,7 +358,7 @@ export async function sendAnniversaryGreeting(clientId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: company.users[0]?.id || client.userId,
+            userId: systemUser.id,
             to: client.phone,
             from: company.twilioPhoneNumber,
             body: smsBody,
