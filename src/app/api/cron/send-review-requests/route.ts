@@ -12,7 +12,7 @@ import { sendReviewRequest } from '@/lib/notifications';
  * - Review request not already sent
  * - Feedback has been submitted
  *
- * Schedule: 0 */4 * * * (every 4 hours)
+ * Schedule: 0 *\/4 * * * (every 4 hours)
  */
 export async function GET(request: NextRequest) {
   try {
