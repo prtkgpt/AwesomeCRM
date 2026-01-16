@@ -74,30 +74,6 @@ export async function sendEmail({ to, subject, html, from, replyTo, type, apiKey
       return { success: true, data };
     }
 
-    // Fallback: Use Nodemailer (if SMTP credentials are provided)
-    if (process.env.SMTP_HOST) {
-      const nodemailer = require('nodemailer');
-
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASSWORD,
-        },
-      });
-
-      const info = await transporter.sendMail({
-        from: fromAddress,
-        to,
-        subject,
-        html,
-      });
-
-      return { success: true, data: info };
-    }
-
     // Development mode: Just log the email
     if (process.env.NODE_ENV === 'development') {
       console.log('📧 Email (DEV MODE):');
