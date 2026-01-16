@@ -67,7 +67,7 @@ export async function POST(
     });
 
     const companyId = user.companyId;
-    const backupData = backup.data as BackupData;
+    const backupData = backup.data as unknown as BackupData;
 
     // Track restoration results
     const results = {
