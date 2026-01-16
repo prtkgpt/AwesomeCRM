@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       prisma.booking.findMany({
         where: { companyId },
         include: {
-          jobChecklist: true,
+          checklist: true,
         },
       }),
       prisma.invoice.findMany({
