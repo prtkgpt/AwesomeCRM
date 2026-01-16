@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { updateClientSchema } from '@/lib/validations';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/clients/[id] - Get client details
 export async function GET(
   request: NextRequest,
