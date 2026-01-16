@@ -7,6 +7,9 @@ import { stripe } from '@/lib/stripe';
 import { generateReferralCode, validateReferralCode, awardReferralCredits } from '@/lib/referral';
 import { sendEmail, getReferralUsedEmailTemplate } from '@/lib/email';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/clients - List all clients
 export async function GET(request: NextRequest) {
   try {
