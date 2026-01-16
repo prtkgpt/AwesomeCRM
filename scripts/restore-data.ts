@@ -1,14 +1,21 @@
-import { PrismaClient } from '@prisma/client';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
+#!/usr/bin/env npx tsx
+/**
+ * Standalone Data Restoration Script for Awesome Maids LLC
+ *
+ * Run with: DATABASE_URL="your-neon-url" npx tsx scripts/restore-data.ts
+ *
+ * Or set DATABASE_URL in your environment first, then run:
+ * npx tsx scripts/restore-data.ts
+ */
 
-// Load environment variables from .env file
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+import { PrismaClient } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const prisma = new PrismaClient();
 
-// All 45 clients to restore
-const clientsToRestore = [
+// The 45 specific clients to restore for Awesome Maids LLC
+const TARGET_CLIENTS = [
   { id: 'cmkg63kgg0004ml9zmmixyomf', name: 'P Gupta', email: 'bizwithpg@gmail.com', phone: '4085719370', createdAt: new Date('2026-01-16 00:55:59.824') },
   { id: 'cmkg387sk0001ml9z2v3m301h', name: 'Linda Dippel', email: '', phone: '5552500779', createdAt: new Date('2026-01-15 23:35:37.844') },
   { id: 'cmkdfje3n0001timsxlgqokez', name: 'Dale Evans', email: '', phone: '(408)608-4579', createdAt: new Date('2026-01-14 02:56:56.099') },
@@ -41,7 +48,7 @@ const clientsToRestore = [
   { id: 'cmk7a7yg9000344i77g9b0kj6', name: 'Chin Lu', email: '', phone: '(510)928-1769', createdAt: new Date('2026-01-09 19:41:27.466') },
   { id: 'cmk7a2s5p0004guqcs3e5croo', name: 'Patricia Urrutia', email: '', phone: '(559)705-3223', createdAt: new Date('2026-01-09 19:37:26.03') },
   { id: 'cmk79zvao0001guqc06n3sew1', name: 'Barbara Anderson', email: '', phone: '(559)312-0165', createdAt: new Date('2026-01-09 19:35:10.127') },
-  { id: 'cmk77g7c400016ua4q0l82uif', name: 'Doroteo Mejia', email: '', phone: '559-704-6944', createdAt: new Date('2026-01-09 18:23:53.38') },
+  { id: 'cmk77g7c400016ua4q0l82wif', name: 'Doroteo Mejia', email: '', phone: '559-704-6944', createdAt: new Date('2026-01-09 18:23:53.38') },
   { id: 'cmk67p5xg0001gej6fbzte2z4', name: 'Linda Rosado Mendez', email: 'cleanrosadolinda@gmial.com', phone: '5592940580', createdAt: new Date('2026-01-09 01:43:05.283') },
   { id: 'cmk5xs3xt00034ybq1x7eip70', name: 'Rosario Pinedo', email: '', phone: '559-313-3551', createdAt: new Date('2026-01-08 21:05:26.513') },
   { id: 'cmk5xju270006jkhmi0l4u0eb', name: 'Daniel Flores', email: '', phone: '5594548424', createdAt: new Date('2026-01-08 20:59:00.463') },
@@ -56,112 +63,404 @@ const clientsToRestore = [
   { id: 'cmk0rilwt000c78nvcgdepshg', name: 'Jaya Singhal', email: 'singhaljaya@gmail.com', phone: '4088380687', createdAt: new Date('2026-01-05 06:11:14.669') },
 ];
 
-async function restoreData() {
-  console.log('='.repeat(60));
-  console.log('DATA RESTORATION SCRIPT');
-  console.log('='.repeat(60));
-  console.log();
+// Awesome Maids LLC company ID - you may need to update this
+const AWESOME_MAIDS_COMPANY_ID = 'cmjz0bvdy0000hnly2pvx5u5f';
 
+// Normalize phone number for comparison
+function normalizePhone(phone: string): string {
+  if (!phone) return '';
+  return phone.replace(/[^0-9]/g, '');
+}
+
+// Clean phone formatting
+function cleanPhone(phone: string): string {
+  return phone.replace(/['"]/g, '').trim();
+}
+
+// Clean string with quotes
+function cleanString(str: string): string {
+  return str.replace(/['"]/g, '').trim();
+}
+
+// Parse CSV line handling quoted fields
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// Parse CSV content
+function parseCSV(content: string): Record<string, string>[] {
+  const lines = content.split('\n').filter(line => line.trim());
+  if (lines.length < 2) return [];
+
+  const headers = parseCSVLine(lines[0]);
+  const records: Record<string, string>[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    const record: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      record[header] = values[index] || '';
+    });
+    records.push(record);
+  }
+
+  return records;
+}
+
+// Parse date from CSV format
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const cleaned = dateStr.replace(/['"]/g, '').trim();
+  const date = new Date(cleaned);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+// Parse duration string to minutes
+function parseDuration(durationStr: string): number {
+  if (!durationStr) return 120;
+  const cleaned = durationStr.replace(/['"]/g, '').trim();
+  const parts = cleaned.split(':');
+  if (parts.length >= 2) {
+    return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
+  }
+  return 120;
+}
+
+// Map booking status from CSV to database enum
+function mapBookingStatus(status: string): string {
+  const statusLower = status.toLowerCase();
+  if (statusLower.includes('complete')) return 'COMPLETED';
+  if (statusLower.includes('cancel')) return 'CANCELLED';
+  if (statusLower.includes('confirm')) return 'CONFIRMED';
+  if (statusLower.includes('pending')) return 'PENDING';
+  return 'PENDING';
+}
+
+// Map service type
+function mapServiceType(service: string): string {
+  const serviceLower = service.toLowerCase();
+  if (serviceLower.includes('deep')) return 'DEEP_CLEAN';
+  if (serviceLower.includes('move')) return 'MOVE_IN_OUT';
+  if (serviceLower.includes('office') || serviceLower.includes('commercial')) return 'COMMERCIAL';
+  return 'STANDARD';
+}
+
+// Map recurrence
+function mapRecurrence(frequency: string): { isRecurring: boolean; recurrenceFrequency: string | null } {
+  const freqLower = frequency.toLowerCase();
+  if (freqLower.includes('weekly')) return { isRecurring: true, recurrenceFrequency: 'WEEKLY' };
+  if (freqLower.includes('bi-weekly') || freqLower.includes('biweekly')) return { isRecurring: true, recurrenceFrequency: 'BIWEEKLY' };
+  if (freqLower.includes('monthly')) return { isRecurring: true, recurrenceFrequency: 'MONTHLY' };
+  return { isRecurring: false, recurrenceFrequency: null };
+}
+
+// Check if booking matches target client
+function matchesTargetClient(booking: Record<string, string>): typeof TARGET_CLIENTS[0] | null {
+  const bookingPhone = normalizePhone(cleanPhone(booking['Phone'] || ''));
+  const bookingEmail = (booking['Email'] || '').toLowerCase().trim();
+  const bookingName = (booking['Full name'] || `${booking['First name'] || ''} ${booking['Last name'] || ''}`.trim()).toLowerCase();
+
+  for (const client of TARGET_CLIENTS) {
+    const clientPhone = normalizePhone(client.phone);
+    const clientEmail = (client.email || '').toLowerCase();
+    const clientName = client.name.toLowerCase();
+
+    if (bookingPhone && clientPhone && bookingPhone === clientPhone) return client;
+    if (bookingEmail && clientEmail && bookingEmail === clientEmail) return client;
+    if (bookingName && clientName && bookingName === clientName) return client;
+  }
+
+  return null;
+}
+
+async function main() {
+  console.log('='.repeat(60));
+  console.log('Data Restoration Script for Awesome Maids LLC');
+  console.log('='.repeat(60));
+  console.log('');
+
+  // Check database connection
   try {
-    // Get company information
-    const companies = await prisma.company.findMany();
-    if (companies.length === 0) {
-      console.error('❌ ERROR: No companies found in database.');
-      console.error('   Please create a company first.');
-      process.exit(1);
-    }
+    await prisma.$connect();
+    console.log('Connected to database successfully');
+  } catch (error) {
+    console.error('Failed to connect to database. Make sure DATABASE_URL is set.');
+    console.error('Run with: DATABASE_URL="your-neon-url" npx tsx scripts/restore-data.ts');
+    process.exit(1);
+  }
 
-    console.log(`Found ${companies.length} company(ies):`);
-    companies.forEach((c, i) => {
-      console.log(`  ${i + 1}. ${c.name} (ID: ${c.id})`);
+  // Find a user to associate restored data with
+  const adminUser = await prisma.user.findFirst({
+    where: {
+      companyId: AWESOME_MAIDS_COMPANY_ID,
+      role: { in: ['OWNER', 'ADMIN'] },
+    },
+    select: { id: true, companyId: true, email: true },
+  });
+
+  if (!adminUser) {
+    console.error(`No admin user found for company ${AWESOME_MAIDS_COMPANY_ID}`);
+    console.error('Please update AWESOME_MAIDS_COMPANY_ID in this script');
+
+    // List available companies
+    const companies = await prisma.company.findMany({
+      select: { id: true, name: true },
+      take: 10,
     });
+    console.log('\nAvailable companies:');
+    companies.forEach(c => console.log(`  ${c.id}: ${c.name}`));
+    process.exit(1);
+  }
 
-    // Use the first company (or you can add logic to select)
-    const companyId = companies[0].id;
-    console.log(`\n✓ Using company: ${companies[0].name}`);
-    console.log(`  Company ID: ${companyId}\n`);
+  console.log(`Using admin user: ${adminUser.email}`);
+  console.log(`Company ID: ${adminUser.companyId}`);
+  console.log('');
 
-    // Get a user from this company
-    const user = await prisma.user.findFirst({
-      where: { companyId },
-    });
+  const companyId = adminUser.companyId;
+  const userId = adminUser.id;
 
-    if (!user) {
-      console.error('❌ ERROR: No users found for this company.');
-      process.exit(1);
-    }
+  // Track results
+  const results = {
+    clients: { restored: 0, skipped: 0, errors: [] as string[] },
+    addresses: { restored: 0 },
+    bookings: { restored: 0, skipped: 0, matched: 0, errors: [] as string[] },
+  };
 
-    console.log(`✓ Using user: ${user.name || user.email}`);
-    console.log(`  User ID: ${user.id}\n`);
+  // STEP 1: Restore clients
+  console.log(`Restoring ${TARGET_CLIENTS.length} target clients...`);
 
-    console.log('-'.repeat(60));
-    console.log(`RESTORING ${clientsToRestore.length} CLIENTS...`);
-    console.log('-'.repeat(60));
-    console.log();
+  for (const clientData of TARGET_CLIENTS) {
+    try {
+      const existingById = await prisma.client.findUnique({
+        where: { id: clientData.id },
+      });
 
-    let restored = 0;
-    let skipped = 0;
-    let errors = 0;
+      if (existingById) {
+        results.clients.skipped++;
+        continue;
+      }
 
-    for (const clientData of clientsToRestore) {
-      try {
-        // Check if client already exists
-        const existing = await prisma.client.findUnique({
-          where: { id: clientData.id },
+      // Check by phone/email
+      const orConditions: any[] = [];
+      if (clientData.phone) orConditions.push({ phone: clientData.phone });
+      if (clientData.email) orConditions.push({ email: clientData.email });
+
+      if (orConditions.length > 0) {
+        const existingByContact = await prisma.client.findFirst({
+          where: { companyId, OR: orConditions },
         });
 
-        if (existing) {
-          console.log(`⏭️  ${clientData.name.padEnd(25)} - Already exists`);
-          skipped++;
+        if (existingByContact) {
+          results.clients.skipped++;
           continue;
         }
+      }
 
-        // Restore client
-        await prisma.client.create({
-          data: {
-            id: clientData.id,
+      await prisma.client.create({
+        data: {
+          id: clientData.id,
+          companyId,
+          userId,
+          name: clientData.name,
+          email: clientData.email || null,
+          phone: clientData.phone || null,
+          createdAt: clientData.createdAt,
+          updatedAt: clientData.createdAt,
+        },
+      });
+
+      results.clients.restored++;
+      console.log(`  + Restored client: ${clientData.name}`);
+    } catch (error: any) {
+      results.clients.errors.push(`${clientData.name}: ${error.message}`);
+      console.error(`  ! Error restoring ${clientData.name}: ${error.message}`);
+    }
+  }
+
+  console.log(`\nClients: ${results.clients.restored} restored, ${results.clients.skipped} skipped`);
+
+  // STEP 2: Restore bookings from CSV
+  const projectRoot = process.cwd();
+  const bookingsFile = path.join(projectRoot, '1767625502_bookings_2025-01-01-to-2025-12-31.csv');
+  const customersFile = path.join(projectRoot, '1767625849_customers_all_time.csv');
+
+  if (!fs.existsSync(bookingsFile)) {
+    console.log('\nBookings CSV not found - skipping booking restoration');
+    console.log(`Expected at: ${bookingsFile}`);
+  } else {
+    console.log('\nProcessing bookings from CSV...');
+
+    // Read customer addresses
+    const customerAddresses = new Map<string, { address: string; city: string; state: string; zip: string }>();
+    if (fs.existsSync(customersFile)) {
+      const customersContent = fs.readFileSync(customersFile, 'utf-8');
+      const customers = parseCSV(customersContent);
+      for (const customer of customers) {
+        const phone = normalizePhone(cleanPhone(customer['Phone Number'] || ''));
+        const email = (customer['Email Address'] || '').toLowerCase().trim();
+        const address = customer['Address'] || '';
+        const city = customer['City'] || '';
+        const state = customer['State'] || '';
+        const zip = cleanString(customer['Zip/Postal Code'] || '');
+        if (address && city) {
+          if (phone) customerAddresses.set(`phone:${phone}`, { address, city, state, zip });
+          if (email) customerAddresses.set(`email:${email}`, { address, city, state, zip });
+        }
+      }
+      console.log(`  Loaded ${customerAddresses.size} customer addresses`);
+    }
+
+    // Read bookings
+    const bookingsContent = fs.readFileSync(bookingsFile, 'utf-8');
+    const bookings = parseCSV(bookingsContent);
+    console.log(`  Found ${bookings.length} bookings in backup`);
+
+    const clientAddressMap = new Map<string, string>();
+
+    for (const booking of bookings) {
+      const matchedClient = matchesTargetClient(booking);
+      if (!matchedClient) continue;
+
+      results.bookings.matched++;
+
+      const bookingStartStr = booking['Booking start date time'] || '';
+      const scheduledDate = parseDate(bookingStartStr);
+      const duration = parseDuration(booking['Estimated job length (HH:MM)'] || '');
+      const priceStr = booking['Final amount (USD)'] || booking['Service total (USD)'] || '0';
+      const price = parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0;
+      const status = mapBookingStatus(booking['Booking status'] || '');
+      const serviceType = mapServiceType(booking['Frequency'] || booking['Service'] || '');
+      const { isRecurring, recurrenceFrequency } = mapRecurrence(booking['Frequency'] || '');
+      const notes = booking['Booking note'] || '';
+      const internalNotes = booking['Private customer note'] || booking['Provider note'] || '';
+
+      let address = booking['Address'] || '';
+      let city = booking['City'] || '';
+      let state = booking['State'] || '';
+      let zip = cleanString(booking['Zip/Postal code'] || '');
+
+      if (!address || !city) {
+        const clientPhone = normalizePhone(matchedClient.phone);
+        const clientEmail = (matchedClient.email || '').toLowerCase();
+        const addressInfo = customerAddresses.get(`phone:${clientPhone}`) || customerAddresses.get(`email:${clientEmail}`);
+        if (addressInfo) {
+          address = addressInfo.address;
+          city = addressInfo.city;
+          state = addressInfo.state;
+          zip = addressInfo.zip;
+        }
+      }
+
+      if (!scheduledDate) continue;
+
+      try {
+        const clientId = matchedClient.id;
+        let addressId = clientAddressMap.get(clientId);
+
+        if (!addressId) {
+          const existingAddress = await prisma.address.findFirst({ where: { clientId } });
+          if (existingAddress) {
+            addressId = existingAddress.id;
+          } else {
+            const newAddress = await prisma.address.create({
+              data: {
+                clientId,
+                label: 'Home',
+                street: address || 'Address needed',
+                city: city || 'City needed',
+                state: state || '',
+                zip: zip || '',
+              },
+            });
+            addressId = newAddress.id;
+            results.addresses.restored++;
+          }
+          clientAddressMap.set(clientId, addressId);
+        }
+
+        // Check for existing booking
+        const twoHoursBefore = new Date(scheduledDate.getTime() - 2 * 60 * 60 * 1000);
+        const twoHoursAfter = new Date(scheduledDate.getTime() + 2 * 60 * 60 * 1000);
+
+        const existingBooking = await prisma.booking.findFirst({
+          where: {
             companyId,
-            userId: user.id,
-            name: clientData.name,
-            email: clientData.email || null,
-            phone: clientData.phone || null,
-            createdAt: clientData.createdAt,
-            updatedAt: clientData.createdAt,
+            clientId,
+            scheduledDate: { gte: twoHoursBefore, lte: twoHoursAfter },
           },
         });
 
-        console.log(`✅ ${clientData.name.padEnd(25)} - Restored successfully`);
-        restored++;
+        if (existingBooking) {
+          results.bookings.skipped++;
+          continue;
+        }
+
+        await prisma.booking.create({
+          data: {
+            companyId,
+            clientId,
+            addressId,
+            userId,
+            scheduledDate,
+            duration,
+            price,
+            status,
+            serviceType,
+            isRecurring,
+            recurrenceFrequency,
+            notes: notes || null,
+            internalNotes: internalNotes || null,
+          },
+        });
+
+        results.bookings.restored++;
       } catch (error: any) {
-        console.error(`❌ ${clientData.name.padEnd(25)} - Error: ${error.message}`);
-        errors++;
+        results.bookings.errors.push(`${matchedClient.name} (${bookingStartStr}): ${error.message}`);
       }
     }
 
-    console.log();
-    console.log('='.repeat(60));
-    console.log('RESTORATION SUMMARY');
-    console.log('='.repeat(60));
-    console.log(`✅ Successfully restored: ${restored}`);
-    console.log(`⏭️  Already existed (skipped): ${skipped}`);
-    console.log(`❌ Errors: ${errors}`);
-    console.log(`📊 Total clients: ${clientsToRestore.length}`);
-    console.log('='.repeat(60));
-
-    if (restored > 0) {
-      console.log('\n🎉 Data restoration completed successfully!');
-    } else if (skipped === clientsToRestore.length) {
-      console.log('\n✓ All clients already exist in the database.');
-    } else {
-      console.log('\n⚠️  Some clients could not be restored. Check errors above.');
-    }
-  } catch (error: any) {
-    console.error('\n❌ FATAL ERROR during restoration:', error.message);
-    process.exit(1);
-  } finally {
-    await prisma.$disconnect();
+    console.log(`\nBookings: ${results.bookings.matched} matched, ${results.bookings.restored} restored, ${results.bookings.skipped} skipped`);
   }
+
+  // Summary
+  console.log('\n' + '='.repeat(60));
+  console.log('RESTORATION COMPLETE');
+  console.log('='.repeat(60));
+  console.log(`Clients:   ${results.clients.restored} restored, ${results.clients.skipped} already existed`);
+  console.log(`Addresses: ${results.addresses.restored} created`);
+  console.log(`Bookings:  ${results.bookings.restored} restored, ${results.bookings.skipped} already existed`);
+
+  if (results.clients.errors.length > 0) {
+    console.log('\nClient errors:');
+    results.clients.errors.slice(0, 5).forEach(e => console.log(`  - ${e}`));
+  }
+
+  if (results.bookings.errors.length > 0) {
+    console.log('\nBooking errors:');
+    results.bookings.errors.slice(0, 5).forEach(e => console.log(`  - ${e}`));
+  }
+
+  await prisma.$disconnect();
 }
 
-// Run the restoration
-restoreData();
+main().catch(async (e) => {
+  console.error(e);
+  await prisma.$disconnect();
+  process.exit(1);
+});
