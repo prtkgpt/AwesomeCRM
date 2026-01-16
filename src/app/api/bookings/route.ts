@@ -7,6 +7,9 @@ import { generateRecurringDates } from '@/lib/utils';
 import { applyReferralCredits } from '@/lib/referral';
 import { sendBookingConfirmation } from '@/lib/notifications';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/bookings - List bookings
 export async function GET(request: NextRequest) {
   try {

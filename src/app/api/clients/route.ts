@@ -7,6 +7,9 @@ import { stripe } from '@/lib/stripe';
 import { generateReferralCode, validateReferralCode, awardReferralCredits } from '@/lib/referral';
 import { sendEmail, getReferralUsedEmailTemplate } from '@/lib/email';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/clients - List all clients
 export async function GET(request: NextRequest) {
   try {
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/clients error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch clients' },
+      { success: false, error: 'Failed to fetch clients', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
