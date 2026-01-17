@@ -1,5 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// ============================================
+// CleanDayCRM - Multi-tenant Home Cleaning CRM
+// Complete Rewrite with All Features
+// ============================================
 
 generator client {
   provider = "prisma-client-js"
@@ -11,479 +13,38 @@ datasource db {
 }
 
 // ============================================
-// USER & AUTH
+// ENUMS
 // ============================================
 
 enum UserRole {
-  OWNER          // Company creator, full access
-  ADMIN          // Office staff, manage operations
-  CLEANER        // Field worker, view assigned jobs
-  CUSTOMER       // End customer, view/book services
+  OWNER       // Company owner - full access
+  ADMIN       // Office manager - operations
+  CLEANER     // Field worker - assigned jobs
+  CLIENT      // Customer - book & view services
 }
-
-model Company {
-  id                  String   @id @default(cuid())
-  name                String              // "Acme Cleaning"
-  slug                String   @unique    // "acme-cleaning" (for URL)
-
-  // Contact Info
-  email               String?
-  phone               String?
-  address             String?
-
-  // Branding
-  logo                String?             // URL to logo
-  primaryColor        String?             // Hex color
-
-  // Settings
-  timezone            String   @default("America/New_York")
-  currency            String   @default("USD")
-
-  // Business Configuration
-  businessType        String[] @default(["RESIDENTIAL"])  // ["RESIDENTIAL", "COMMERCIAL"] or both
-  enabledFeatures     Json?                               // Feature flags: { "insuranceBilling": true, ... }
-  // Example enabledFeatures: { "insuranceBilling": true, "recurringBilling": true, "teamManagement": true }
-
-  // API Integrations
-  emailDomain         String?             // Custom domain for emails
-  twilioAccountSid    String?             // Twilio Account SID
-  twilioAuthToken     String?             // Twilio Auth Token
-  twilioPhoneNumber   String?             // Twilio Phone Number
-  resendApiKey        String?             // Resend API Key
-
-  // Stripe Integration
-  stripeSecretKey         String?         // Stripe Secret Key
-  stripePublishableKey    String?         // Stripe Publishable Key
-  stripeWebhookSecret     String?         // Stripe Webhook Signing Secret
-
-  // Reminder Settings
-  enableCustomerReminders     Boolean @default(true)
-  enableCleanerReminders      Boolean @default(true)
-  customerReminderHours       Int     @default(24)    // Hours before appointment
-  cleanerReminderHours        Int     @default(24)    // Hours before appointment
-  enableMorningOfReminder     Boolean @default(true)  // Send cleaner reminder morning of
-  morningOfReminderTime       String  @default("08:00") // Time to send morning reminder (HH:mm)
-
-  // Customer Links & Payment Info
-  googleReviewUrl       String?             // Google Business review link
-  yelpReviewUrl         String?             // Yelp Business review link
-  zelleEmail            String?             // Zelle payment email
-  venmoUsername         String?             // Venmo @username
-  cashappUsername       String?             // CashApp $username
-
-  // Pricing Configuration
-  hourlyRate            Float?   @default(50.00)  // Base hourly rate (default $50/hr)
-  serviceTypeMultipliers Json?               // Service type pricing multipliers
-  // Example: { "STANDARD": 1.0, "DEEP": 1.2, "MOVE_OUT": 1.2, "WEEKLY": 0.75, "BIWEEKLY": 0.85, "MONTHLY": 0.9, "POST_CONSTRUCTION": 1.3, "POST_PARTY": 1.1 }
-
-  // Operational Expenses (Business Operations)
-  insuranceCost         Float?   @default(0)      // Monthly insurance cost
-  bondCost              Float?   @default(0)      // Monthly bond cost
-  workersCompCost       Float?   @default(0)      // Monthly workers compensation cost
-  cleaningSuppliesCost  Float?   @default(0)      // Monthly cleaning supplies cost
-  gasReimbursementRate  Float?   @default(0)      // Gas reimbursement rate (per mile or per job)
-  vaAdminSalary         Float?   @default(0)      // Monthly VA/Admin salary
-  ownerSalary           Float?   @default(0)      // Monthly owner salary
-  otherExpenses         Float?   @default(0)      // Other monthly operational expenses
-
-  // Referral Program Configuration
-  referralEnabled       Boolean  @default(false)  // Enable/disable referral program
-  referralReferrerReward Float?  @default(25)     // Credit for referrer (e.g., $25)
-  referralRefereeReward  Float?  @default(25)     // Credit for new customer (e.g., $25)
-
-  // Online Booking Configuration
-  onlineBookingEnabled  Boolean  @default(true)   // Enable/disable online booking
-  minimumLeadTimeHours  Int      @default(2)      // Minimum hours in advance (e.g., 2 hours)
-  maxDaysAhead          Int      @default(60)     // Maximum days in advance (e.g., 60 days)
-  requireApproval       Boolean  @default(false)  // Require manual approval for bookings
-
-  // Subscription
-  plan                String   @default("FREE")  // FREE, BASIC, PRO
-  subscriptionStatus  String   @default("ACTIVE")
-
-  users               User[]
-  clients             Client[]
-  bookings            Booking[]
-  messages            Message[]
-  messageTemplates    MessageTemplate[]
-  invoices            Invoice[]
-  teamMembers         TeamMember[]
-  invitations         Invitation[]
-  cleaningReviews     CleaningReview[]
-  payLogs             PayLog[]
-  pricingRules        PricingRule[]
-  backups             CompanyBackup[]
-
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  @@index([slug])
-}
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String
-  name          String?
-  phone         String?
-  businessName  String?
-
-  // Multi-tenancy
-  companyId     String
-  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  role          UserRole  @default(CUSTOMER)
-
-  // Legacy field - kept for compatibility
-  workspaceId   String?
-
-  // Relations
-  clients       Client[]
-  bookings      Booking[]
-  messages      Message[]
-  messageTemplates MessageTemplate[]
-  invoices      Invoice[]
-
-  // Cleaner profile (if role = CLEANER)
-  teamMember    TeamMember?
-
-  // Customer profile (if role = CUSTOMER)
-  customerClient  Client?   @relation("CustomerAccount")
-  customerBookings Booking[] @relation("CustomerBookings")
-
-  // Jobs completed by this user (cleaner)
-  completedBookings Booking[] @relation("CompletedByUser")
-
-  // Jobs approved by this user (admin)
-  approvedBookings Booking[] @relation("ApprovedByUser")
-
-  // Invitations sent
-  sentInvitations Invitation[] @relation("InvitationSender")
-
-  // Reviews authored
-  cleaningReviews CleaningReview[]
-
-  // Backups created
-  createdBackups CompanyBackup[]
-
-  // Password reset
-  resetToken       String?
-  resetTokenExpiry DateTime?
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@index([email])
-  @@index([companyId, role])
-}
-
-model TeamMember {
-  id                String    @id @default(cuid())
-  companyId         String
-  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  userId            String    @unique
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Employment Info
-  hourlyRate        Float?
-  employeeId        String?           // Internal ID
-  hireDate          DateTime?
-
-  // Personal Info
-  emergencyContact  String?
-  emergencyPhone    String?
-  photo             String?           // Profile photo URL
-
-  // Address
-  street            String?
-  city              String?
-  state             String?
-  zip               String?
-
-  // Work Info
-  specialties       String[]          // ["Deep Clean", "Move-out"]
-  availability      Json?             // Weekly schedule
-  experience        String?           // Years of experience or description
-  speed             String?           // Fast, Medium, Thorough, etc.
-  serviceAreas      String[]          // Zip codes or city names they can service
-
-  // Assignment
-  assignedBookings  Booking[]         @relation("AssignedCleaner")
-
-  // Pay logs
-  payLogs           PayLog[]
-
-  isActive          Boolean   @default(true)
-
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  @@index([companyId])
-  @@index([userId])
-}
-
-model Invitation {
-  id            String      @id @default(cuid())
-  companyId     String
-  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  email         String
-  role          UserRole
-  token         String      @unique
-
-  invitedById   String
-  invitedBy     User        @relation("InvitationSender", fields: [invitedById], references: [id])
-
-  status        String      @default("PENDING")  // PENDING, ACCEPTED, EXPIRED
-  expiresAt     DateTime
-
-  createdAt     DateTime    @default(now())
-
-  @@index([token])
-  @@index([companyId, email])
-}
-
-// ============================================
-// CLIENTS & ADDRESSES
-// ============================================
-
-model Client {
-  id                String    @id @default(cuid())
-
-  // Multi-tenancy
-  companyId         String
-  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  // Created by (admin/office staff)
-  userId            String
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  name              String
-  email             String?
-  phone             String?
-  tags              String[]  // ["VIP", "Weekly", "Monthly", "Pain"]
-  notes             String?   // General client notes
-
-  // Insurance & Helper Bee's Integration
-  helperBeesReferralId    String?   // Helper Bee's referral/member ID
-  insuranceProvider       String?   // "Helper Bee's", "Blue Cross", etc.
-  hasInsurance            Boolean   @default(false)
-  insurancePaymentAmount  Float?    // Default amount insurance pays (e.g., $125 or $175)
-  standardCopayAmount     Float?    // Standard copay amount (e.g., $50)
-  hasDiscountedCopay      Boolean   @default(false)
-  copayDiscountAmount     Float?    // Discount amount off copay (e.g., $10 off)
-  copayNotes              String?   // Notes about copay arrangements
-  // cleaningObservations    String?   // TODO: Add column to database first, then uncomment
-
-  addresses         Address[]
-  bookings          Booking[]
-  invoices          Invoice[]
-
-  // Stripe integration
-  stripeCustomerId        String?   @unique
-  stripePaymentMethodId   String?   // Saved payment method for auto-charging
-  autoChargeEnabled       Boolean   @default(false)  // Allow automatic charging after job completion
-
-  // Link to customer user account (if they sign up)
-  customerUserId    String?   @unique
-  customerUser      User?     @relation("CustomerAccount", fields: [customerUserId], references: [id])
-
-  // Referral Program
-  referralCode             String?   @unique  // Unique code for this client (e.g., "JOHN-ABC123")
-  referredById             String?              // Client ID who referred this client
-  referredBy               Client?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
-  referrals                Client[]  @relation("Referrals") // Clients referred by this client
-  referralCreditsEarned    Float     @default(0) // Total credits earned from referrals
-  referralCreditsUsed      Float     @default(0) // Credits used on bookings
-  referralCreditsBalance   Float     @default(0) // Available credits
-  referralTier             ReferralTier @default(NONE) // Current referral tier level
-  referralTierBonusEarned  Float     @default(0) // Total bonus credits from achieving tiers
-  referralCreditTransactions ReferralCreditTransaction[] // Individual credit transactions
-
-  // Customer Preferences
-  preferences              ClientPreference?
-
-  // Birthday & Anniversary Automation
-  birthday                     DateTime?  // Client's birthday
-  anniversary                  DateTime?  // Client's anniversary (e.g., first booking, wedding)
-  anniversaryType              String?    // "FIRST_BOOKING", "WEDDING", "CUSTOM"
-
-  // Communication preferences for greetings
-  enableBirthdayGreetings      Boolean @default(true)
-  enableAnniversaryGreetings   Boolean @default(true)
-
-  // Tracking sent greetings
-  lastBirthdayGreetingSent     DateTime?
-  lastAnniversaryGreetingSent  DateTime?
-
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  @@index([companyId])
-  @@index([userId])
-  @@index([email])
-  @@index([helperBeesReferralId])
-  @@index([referralCode])
-  @@index([referredById])
-}
-
-model ReferralCreditTransaction {
-  id              String    @id @default(cuid())
-  clientId        String
-  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId       String
-
-  amount          Float     // Credit amount (positive for earned, negative for used)
-  type            ReferralCreditType // EARNED, USED, EXPIRED, TIER_BONUS
-  description     String?   // e.g., "Referral from John Doe", "Applied to booking #123"
-
-  // Expiration tracking
-  expiresAt       DateTime? // When this credit expires (null for used/expired)
-  status          ReferralCreditStatus @default(ACTIVE) // ACTIVE, USED, EXPIRED
-
-  // Relations
-  relatedReferralId String?  // ID of the client who was referred (for EARNED type)
-  relatedBookingId  String?  // ID of the booking where credit was used
-
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  @@index([clientId])
-  @@index([companyId])
-  @@index([status])
-  @@index([expiresAt])
-  @@index([createdAt])
-}
-
-// ============================================
-// CUSTOMER PREFERENCES
-// ============================================
-
-model ClientPreference {
-  id              String    @id @default(cuid())
-
-  clientId        String    @unique
-  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  // Cleaning Sequence & Priorities
-  cleaningSequence        String?   // e.g., "Start with kitchen, then bathrooms"
-  areasToFocus            String?   // e.g., "Extra attention to kitchen counters and floors"
-  areasToAvoid            String?   // e.g., "Don't move items on desk, avoid master bedroom closet"
-
-  // Product Sensitivities & Allergies
-  productAllergies        String?   // e.g., "Allergic to bleach, use only natural products"
-  preferredProducts       String?   // e.g., "Customer provides own eco-friendly products"
-  avoidScents             Boolean   @default(false)
-  scentPreferences        String?   // e.g., "Lavender OK, no citrus"
-
-  // Pet Handling
-  petHandlingInstructions String?   // e.g., "Keep dog in backyard during cleaning, cat is shy"
-  petFeedingNeeded        Boolean   @default(false)
-  petFeedingInstructions  String?   // e.g., "Feed cat if visit is over 2 hours"
-
-  // Communication Preferences
-  preferredContactMethod  String?   // "SMS", "Email", "Phone"
-  notificationPreferences String?   // e.g., "Text 30 min before arrival, no calls"
-  languagePreference      String?   // e.g., "Spanish", "English"
-
-  // Access & Entry
-  keyLocation             String?   // e.g., "Spare key under flower pot"
-  alarmCode               String?   // Home alarm code
-  entryInstructions       String?   // e.g., "Use back door, front door lock is broken"
-
-  // Special Instructions
-  specialRequests         String?   // e.g., "Please water plants in living room"
-  thingsToKnow            String?   // e.g., "Toilet in hall bath doesn't flush well"
-  temperaturePreferences  String?   // e.g., "Please keep AC at 72°F"
-
-  // Previous Visit Notes (auto-populated)
-  lastVisitNotes          String?   // Notes from cleaner's last visit
-  lastVisitDate           DateTime? // When was last cleaned
-
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-
-  @@index([clientId])
-}
-
-model Address {
-  id            String    @id @default(cuid())
-  clientId      String
-  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  label         String?   // "Home", "Office", etc.
-  street        String
-  city          String
-  state         String
-  zip           String
-
-  // Google Maps Verification
-  googlePlaceId String?   // Google Places API place ID
-  lat           Float?    // Latitude
-  lng           Float?    // Longitude
-  isVerified    Boolean   @default(false)
-  formattedAddress String? // Google-formatted address
-
-  // Property Details
-  propertyType  String?   // "Single Family", "Condo", "Apartment", "Townhouse"
-  squareFootage Int?      // Square feet
-  bedrooms      Int?      // Number of bedrooms
-  bathrooms     Float?    // Number of bathrooms (can be 2.5, etc.)
-  floors        Int?      // Number of floors/stories
-  yearBuilt     Int?      // Year property was built
-
-  // Cleaner-specific notes
-  parkingInfo   String?
-  gateCode      String?
-  petInfo       String?
-  preferences   String?   // "Remove shoes", "Back door", etc.
-
-  bookings      Booking[]
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@index([clientId])
-  @@index([googlePlaceId])
-}
-
-// ============================================
-// BOOKINGS (JOBS)
-// ============================================
 
 enum BookingStatus {
-  SCHEDULED
-  CLEANER_COMPLETED    // Stage 1: Cleaner marked complete, pending admin review
-  COMPLETED            // Stage 2: Admin approved, ready for payment
-  CANCELLED
-  NO_SHOW
+  PENDING           // Awaiting confirmation
+  CONFIRMED         // Confirmed, awaiting service
+  CLEANER_EN_ROUTE  // Cleaner on the way
+  IN_PROGRESS       // Cleaning in progress
+  CLEANER_COMPLETED // Cleaner marked done, pending admin review
+  COMPLETED         // Admin approved, service done
+  CANCELLED         // Cancelled by client or admin
+  NO_SHOW           // Client not available
+  RESCHEDULED       // Moved to different time
 }
 
 enum ServiceType {
   STANDARD
   DEEP
+  MOVE_IN
   MOVE_OUT
-}
-
-enum ReferralTier {
-  NONE      // No referrals yet
-  BRONZE    // 1-4 referrals
-  SILVER    // 5-9 referrals
-  GOLD      // 10+ referrals
-}
-
-enum ReferralCreditType {
-  EARNED      // Credit earned from a referral
-  USED        // Credit used on a booking
-  EXPIRED     // Credit expired without being used
-  TIER_BONUS  // Bonus credit from tier achievement
-}
-
-enum ReferralCreditStatus {
-  ACTIVE   // Credit is available to use
-  USED     // Credit has been used
-  EXPIRED  // Credit has expired
+  POST_CONSTRUCTION
+  POST_PARTY
+  OFFICE
+  AIRBNB
+  CUSTOM
 }
 
 enum RecurrenceFrequency {
@@ -491,467 +52,1882 @@ enum RecurrenceFrequency {
   WEEKLY
   BIWEEKLY
   MONTHLY
+  CUSTOM
 }
 
-model Booking {
-  id                    String              @id @default(cuid())
-
-  // Multi-tenancy
-  companyId             String
-  company               Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  // Created by (admin/office staff)
-  userId                String
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  clientId              String
-  client                Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  addressId             String
-  address               Address             @relation(fields: [addressId], references: [id])
-
-  // Cleaner Assignment
-  assignedTo            String?
-  assignee              TeamMember?         @relation("AssignedCleaner", fields: [assignedTo], references: [id])
-
-  // Customer Link (if customer has account)
-  customerId            String?
-  customer              User?               @relation("CustomerBookings", fields: [customerId], references: [id])
-
-  // Scheduling
-  scheduledDate         DateTime
-  duration              Int                 // minutes
-
-  // Service details
-  serviceType           ServiceType         @default(STANDARD)
-  status                BookingStatus       @default(SCHEDULED)
-
-  // Pricing
-  price                 Float
-  isPaid                Boolean             @default(false)
-  paymentMethod         String?             // "card", "cash", "check", "zelle"
-  paidAt                DateTime?
-
-  // Referral Credits Applied
-  referralCreditsApplied Float              @default(0)    // Credits used on this booking
-  finalPrice            Float?                              // Final price after credits (null if no credits applied)
-
-  // Insurance & Copay Tracking
-  hasInsuranceCoverage  Boolean             @default(false)
-  insuranceAmount       Float               @default(0)    // Amount insurance pays
-  copayAmount           Float               @default(0)    // Amount client pays as copay
-  copayDiscountApplied  Float               @default(0)    // Discount applied to copay
-  finalCopayAmount      Float               @default(0)    // Actual copay after discount
-  insurancePaid         Boolean             @default(false)
-  copayPaid             Boolean             @default(false)
-  insurancePaidAt       DateTime?
-  copayPaidAt           DateTime?
-  copayPaymentMethod    String?                            // "STRIPE", "ZELLE", "VENMO", "CASHAPP"
-  copayStripePaymentIntentId String?        @unique        // Stripe payment intent ID for copay
-
-  // Stripe integration
-  stripePaymentIntentId     String?             @unique
-  stripePaymentLink         String?
-  paymentPreAuthAt          DateTime?           // When card was pre-authorized (24hrs before)
-  paymentPreAuthAmount      Float?              // Amount pre-authorized
-  autoChargeAttemptedAt     DateTime?           // When auto-charge was attempted
-  autoChargeSuccessful      Boolean             @default(false)
-
-  // Recurrence
-  isRecurring           Boolean             @default(false)
-  recurrenceFrequency   RecurrenceFrequency @default(NONE)
-  recurrenceParentId    String?             // Points to the original booking
-  recurrenceEndDate     DateTime?           // When to stop generating
-
-  // Notes
-  notes                 String?             // Customer-facing notes
-  internalNotes         String?             // Private notes
-
-  // Insurance Documentation (for clients with insurance)
-  insuranceDocumentation String?            // Documentation for insurance billing
-  cleaningObservations   String?            // Observations and notes from cleaning
-
-  // Automation tracking
-  confirmationSent          Boolean             @default(false)
-  reminderSent              Boolean             @default(false)
-  customerReminderSentAt    DateTime?
-  cleanerReminderSentAt     DateTime?
-  morningOfReminderSentAt   DateTime?
-
-  // Cleaner workflow tracking
-  onMyWaySentAt             DateTime?           // When cleaner clicked "On My Way"
-  clockedInAt               DateTime?           // When cleaner started the job
-  clockedOutAt              DateTime?           // When cleaner finished the job
-
-  // Estimate (for sharing with potential customers)
-  estimateToken         String?             @unique
-  estimateAccepted      Boolean             @default(false)
-  estimateAcceptedAt    DateTime?
-
-  // Customer feedback & tip
-  feedbackToken         String?             @unique  // Unique token for customer feedback page
-  feedbackLinkSentAt    DateTime?                    // When feedback link was sent to customer
-  customerRating        Int?                         // 1-5 stars from customer
-  customerFeedback      String?                      // Customer's written feedback
-  tipAmount             Float?                       // Tip amount from customer
-  tipPaidVia            String?                      // "STRIPE", "ZELLE", "VENMO", "CASHAPP", "CASH"
-  feedbackSubmittedAt   DateTime?                    // When customer submitted feedback
-
-  // Review request automation
-  reviewRequestSentAt   DateTime?                    // When review request was sent (separate from feedback)
-
-  // Job completion tracking
-  completedAt           DateTime?                    // When job was marked as completed by cleaner
-  completedBy           String?                      // User ID who marked job as completed (cleaner)
-  completedByUser       User?               @relation("CompletedByUser", fields: [completedBy], references: [id])
-
-  // Job approval tracking (Stage 2 of two-stage workflow)
-  approvedAt            DateTime?                    // When job was approved by admin
-  approvedBy            String?                      // User ID who approved the job (admin)
-  approvedByUser        User?               @relation("ApprovedByUser", fields: [approvedBy], references: [id])
-
-  messages              Message[]
-  invoice               Invoice?
-
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-
-  @@index([companyId])
-  @@index([userId, scheduledDate])
-  @@index([clientId])
-  @@index([assignedTo])
-  @@index([customerId])
-  @@index([status])
-  @@index([estimateToken])
-  @@index([feedbackToken])
-  @@index([scheduledDate])
-
-  reviews               CleaningReview[]
-  checklist             JobChecklist?
-}
-
-// ============================================
-// CLEANING REVIEWS
-// ============================================
-
-model CleaningReview {
-  id                  String    @id @default(cuid())
-
-  // Multi-tenancy
-  companyId           String
-  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  // Booking reference
-  bookingId           String
-  booking             Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-
-  // Reviewer (cleaner or office staff)
-  reviewerId          String
-  reviewer            User      @relation(fields: [reviewerId], references: [id])
-
-  // Rating categories (1-5 stars)
-  houseConditionRating   Int?   // How messy/clean was the house
-  customerRating         Int?   // How was the customer
-  tipRating              Int?   // Tip quality (0 = no tip, 5 = great tip)
-  overallRating          Int    // Overall experience
-
-  // Notes
-  notes               String?   // Short description/comments
-
-  // Photos (optional - for before/after)
-  photoUrls           String[]  @default([])
-
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  @@index([bookingId])
-  @@index([reviewerId])
-  @@index([companyId])
-}
-
-// ============================================
-// MESSAGING
-// ============================================
-
-enum MessageStatus {
-  SENT
-  DELIVERED
-  FAILED
+enum PaymentStatus {
   PENDING
+  AUTHORIZED
+  CAPTURED
+  PAID
+  REFUNDED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  CHECK
+  ZELLE
+  VENMO
+  CASHAPP
+  BANK_TRANSFER
+  GIFT_CARD
+  CREDITS
+  INSURANCE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PAID
+  PARTIAL
+  OVERDUE
+  CANCELLED
+  REFUNDED
 }
 
 enum MessageType {
   CONFIRMATION
   REMINDER
   ON_MY_WAY
+  ARRIVED
+  COMPLETED
   THANK_YOU
   PAYMENT_REQUEST
-  CUSTOM
-  BIRTHDAY_GREETING
-  ANNIVERSARY_GREETING
   REVIEW_REQUEST
+  BIRTHDAY
+  ANNIVERSARY
+  PROMOTIONAL
+  CUSTOM
 }
 
-model Message {
-  id            String        @id @default(cuid())
+enum MessageChannel {
+  SMS
+  EMAIL
+  PUSH
+  IN_APP
+}
 
-  // Multi-tenancy
-  companyId     String
-  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  BOUNCED
+}
 
-  userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum ReferralTier {
+  NONE      // No referrals
+  BRONZE    // 1-4 referrals
+  SILVER    // 5-9 referrals
+  GOLD      // 10-19 referrals
+  PLATINUM  // 20+ referrals
+}
 
-  bookingId     String?
-  booking       Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+enum LoyaltyTier {
+  BASIC       // New customers
+  SILVER      // 10+ bookings or $500+ spent
+  GOLD        // 25+ bookings or $1500+ spent
+  PLATINUM    // 50+ bookings or $3000+ spent
+  DIAMOND     // 100+ bookings or $6000+ spent
+}
 
-  to            String        // Phone number
-  from          String        // Twilio number
-  body          String
+enum CreditType {
+  REFERRAL_EARNED
+  REFERRAL_USED
+  REFERRAL_EXPIRED
+  TIER_BONUS
+  LOYALTY_EARNED
+  LOYALTY_USED
+  GIFT_CARD_CREDIT
+  PROMO_CREDIT
+  COMPENSATION
+}
 
-  type          MessageType   @default(CUSTOM)
-  status        MessageStatus @default(PENDING)
+enum CreditStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
 
-  // Twilio metadata
-  twilioSid     String?       @unique
-  errorMessage  String?
+enum QualityCheckStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  PASSED
+  FAILED
+  NEEDS_ATTENTION
+}
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+enum CertificationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+  REVOKED
+}
+
+enum InventoryMovementType {
+  PURCHASE
+  USAGE
+  RESTOCK
+  ADJUSTMENT
+  TRANSFER
+  WASTE
+}
+
+enum BackupStatus {
+  ACTIVE
+  RESTORING
+  ARCHIVED
+  DELETED
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  PAUSED
+  TRIAL
+}
+
+// ============================================
+// COMPANY & MULTI-TENANCY
+// ============================================
+
+model Company {
+  id                      String   @id @default(cuid())
+  name                    String
+  slug                    String   @unique
+
+  // Contact
+  email                   String?
+  phone                   String?
+  website                 String?
+
+  // Address
+  street                  String?
+  city                    String?
+  state                   String?
+  zip                     String?
+  country                 String   @default("US")
+
+  // Branding
+  logo                    String?
+  favicon                 String?
+  primaryColor            String   @default("#3B82F6")
+  secondaryColor          String   @default("#10B981")
+  accentColor             String   @default("#F59E0B")
+
+  // Regional Settings
+  timezone                String   @default("America/New_York")
+  currency                String   @default("USD")
+  dateFormat              String   @default("MM/DD/YYYY")
+  timeFormat              String   @default("12h")
+  language                String   @default("en")
+
+  // Business Configuration
+  businessTypes           String[] @default(["RESIDENTIAL"])
+  serviceAreas            Json?    // Array of zip codes or cities
+  operatingHours          Json?    // { monday: { start: "08:00", end: "18:00" }, ... }
+
+  // Feature Flags
+  features                Json     @default("{}")
+  // Example: { insuranceBilling, recurringBookings, teamManagement, onlineBooking,
+  //           loyaltyProgram, referralProgram, inventoryManagement, qualityAssurance,
+  //           photoDocumentation, multiLocation, giftCards, apiAccess }
+
+  // API Integrations - Stripe
+  stripeSecretKey         String?
+  stripePublishableKey    String?
+  stripeWebhookSecret     String?
+  stripeAccountId         String?  // For Stripe Connect
+
+  // API Integrations - Communication
+  twilioAccountSid        String?
+  twilioAuthToken         String?
+  twilioPhoneNumber       String?
+  resendApiKey            String?
+  emailDomain             String?
+  emailFromName           String?
+
+  // API Integrations - Google
+  googleApiKey            String?
+  googleMapsEnabled       Boolean  @default(false)
+  googleCalendarEnabled   Boolean  @default(false)
+  googleReviewUrl         String?
+
+  // API Integrations - Others
+  yelpReviewUrl           String?
+  facebookPageUrl         String?
+  instagramHandle         String?
+  quickbooksEnabled       Boolean  @default(false)
+  quickbooksToken         String?
+
+  // Payment Options
+  zelleEmail              String?
+  venmoUsername           String?
+  cashappUsername         String?
+  acceptCash              Boolean  @default(true)
+  acceptCheck             Boolean  @default(true)
+
+  // Pricing Configuration
+  baseHourlyRate          Float    @default(50.00)
+  minimumBookingPrice     Float    @default(100.00)
+  cancellationFeePercent  Float    @default(50.0)
+  cancellationWindow      Int      @default(24)  // Hours before appointment
+  taxRate                 Float    @default(0)
+
+  // Booking Configuration
+  onlineBookingEnabled    Boolean  @default(true)
+  minimumLeadTime         Int      @default(2)    // Hours in advance
+  maximumLeadTime         Int      @default(60)   // Days in advance
+  requireApproval         Boolean  @default(false)
+  requireDeposit          Boolean  @default(false)
+  depositPercent          Float    @default(25.0)
+  allowInstantBooking     Boolean  @default(true)
+
+  // Reminder Settings
+  customerReminderEnabled Boolean  @default(true)
+  customerReminderHours   Int      @default(24)
+  cleanerReminderEnabled  Boolean  @default(true)
+  cleanerReminderHours    Int      @default(24)
+  morningReminderEnabled  Boolean  @default(true)
+  morningReminderTime     String   @default("08:00")
+
+  // Review & Feedback Settings
+  autoSendReviewRequest   Boolean  @default(true)
+  reviewRequestDelay      Int      @default(2)    // Hours after completion
+  feedbackEnabled         Boolean  @default(true)
+
+  // Referral Program
+  referralEnabled         Boolean  @default(false)
+  referralReferrerReward  Float    @default(25)
+  referralRefereeReward   Float    @default(25)
+  referralCreditExpiry    Int      @default(365)  // Days until credits expire
+
+  // Loyalty Program
+  loyaltyEnabled          Boolean  @default(false)
+  loyaltyPointsPerDollar  Float    @default(1)
+  loyaltyPointsValue      Float    @default(0.01) // $0.01 per point
+
+  // Quality Assurance
+  qaEnabled               Boolean  @default(false)
+  qaFrequencyPercent      Int      @default(10)   // Percentage of jobs to QA
+
+  // Operational Expenses (Monthly)
+  insuranceCost           Float    @default(0)
+  bondCost                Float    @default(0)
+  workersCompCost         Float    @default(0)
+  suppliesCost            Float    @default(0)
+  gasReimbursementRate    Float    @default(0)
+  adminSalary             Float    @default(0)
+  ownerSalary             Float    @default(0)
+  otherExpenses           Float    @default(0)
+
+  // Subscription
+  plan                    SubscriptionPlan    @default(FREE)
+  subscriptionStatus      SubscriptionStatus  @default(ACTIVE)
+  subscriptionExpiresAt   DateTime?
+  stripeSubscriptionId    String?
+
+  // Timestamps
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  // Relations
+  users                   User[]
+  locations               Location[]
+  clients                 Client[]
+  bookings                Booking[]
+  services                Service[]
+  pricingRules            PricingRule[]
+  invoices                Invoice[]
+  payments                Payment[]
+  messages                Message[]
+  messageTemplates        MessageTemplate[]
+  teamMembers             TeamMember[]
+  invitations             Invitation[]
+  giftCards               GiftCard[]
+  promotions              Promotion[]
+  inventoryItems          InventoryItem[]
+  qualityChecks           QualityCheck[]
+  certifications          Certification[]
+  trainingModules         TrainingModule[]
+  reports                 Report[]
+  webhooks                Webhook[]
+  apiKeys                 ApiKey[]
+  auditLogs               AuditLog[]
+  backups                 CompanyBackup[]
+
+  @@index([slug])
+  @@index([plan, subscriptionStatus])
+}
+
+// Multi-location support
+model Location {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name              String   // "Downtown Office", "North Branch"
+  isHeadquarters    Boolean  @default(false)
+  isActive          Boolean  @default(true)
+
+  // Contact
+  email             String?
+  phone             String?
+
+  // Address
+  street            String
+  city              String
+  state             String
+  zip               String
+  lat               Float?
+  lng               Float?
+
+  // Service Area
+  serviceRadius     Int?     // Miles from location
+  serviceZipCodes   String[] // Specific zip codes
+
+  // Operating Hours (override company defaults)
+  operatingHours    Json?
+
+  // Manager
+  managerId         String?
+  manager           TeamMember? @relation("LocationManager", fields: [managerId], references: [id])
+
+  // Relations
+  teamMembers       TeamMember[] @relation("TeamMemberLocation")
+  bookings          Booking[]
+  inventory         InventoryItem[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([companyId])
-  @@index([userId])
-  @@index([bookingId])
-  @@index([twilioSid])
+  @@index([companyId, isActive])
 }
 
-model MessageTemplate {
-  id            String      @id @default(cuid())
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String
+
+  // Profile
+  firstName             String?
+  lastName              String?
+  phone                 String?
+  avatar                String?
 
   // Multi-tenancy
+  companyId             String
+  company               Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role                  UserRole  @default(CLIENT)
+
+  // Account Status
+  isActive              Boolean   @default(true)
+  isVerified            Boolean   @default(false)
+  emailVerifiedAt       DateTime?
+  lastLoginAt           DateTime?
+
+  // Password Reset
+  resetToken            String?
+  resetTokenExpiry      DateTime?
+
+  // Two-Factor Auth
+  twoFactorEnabled      Boolean   @default(false)
+  twoFactorSecret       String?
+
+  // Notification Preferences
+  emailNotifications    Boolean   @default(true)
+  smsNotifications      Boolean   @default(true)
+  pushNotifications     Boolean   @default(true)
+  marketingEmails       Boolean   @default(false)
+
+  // Theme Preference
+  theme                 String    @default("system") // light, dark, system
+
+  // Relations
+  teamMember            TeamMember?
+  clientProfile         Client?   @relation("ClientUser")
+  createdBookings       Booking[] @relation("BookingCreator")
+  completedBookings     Booking[] @relation("BookingCompleter")
+  approvedBookings      Booking[] @relation("BookingApprover")
+  messages              Message[]
+  qualityChecks         QualityCheck[] @relation("QualityChecker")
+  auditLogs             AuditLog[]
+  createdBackups        CompanyBackup[]
+  sentInvitations       Invitation[] @relation("InvitationSender")
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([email])
+  @@index([companyId, role])
+  @@index([companyId, isActive])
+}
+
+model Invitation {
+  id            String    @id @default(cuid())
   companyId     String
-  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  userId        String
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email         String
+  role          UserRole
+  token         String    @unique
 
-  type          MessageType
-  name          String
-  template      String      // Template with variables: {{clientName}}, {{date}}, {{time}}, {{price}}
+  invitedById   String
+  invitedBy     User      @relation("InvitationSender", fields: [invitedById], references: [id])
 
-  isActive      Boolean     @default(true)
+  status        String    @default("PENDING") // PENDING, ACCEPTED, EXPIRED, CANCELLED
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([token])
+  @@index([companyId, email])
+  @@index([companyId, status])
+}
+
+// ============================================
+// TEAM MANAGEMENT
+// ============================================
+
+model TeamMember {
+  id                    String    @id @default(cuid())
+  companyId             String
+  company               Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Employment
+  employeeId            String?
+  hireDate              DateTime?
+  terminationDate       DateTime?
+  hourlyRate            Float?
+  salary                Float?
+  payType               String    @default("HOURLY") // HOURLY, SALARY, CONTRACT
+
+  // Personal
+  dateOfBirth           DateTime?
+  ssn                   String?   // Encrypted
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
+  // Address
+  street                String?
+  city                  String?
+  state                 String?
+  zip                   String?
+
+  // Work Profile
+  photo                 String?
+  bio                   String?
+  specialties           String[]
+  certifications        String[]
+  languages             String[]
+  yearsExperience       Int?
+
+  // Scheduling
+  availability          Json?     // { monday: { start: "08:00", end: "18:00", enabled: true }, ... }
+  preferredHours        Int?      // Preferred weekly hours
+  maxJobsPerDay         Int?
+
+  // Service Configuration
+  serviceAreas          String[]  // Zip codes or city names
+  serviceTypes          String[]  // Service types they can perform
+  speed                 String?   // FAST, NORMAL, THOROUGH
+
+  // Performance Metrics (cached, updated periodically)
+  averageRating         Float     @default(0)
+  totalJobsCompleted    Int       @default(0)
+  totalEarnings         Float     @default(0)
+  onTimePercentage      Float     @default(100)
+  customerSatisfaction  Float     @default(0)
+
+  // Background Check
+  backgroundCheckDate   DateTime?
+  backgroundCheckStatus String?   // PENDING, PASSED, FAILED
+  backgroundCheckUrl    String?
+
+  // Status
+  isActive              Boolean   @default(true)
+  isAvailable           Boolean   @default(true)
+
+  // Location assignment
+  locationId            String?
+  location              Location? @relation("TeamMemberLocation", fields: [locationId], references: [id])
+  managedLocations      Location[] @relation("LocationManager")
+
+  // Relations
+  assignedBookings      Booking[] @relation("AssignedCleaner")
+  timeEntries           TimeEntry[]
+  payLogs               PayLog[]
+  reviews               Review[]  @relation("CleanerReviews")
+  qualityChecks         QualityCheck[]
+  certificationRecords  CertificationRecord[]
+  trainingProgress      TrainingProgress[]
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@index([userId])
+}
+
+model TimeEntry {
+  id            String      @id @default(cuid())
+  teamMemberId  String
+  teamMember    TeamMember  @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  bookingId     String?
+  booking       Booking?    @relation(fields: [bookingId], references: [id])
+
+  clockIn       DateTime
+  clockOut      DateTime?
+  breakMinutes  Int         @default(0)
+
+  // Calculated
+  totalMinutes  Int?
+
+  // Location tracking
+  clockInLat    Float?
+  clockInLng    Float?
+  clockOutLat   Float?
+  clockOutLng   Float?
+
+  notes         String?
 
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  @@unique([companyId, type])
-  @@index([companyId])
-  @@index([userId, type])
-}
-
-// ============================================
-// INVOICES
-// ============================================
-
-enum InvoiceStatus {
-  DRAFT
-  SENT
-  PAID
-  OVERDUE
-  CANCELLED
-}
-
-model Invoice {
-  id              String        @id @default(cuid())
-
-  // Multi-tenancy
-  companyId       String
-  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  userId          String
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  clientId        String
-  client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  bookingId       String?       @unique
-  booking         Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-
-  // Invoice details
-  invoiceNumber   String        @unique
-  issueDate       DateTime      @default(now())
-  dueDate         DateTime
-  status          InvoiceStatus @default(DRAFT)
-
-  // Line items stored as JSON
-  // Format: [{ description: string, quantity: number, rate: number, amount: number }]
-  lineItems       Json
-
-  // Totals
-  subtotal        Float
-  tax             Float         @default(0)
-  total           Float
-
-  // Notes
-  notes           String?
-  terms           String?       // Payment terms
-
-  // Email tracking
-  sentAt          DateTime?
-  sentTo          String?       // Email address
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  @@index([companyId])
-  @@index([userId])
-  @@index([clientId])
-  @@index([status])
-  @@index([invoiceNumber])
+  @@index([teamMemberId])
+  @@index([bookingId])
+  @@index([clockIn])
 }
 
 model PayLog {
-  id              String    @id @default(cuid())
+  id              String     @id @default(cuid())
   companyId       String
-  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
   teamMemberId    String
   teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
 
-  // Payment details
-  type            PayLogType    // PAYCHECK, SUPPLIES_REIMBURSEMENT, GAS_REIMBURSEMENT
+  type            String     // PAYCHECK, BONUS, REIMBURSEMENT, DEDUCTION, ADVANCE
   amount          Float
   date            DateTime
   description     String?
   notes           String?
 
   // For paychecks
-  hoursWorked     Float?
-  hourlyRate      Float?
   periodStart     DateTime?
   periodEnd       DateTime?
+  hoursWorked     Float?
+  hourlyRate      Float?
+  overtimeHours   Float?
+  overtimeRate    Float?
 
   // For reimbursements
-  receiptUrl      String?       // URL to uploaded receipt image
+  category        String?    // GAS, SUPPLIES, EQUIPMENT, OTHER
+  receiptUrl      String?
 
-  createdBy       String        // User ID who created this log
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  // Status
+  status          String     @default("PENDING") // PENDING, APPROVED, PAID, REJECTED
+  approvedById    String?
+  approvedAt      DateTime?
+  paidAt          DateTime?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@index([companyId])
   @@index([teamMemberId])
-  @@index([type])
+  @@index([status])
   @@index([date])
 }
 
-enum PayLogType {
-  PAYCHECK
-  SUPPLIES_REIMBURSEMENT
-  GAS_REIMBURSEMENT
+// ============================================
+// CLIENT MANAGEMENT
+// ============================================
+
+model Client {
+  id                      String    @id @default(cuid())
+  companyId               String
+  company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Link to user account (if they sign up)
+  userId                  String?   @unique
+  user                    User?     @relation("ClientUser", fields: [userId], references: [id])
+
+  // Contact
+  firstName               String
+  lastName                String?
+  email                   String?
+  phone                   String?
+  alternatePhone          String?
+  preferredContactMethod  String    @default("EMAIL") // EMAIL, SMS, PHONE
+
+  // Classification
+  tags                    String[]
+  source                  String?   // WEBSITE, REFERRAL, GOOGLE, YELP, SOCIAL, OTHER
+  notes                   String?
+
+  // Billing
+  billingEmail            String?
+  billingPhone            String?
+  stripeCustomerId        String?   @unique
+  defaultPaymentMethodId  String?
+  autoChargeEnabled       Boolean   @default(false)
+
+  // Insurance
+  hasInsurance            Boolean   @default(false)
+  insuranceProvider       String?
+  insuranceMemberId       String?
+  insurancePaymentAmount  Float?
+  standardCopay           Float?
+  discountedCopay         Float?
+  copayNotes              String?
+
+  // Referral Program
+  referralCode            String?   @unique
+  referredById            String?
+  referredBy              Client?   @relation("Referrals", fields: [referredById], references: [id])
+  referrals               Client[]  @relation("Referrals")
+  referralTier            ReferralTier @default(NONE)
+
+  // Loyalty Program
+  loyaltyTier             LoyaltyTier @default(BASIC)
+  loyaltyPoints           Int         @default(0)
+  totalSpent              Float       @default(0)
+  totalBookings           Int         @default(0)
+
+  // Credits Balance
+  creditBalance           Float     @default(0)
+
+  // Dates
+  birthday                DateTime?
+  anniversary             DateTime?
+  anniversaryType         String?   // FIRST_BOOKING, WEDDING, CUSTOM
+  firstBookingDate        DateTime?
+  lastBookingDate         DateTime?
+
+  // Communication Preferences
+  enableBirthdayGreeting  Boolean   @default(true)
+  enableAnniversaryGreeting Boolean @default(true)
+  enablePromotionalEmails Boolean   @default(true)
+  lastBirthdayGreetingSent DateTime?
+  lastAnniversaryGreetingSent DateTime?
+
+  // Status
+  isActive                Boolean   @default(true)
+  isVip                   Boolean   @default(false)
+
+  // Relations
+  addresses               Address[]
+  bookings                Booking[]
+  invoices                Invoice[]
+  payments                Payment[]
+  reviews                 Review[]
+  creditTransactions      CreditTransaction[]
+  preferences             ClientPreference?
+  giftCardTransactions    GiftCardTransaction[]
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([email])
+  @@index([phone])
+  @@index([referralCode])
+  @@index([companyId, isActive])
+  @@index([companyId, loyaltyTier])
+}
+
+model Address {
+  id                String    @id @default(cuid())
+  clientId          String
+  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Label
+  label             String?   // Home, Office, Vacation Home
+  isPrimary         Boolean   @default(false)
+
+  // Address
+  street            String
+  unit              String?
+  city              String
+  state             String
+  zip               String
+  country           String    @default("US")
+
+  // Google Maps
+  googlePlaceId     String?
+  formattedAddress  String?
+  lat               Float?
+  lng               Float?
+  isVerified        Boolean   @default(false)
+
+  // Property Details
+  propertyType      String?   // HOUSE, CONDO, APARTMENT, TOWNHOUSE, OFFICE, AIRBNB
+  squareFootage     Int?
+  bedrooms          Int?
+  bathrooms         Float?    // 2.5 for 2 full + 1 half
+  floors            Int?
+  yearBuilt         Int?
+  hasBasement       Boolean   @default(false)
+  hasGarage         Boolean   @default(false)
+  hasYard           Boolean   @default(false)
+  hasPool           Boolean   @default(false)
+
+  // Access
+  parkingInfo       String?
+  gateCode          String?
+  alarmCode         String?
+  lockboxCode       String?
+  keyLocation       String?
+  entryInstructions String?
+
+  // Pet Info
+  hasPets           Boolean   @default(false)
+  petDetails        String?   // "2 dogs (friendly), 1 cat"
+  petInstructions   String?
+
+  // Cleaner Notes
+  cleanerNotes      String?
+  specialInstructions String?
+
+  // Relations
+  bookings          Booking[]
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([googlePlaceId])
+  @@index([zip])
+}
+
+model ClientPreference {
+  id                      String    @id @default(cuid())
+  clientId                String    @unique
+  client                  Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Cleaning Priorities
+  cleaningSequence        String?   // "Start with kitchen, end with bedrooms"
+  priorityAreas           String?   // "Kitchen counters, bathroom tiles"
+  areasToAvoid            String?   // "Home office, kids' playroom"
+
+  // Product Preferences
+  productAllergies        String?
+  preferredProducts       String?
+  customerProvidesProducts Boolean  @default(false)
+  avoidScents             Boolean   @default(false)
+  scentPreferences        String?
+  ecoFriendlyOnly         Boolean   @default(false)
+
+  // Pet Handling
+  petHandlingInstructions String?
+  petFeedingRequired      Boolean   @default(false)
+  petFeedingInstructions  String?
+  petsSecuredDuring       Boolean   @default(false)
+  petSecuringInstructions String?
+
+  // Communication
+  preferredCleaner        String?   // TeamMember ID
+  languagePreference      String?
+  communicationNotes      String?
+
+  // Environment
+  temperaturePreference   String?
+  musicPreference         String?   // "No music", "Soft background OK"
+  doNotDisturb            String?   // Areas or items not to touch
+
+  // Special Requests
+  plantWatering           Boolean   @default(false)
+  plantInstructions       String?
+  mailCollection          Boolean   @default(false)
+  trashTakeout            Boolean   @default(false)
+  otherTasks              String?
+
+  // Notes from previous visits
+  lastVisitNotes          String?
+  lastVisitDate           DateTime?
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+model CreditTransaction {
+  id              String       @id @default(cuid())
+  clientId        String
+  client          Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type            CreditType
+  amount          Float        // Positive for credits, negative for usage
+  balance         Float        // Running balance after this transaction
+
+  description     String?
+  referenceType   String?      // BOOKING, REFERRAL, GIFT_CARD, PROMO
+  referenceId     String?
+
+  expiresAt       DateTime?
+  status          CreditStatus @default(ACTIVE)
+  usedAt          DateTime?
+
+  createdAt       DateTime     @default(now())
+
+  @@index([clientId])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 // ============================================
-// PRICING CONFIGURATION
+// SERVICES & PRICING
 // ============================================
 
-enum PricingRuleType {
-  BEDROOM
-  BATHROOM
-  ADDON
-  CUSTOM
-}
+model Service {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-enum PricingDisplay {
-  BOTH        // Show in both booking and estimate
-  BOOKING     // Show only in booking
-  ESTIMATE    // Show only in estimate
-  HIDDEN      // Don't display (internal only)
+  name            String    // "Standard Cleaning", "Deep Clean"
+  description     String?
+  type            ServiceType
+
+  // Pricing
+  basePrice       Float
+  baseDuration    Int       // Minutes
+  priceType       String    @default("FLAT") // FLAT, HOURLY, SQFT
+
+  // Configuration
+  icon            String?
+  color           String?
+  isActive        Boolean   @default(true)
+  isPublic        Boolean   @default(true)  // Show on booking page
+  sortOrder       Int       @default(0)
+
+  // Included/Excluded
+  includedTasks   Json?     // ["Vacuuming", "Mopping", ...]
+  excludedTasks   Json?     // ["Windows exterior", ...]
+
+  // Recurrence discounts
+  weeklyDiscount    Float   @default(0)  // Percentage
+  biweeklyDiscount  Float   @default(0)
+  monthlyDiscount   Float   @default(0)
+
+  // Relations
+  bookings        Booking[]
+  pricingRules    PricingRule[]
+  checklists      ChecklistTemplate[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@index([type])
 }
 
 model PricingRule {
-  id              String          @id @default(cuid())
+  id              String    @id @default(cuid())
   companyId       String
-  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  // Rule identification
-  type            PricingRuleType
-  name            String          // "Studio Apartment", "1 Bedroom", "1 Bathroom", "Pet hair removal"
+  serviceId       String?
+  service         Service?  @relation(fields: [serviceId], references: [id])
+
+  // Rule Type
+  type            String    // BEDROOM, BATHROOM, SQFT, ADDON, FREQUENCY, TIME_OF_DAY, CUSTOM
+  name            String    // "1 Bedroom", "Pet Hair Removal"
+  description     String?
 
   // Pricing
-  price           Float           // Base price for this item
-  duration        Int             // Duration in minutes
+  price           Float     // Additional price
+  duration        Int       @default(0)  // Additional minutes
+  priceType       String    @default("FLAT") // FLAT, PERCENT, PER_UNIT
 
-  // Display settings
-  display         PricingDisplay  @default(BOTH)
-  sortOrder       Int             @default(0)     // For ordering in UI
+  // Conditions
+  quantity        Float?    // For BEDROOM/BATHROOM: 1, 1.5, 2, etc.
+  minValue        Float?    // For SQFT: minimum
+  maxValue        Float?    // For SQFT: maximum
+  frequency       String?   // WEEKLY, BIWEEKLY, MONTHLY
+  dayOfWeek       String?   // MONDAY, SATURDAY, etc.
+  timeSlot        String?   // MORNING, AFTERNOON, EVENING
 
-  // Quantity/value (for bedrooms: 0 for studio, 1, 2, 3, etc.)
-  quantity        Float?          // Can be 0.5 for half bath, 1, 1.5, 2, etc.
+  // Display
+  isActive        Boolean   @default(true)
+  isPublic        Boolean   @default(true)
+  sortOrder       Int       @default(0)
 
-  // Service category filtering (optional - null means applies to all)
-  serviceType     String?         // "STANDARD", "DEEP", "MOVE_OUT", null for all
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  // Frequency-based pricing (optional - null means applies to all)
-  frequency       String?         // "ONE_TIME", "WEEKLY", "BIWEEKLY", "MONTHLY", null for all
-
-  // Status
-  isActive        Boolean         @default(true)
-
-  // Metadata
-  description     String?         // Optional description or notes
-
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
+  @@index([companyId])
   @@index([companyId, type])
-  @@index([companyId, isActive])
+  @@index([serviceId])
+}
+
+model ChecklistTemplate {
+  id              String    @id @default(cuid())
+  companyId       String
+
+  serviceId       String?
+  service         Service?  @relation(fields: [serviceId], references: [id])
+
+  name            String    // "Standard Cleaning Checklist"
+  description     String?
+
+  // Checklist items organized by room/area
+  // { "kitchen": [{ id, task, required, order }], "bathroom": [...] }
+  items           Json
+
+  isDefault       Boolean   @default(false)
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([serviceId])
 }
 
 // ============================================
-// JOB CHECKLISTS
+// BOOKINGS
 // ============================================
+
+model Booking {
+  id                      String    @id @default(cuid())
+  companyId               String
+  company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Reference
+  bookingNumber           String    @unique
+
+  // Client & Address
+  clientId                String
+  client                  Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  addressId               String
+  address                 Address   @relation(fields: [addressId], references: [id])
+
+  // Created by
+  createdById             String
+  createdBy               User      @relation("BookingCreator", fields: [createdById], references: [id])
+
+  // Location (for multi-location)
+  locationId              String?
+  location                Location? @relation(fields: [locationId], references: [id])
+
+  // Service
+  serviceId               String?
+  service                 Service?  @relation(fields: [serviceId], references: [id])
+  serviceType             ServiceType @default(STANDARD)
+
+  // Scheduling
+  scheduledDate           DateTime
+  scheduledEndDate        DateTime?
+  duration                Int       // Minutes
+  timeSlot                String?   // MORNING, AFTERNOON, EVENING
+
+  // Cleaner Assignment
+  assignedCleanerId       String?
+  assignedCleaner         TeamMember? @relation("AssignedCleaner", fields: [assignedCleanerId], references: [id])
+  assignmentMethod        String?   // MANUAL, AUTO, PREFERRED
+
+  // Status & Workflow
+  status                  BookingStatus @default(PENDING)
+  statusHistory           Json?     // Array of { status, timestamp, userId }
+
+  // Pricing
+  basePrice               Float
+  addons                  Json?     // [{ name, price, quantity }]
+  subtotal                Float
+  discountAmount          Float     @default(0)
+  discountCode            String?
+  taxAmount               Float     @default(0)
+  creditsApplied          Float     @default(0)
+  tipAmount               Float     @default(0)
+  finalPrice              Float
+
+  // Insurance & Copay
+  hasInsurance            Boolean   @default(false)
+  insuranceAmount         Float     @default(0)
+  copayAmount             Float     @default(0)
+
+  // Payment
+  paymentStatus           PaymentStatus @default(PENDING)
+  paymentMethod           PaymentMethod?
+  isPaid                  Boolean   @default(false)
+  paidAt                  DateTime?
+  depositAmount           Float?
+  depositPaidAt           DateTime?
+
+  // Stripe
+  stripePaymentIntentId   String?   @unique
+  stripePaymentLink       String?
+  preAuthAt               DateTime?
+  preAuthAmount           Float?
+  chargedAt               DateTime?
+
+  // Recurrence
+  isRecurring             Boolean   @default(false)
+  recurrenceFrequency     RecurrenceFrequency @default(NONE)
+  recurrenceParentId      String?
+  recurrenceEndDate       DateTime?
+  isPaused                Boolean   @default(false)
+  pausedUntil             DateTime?
+
+  // Notes
+  customerNotes           String?   // Visible to customer
+  internalNotes           String?   // Internal only
+  cleanerNotes            String?   // Notes for cleaner
+
+  // Cleaner Workflow
+  onMyWayAt               DateTime?
+  arrivedAt               DateTime?
+  clockedInAt             DateTime?
+  clockedOutAt            DateTime?
+  actualDuration          Int?      // Actual minutes worked
+
+  // Completion
+  completedAt             DateTime?
+  completedById           String?
+  completedBy             User?     @relation("BookingCompleter", fields: [completedById], references: [id])
+
+  // Admin Approval
+  approvedAt              DateTime?
+  approvedById            String?
+  approvedBy              User?     @relation("BookingApprover", fields: [approvedById], references: [id])
+
+  // Customer Feedback
+  feedbackToken           String?   @unique
+  feedbackSentAt          DateTime?
+  customerRating          Int?      // 1-5
+  customerFeedback        String?
+  feedbackSubmittedAt     DateTime?
+
+  // Estimate (for quotes)
+  estimateToken           String?   @unique
+  estimateAccepted        Boolean   @default(false)
+  estimateAcceptedAt      DateTime?
+  estimateExpiresAt       DateTime?
+
+  // Automation Tracking
+  confirmationSentAt      DateTime?
+  reminderSentAt          DateTime?
+  cleanerReminderSentAt   DateTime?
+  reviewRequestSentAt     DateTime?
+
+  // Cancellation
+  cancelledAt             DateTime?
+  cancelledById           String?
+  cancellationReason      String?
+  cancellationFee         Float?
+
+  // Relations
+  timeEntries             TimeEntry[]
+  checklist               JobChecklist?
+  photos                  BookingPhoto[]
+  reviews                 Review[]
+  invoice                 Invoice?
+  payments                Payment[]
+  messages                Message[]
+  qualityCheck            QualityCheck?
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, scheduledDate])
+  @@index([clientId])
+  @@index([assignedCleanerId])
+  @@index([feedbackToken])
+  @@index([estimateToken])
+  @@index([bookingNumber])
+  @@index([recurrenceParentId])
+}
 
 model JobChecklist {
   id              String    @id @default(cuid())
-
-  // Booking reference
   bookingId       String    @unique
   booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  // Checklist data (stored as JSON)
-  // Format: { "kitchen": [{ "id": "k1", "task": "Wash dishes", "completed": true, "completedAt": "2024-01-01T10:00:00Z" }], ... }
-  checklistData   Json
+  // Checklist data
+  // { "kitchen": [{ id, task, completed, completedAt, notes, photoUrl }], ... }
+  items           Json
 
-  // Summary stats
+  // Summary
   totalTasks      Int       @default(0)
   completedTasks  Int       @default(0)
 
-  // Timestamps
   startedAt       DateTime?
   completedAt     DateTime?
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+model BookingPhoto {
+  id              String    @id @default(cuid())
+  bookingId       String
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  type            String    // BEFORE, AFTER, ISSUE, CHECKLIST
+  area            String?   // kitchen, bathroom, etc.
+  url             String
+  thumbnailUrl    String?
+
+  caption         String?
+  uploadedById    String?
+
+  // For QA
+  verifiedAt      DateTime?
+  verifiedById    String?
+
+  createdAt       DateTime  @default(now())
 
   @@index([bookingId])
+  @@index([bookingId, type])
 }
 
 // ============================================
-// COMPANY BACKUPS
+// REVIEWS & RATINGS
 // ============================================
+
+model Review {
+  id              String    @id @default(cuid())
+  bookingId       String
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id])
+
+  cleanerId       String?
+  cleaner         TeamMember? @relation("CleanerReviews", fields: [cleanerId], references: [id])
+
+  // Ratings (1-5)
+  overallRating   Int
+  qualityRating   Int?
+  punctualityRating Int?
+  communicationRating Int?
+  valueRating     Int?
+
+  // Review Content
+  title           String?
+  comment         String?
+
+  // Response
+  responseText    String?
+  respondedAt     DateTime?
+  respondedById   String?
+
+  // Status
+  isPublic        Boolean   @default(true)
+  isVerified      Boolean   @default(false)
+
+  // External
+  googleReviewUrl String?
+  yelpReviewUrl   String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([bookingId])
+  @@index([clientId])
+  @@index([cleanerId])
+}
+
+// ============================================
+// PAYMENTS & INVOICES
+// ============================================
+
+model Invoice {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Reference
+  invoiceNumber   String    @unique
+
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  bookingId       String?   @unique
+  booking         Booking?  @relation(fields: [bookingId], references: [id])
+
+  // Dates
+  issueDate       DateTime  @default(now())
+  dueDate         DateTime
+  paidDate        DateTime?
+
+  // Status
+  status          InvoiceStatus @default(DRAFT)
+
+  // Line Items
+  // [{ description, quantity, unitPrice, amount, taxable }]
+  lineItems       Json
+
+  // Totals
+  subtotal        Float
+  discountAmount  Float     @default(0)
+  taxAmount       Float     @default(0)
+  total           Float
+  amountPaid      Float     @default(0)
+  amountDue       Float
+
+  // Notes
+  notes           String?
+  terms           String?
+  footerText      String?
+
+  // Email Tracking
+  sentAt          DateTime?
+  sentTo          String?
+  viewedAt        DateTime?
+  lastReminderAt  DateTime?
+  reminderCount   Int       @default(0)
+
+  // Stripe
+  stripeInvoiceId String?
+  stripeInvoiceUrl String?
+
+  // Relations
+  payments        Payment[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([clientId])
+  @@index([invoiceNumber])
+}
+
+model Payment {
+  id                  String    @id @default(cuid())
+  companyId           String
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  clientId            String
+  client              Client    @relation(fields: [clientId], references: [id])
+
+  bookingId           String?
+  booking             Booking?  @relation(fields: [bookingId], references: [id])
+
+  invoiceId           String?
+  invoice             Invoice?  @relation(fields: [invoiceId], references: [id])
+
+  // Payment Details
+  amount              Float
+  method              PaymentMethod
+  status              PaymentStatus @default(PENDING)
+
+  // Reference
+  transactionId       String?   // External transaction ID
+  stripePaymentIntentId String?
+  stripeChargeId      String?
+
+  // Timing
+  authorizedAt        DateTime?
+  capturedAt          DateTime?
+  failedAt            DateTime?
+  refundedAt          DateTime?
+
+  // Refund
+  refundAmount        Float?
+  refundReason        String?
+  stripeRefundId      String?
+
+  // Notes
+  notes               String?
+  failureReason       String?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([bookingId])
+  @@index([invoiceId])
+  @@index([status])
+}
+
+// ============================================
+// GIFT CARDS & PROMOTIONS
+// ============================================
+
+model GiftCard {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code            String    @unique
+  initialAmount   Float
+  currentBalance  Float
+
+  // Purchaser
+  purchasedById   String?
+  purchaserName   String?
+  purchaserEmail  String?
+
+  // Recipient
+  recipientName   String?
+  recipientEmail  String?
+  personalMessage String?
+
+  // Status
+  isActive        Boolean   @default(true)
+  activatedAt     DateTime?
+  expiresAt       DateTime?
+
+  // Payment
+  stripePaymentId String?
+
+  // Relations
+  transactions    GiftCardTransaction[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([code])
+  @@index([recipientEmail])
+}
+
+model GiftCardTransaction {
+  id              String    @id @default(cuid())
+  giftCardId      String
+  giftCard        GiftCard  @relation(fields: [giftCardId], references: [id])
+
+  clientId        String?
+  client          Client?   @relation(fields: [clientId], references: [id])
+
+  type            String    // PURCHASE, REDEMPTION, REFUND, ADJUSTMENT
+  amount          Float     // Positive for additions, negative for usage
+  balance         Float     // Balance after transaction
+
+  bookingId       String?   // If used for a booking
+  notes           String?
+
+  createdAt       DateTime  @default(now())
+
+  @@index([giftCardId])
+  @@index([clientId])
+}
+
+model Promotion {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code            String
+  name            String
+  description     String?
+
+  // Discount
+  discountType    String    // PERCENT, FIXED, FREE_ADDON
+  discountValue   Float
+  maxDiscount     Float?    // Cap for percentage discounts
+
+  // Conditions
+  minOrderAmount  Float?
+  maxUsageCount   Int?      // Total uses allowed
+  maxUsagePerUser Int?      // Uses per customer
+  currentUsage    Int       @default(0)
+
+  // Restrictions
+  serviceTypes    String[]  // Empty = all services
+  newCustomersOnly Boolean  @default(false)
+  firstBookingOnly Boolean  @default(false)
+
+  // Validity
+  startsAt        DateTime
+  expiresAt       DateTime?
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([code])
+  @@index([isActive])
+}
+
+// ============================================
+// MESSAGING & NOTIFICATIONS
+// ============================================
+
+model Message {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Sender
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+
+  bookingId       String?
+  booking         Booking?  @relation(fields: [bookingId], references: [id])
+
+  // Message Details
+  type            MessageType @default(CUSTOM)
+  channel         MessageChannel
+
+  // Recipients
+  to              String    // Phone number or email
+  from            String?   // From number/email
+
+  // Content
+  subject         String?   // For emails
+  body            String
+
+  // Status
+  status          MessageStatus @default(PENDING)
+
+  // Provider Response
+  providerId      String?   // Twilio SID, Resend ID, etc.
+  errorCode       String?
+  errorMessage    String?
+
+  // Tracking
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  failedAt        DateTime?
+
+  // Cost tracking
+  cost            Float?
+  segments        Int?      // For SMS
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([bookingId])
+  @@index([type])
+  @@index([status])
+  @@index([providerId])
+}
+
+model MessageTemplate {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  type            MessageType
+  channel         MessageChannel
+
+  name            String
+  subject         String?   // For emails
+  body            String    // Template with {{variables}}
+
+  isDefault       Boolean   @default(false)
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([companyId, type, channel])
+  @@index([companyId])
+}
+
+// ============================================
+// QUALITY ASSURANCE
+// ============================================
+
+model QualityCheck {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  bookingId       String    @unique
+  booking         Booking   @relation(fields: [bookingId], references: [id])
+
+  cleanerId       String
+  cleaner         TeamMember @relation(fields: [cleanerId], references: [id])
+
+  // Checker
+  checkerId       String?
+  checker         User?     @relation("QualityChecker", fields: [checkerId], references: [id])
+
+  // Schedule
+  scheduledAt     DateTime?
+  completedAt     DateTime?
+
+  status          QualityCheckStatus @default(PENDING)
+
+  // Scores (1-5)
+  overallScore    Int?
+  thoroughnessScore Int?
+  attentionToDetailScore Int?
+  timeManagementScore Int?
+
+  // Checklist Results
+  // { area: { item: { passed: boolean, notes: string, photoUrl: string } } }
+  checklistResults Json?
+
+  // Issues Found
+  issues          Json?     // [{ area, description, severity, photoUrl }]
+
+  // Notes
+  notes           String?
+  cleanerFeedback String?   // Feedback for cleaner
+
+  // Follow-up
+  requiresFollowUp Boolean  @default(false)
+  followUpNotes   String?
+  followUpCompletedAt DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([cleanerId])
+  @@index([status])
+}
+
+// ============================================
+// TRAINING & CERTIFICATIONS
+// ============================================
+
+model Certification {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name            String    // "Deep Cleaning Specialist"
+  description     String?
+
+  // Requirements
+  requiredModules String[]  // Training module IDs
+  requiredScore   Int?      // Minimum passing score
+
+  // Validity
+  validityPeriod  Int?      // Days until expiration
+
+  isActive        Boolean   @default(true)
+
+  // Relations
+  records         CertificationRecord[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model CertificationRecord {
+  id              String    @id @default(cuid())
+  certificationId String
+  certification   Certification @relation(fields: [certificationId], references: [id])
+
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id])
+
+  status          CertificationStatus @default(PENDING)
+
+  earnedAt        DateTime?
+  expiresAt       DateTime?
+  score           Int?
+
+  // Certificate
+  certificateUrl  String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([certificationId, teamMemberId])
+  @@index([teamMemberId])
+  @@index([status])
+}
+
+model TrainingModule {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name            String    // "Bathroom Deep Cleaning"
+  description     String?
+  category        String?   // "Cleaning Techniques", "Safety", "Customer Service"
+
+  // Content
+  contentType     String    // VIDEO, DOCUMENT, QUIZ, INTERACTIVE
+  contentUrl      String?
+  duration        Int?      // Minutes
+
+  // Quiz (if applicable)
+  questions       Json?     // [{ question, options, correctAnswer }]
+  passingScore    Int?
+
+  // Ordering
+  sortOrder       Int       @default(0)
+  isRequired      Boolean   @default(false)
+  isActive        Boolean   @default(true)
+
+  // Relations
+  progress        TrainingProgress[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([category])
+}
+
+model TrainingProgress {
+  id              String    @id @default(cuid())
+  moduleId        String
+  module          TrainingModule @relation(fields: [moduleId], references: [id])
+
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id])
+
+  status          String    @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  progress        Int       @default(0) // Percentage
+
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  // Quiz results
+  quizScore       Int?
+  quizAttempts    Int       @default(0)
+  lastQuizAt      DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([moduleId, teamMemberId])
+  @@index([teamMemberId])
+}
+
+// ============================================
+// INVENTORY MANAGEMENT
+// ============================================
+
+model InventoryItem {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  locationId      String?
+  location        Location? @relation(fields: [locationId], references: [id])
+
+  // Item Details
+  name            String
+  sku             String?
+  description     String?
+  category        String?   // Supplies, Equipment, Uniforms
+
+  // Stock
+  quantity        Float     @default(0)
+  unit            String    @default("each") // each, oz, gallon, etc.
+  reorderLevel    Float?    // Alert when below this
+  reorderQuantity Float?    // Suggested reorder amount
+
+  // Cost
+  unitCost        Float?
+  totalValue      Float?    // quantity * unitCost
+
+  // Vendor
+  vendorName      String?
+  vendorSku       String?
+  vendorUrl       String?
+
+  isActive        Boolean   @default(true)
+
+  // Relations
+  movements       InventoryMovement[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, category])
+  @@index([sku])
+}
+
+model InventoryMovement {
+  id              String    @id @default(cuid())
+  itemId          String
+  item            InventoryItem @relation(fields: [itemId], references: [id])
+
+  type            InventoryMovementType
+  quantity        Float     // Positive for additions, negative for usage
+  previousQuantity Float
+  newQuantity     Float
+
+  // Reference
+  referenceType   String?   // BOOKING, PURCHASE_ORDER, ADJUSTMENT
+  referenceId     String?
+
+  // Cost
+  unitCost        Float?
+  totalCost       Float?
+
+  notes           String?
+  recordedById    String?
+
+  createdAt       DateTime  @default(now())
+
+  @@index([itemId])
+  @@index([createdAt])
+}
+
+// ============================================
+// REPORTING & ANALYTICS
+// ============================================
+
+model Report {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name            String
+  type            String    // REVENUE, EXPENSE, TEAM_PERFORMANCE, CLIENT_ANALYSIS, CUSTOM
+
+  // Parameters
+  parameters      Json?     // { startDate, endDate, filters }
+
+  // Schedule
+  isScheduled     Boolean   @default(false)
+  scheduleFrequency String? // DAILY, WEEKLY, MONTHLY
+  recipientEmails String[]
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+
+  // Results (cached)
+  lastResults     Json?
+  lastResultsAt   DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([type])
+}
+
+// ============================================
+// API & INTEGRATIONS
+// ============================================
+
+model Webhook {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  url             String
+  events          String[]  // ["booking.created", "payment.completed", ...]
+
+  secret          String    // For signature verification
+
+  isActive        Boolean   @default(true)
+
+  // Stats
+  totalDeliveries Int       @default(0)
+  failedDeliveries Int      @default(0)
+  lastDeliveryAt  DateTime?
+  lastStatus      Int?      // HTTP status code
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model ApiKey {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name            String
+  key             String    @unique
+  keyHash         String    // Hashed version for storage
+  keyPrefix       String    // First 8 chars for identification
+
+  // Permissions
+  scopes          String[]  // ["bookings:read", "clients:write", ...]
+
+  // Restrictions
+  ipWhitelist     String[]
+  rateLimit       Int       @default(1000) // Requests per hour
+
+  // Status
+  isActive        Boolean   @default(true)
+  expiresAt       DateTime?
+
+  // Usage
+  lastUsedAt      DateTime?
+  totalRequests   Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([keyHash])
+}
+
+// ============================================
+// AUDIT & BACKUP
+// ============================================
+
+model AuditLog {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+
+  action          String    // CREATE, UPDATE, DELETE, LOGIN, etc.
+  entityType      String    // Client, Booking, Payment, etc.
+  entityId        String?
+
+  // Changes
+  oldValues       Json?
+  newValues       Json?
+
+  // Context
+  ipAddress       String?
+  userAgent       String?
+
+  createdAt       DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([companyId, entityType])
+  @@index([companyId, userId])
+  @@index([createdAt])
+}
 
 model CompanyBackup {
   id              String    @id @default(cuid())
   companyId       String
   company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  // Backup metadata
-  name            String    // User-friendly name, e.g., "Before migration" or auto-generated
-  description     String?   // Optional description
-  version         String    @default("1.0") // Schema version for compatibility
+  name            String
+  description     String?
+  version         String    @default("2.0")
 
-  // Backup data (stored as JSON)
-  // Contains: clients, addresses, bookings, teamMembers, invoices, etc.
+  // Data
   data            Json
 
   // Statistics
@@ -960,27 +1936,18 @@ model CompanyBackup {
   invoicesCount   Int       @default(0)
   teamMembersCount Int      @default(0)
 
-  // Size in bytes (approximate)
   sizeBytes       Int       @default(0)
 
-  // Who created it
+  // Creator
   createdById     String
   createdBy       User      @relation(fields: [createdById], references: [id])
 
-  // Timestamps
-  createdAt       DateTime  @default(now())
-
-  // Status
   status          BackupStatus @default(ACTIVE)
+  restoredAt      DateTime?
+
+  createdAt       DateTime  @default(now())
 
   @@index([companyId])
   @@index([companyId, status])
   @@index([createdAt])
-}
-
-enum BackupStatus {
-  ACTIVE      // Available for restore
-  RESTORING   // Currently being restored
-  ARCHIVED    // Archived (not shown by default)
-  DELETED     // Soft deleted
 }
