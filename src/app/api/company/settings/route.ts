@@ -32,6 +32,9 @@ const updateCompanySettingsSchema = z.object({
   onlineBookingEnabled: z.boolean().optional(),
   minimumLeadTime: z.number().min(0).max(168).optional(), // Max 7 days
   maximumLeadTime: z.number().min(1).max(365).optional(), // Max 1 year
+  // Backward compatibility field names
+  minimumLeadTimeHours: z.number().min(0).max(168).optional(),
+  maxDaysAhead: z.number().min(1).max(365).optional(),
   requireApproval: z.boolean().optional(),
 });
 
@@ -259,11 +262,16 @@ export async function PATCH(request: NextRequest) {
     if (validatedData.onlineBookingEnabled !== undefined) {
       updateData.onlineBookingEnabled = validatedData.onlineBookingEnabled;
     }
+    // Handle both new and old field names for backward compatibility
     if (validatedData.minimumLeadTime !== undefined) {
       updateData.minimumLeadTime = validatedData.minimumLeadTime;
+    } else if (validatedData.minimumLeadTimeHours !== undefined) {
+      updateData.minimumLeadTime = validatedData.minimumLeadTimeHours;
     }
     if (validatedData.maximumLeadTime !== undefined) {
       updateData.maximumLeadTime = validatedData.maximumLeadTime;
+    } else if (validatedData.maxDaysAhead !== undefined) {
+      updateData.maximumLeadTime = validatedData.maxDaysAhead;
     }
     if (validatedData.requireApproval !== undefined) {
       updateData.requireApproval = validatedData.requireApproval;

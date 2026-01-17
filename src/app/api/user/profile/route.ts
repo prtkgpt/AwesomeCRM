@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 const updateProfileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').optional(),
   lastName: z.string().optional(),
+  name: z.string().optional(), // For backward compatibility - will be split into firstName/lastName
   email: z.string().email('Invalid email address').optional(),
   phone: z.string().optional(),
 });
@@ -87,6 +88,15 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const validatedData = updateProfileSchema.parse(body);
 
+    // Handle backward compatibility: if name is provided, split into firstName/lastName
+    let firstName = validatedData.firstName;
+    let lastName = validatedData.lastName;
+    if (validatedData.name && !firstName && !lastName) {
+      const nameParts = validatedData.name.trim().split(/\s+/);
+      firstName = nameParts[0] || undefined;
+      lastName = nameParts.slice(1).join(' ') || undefined;
+    }
+
     // Check if email is being changed and if it's already in use
     if (validatedData.email) {
       const existingUser = await prisma.user.findFirst({
@@ -110,8 +120,8 @@ export async function PATCH(request: NextRequest) {
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
       data: {
-        ...(validatedData.firstName !== undefined && { firstName: validatedData.firstName }),
-        ...(validatedData.lastName !== undefined && { lastName: validatedData.lastName }),
+        ...(firstName !== undefined && { firstName }),
+        ...(lastName !== undefined && { lastName }),
         ...(validatedData.email !== undefined && { email: validatedData.email }),
         ...(validatedData.phone !== undefined && { phone: validatedData.phone }),
       },
