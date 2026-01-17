@@ -156,8 +156,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Return more specific error message for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Failed to update profile' },
+      { success: false, error: `Failed to update profile: ${errorMessage}` },
       { status: 500 }
     );
   }

@@ -330,8 +330,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Return more specific error message for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Failed to update company settings' },
+      { success: false, error: `Failed to update company settings: ${errorMessage}` },
       { status: 500 }
     );
   }
