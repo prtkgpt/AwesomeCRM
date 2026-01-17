@@ -1,16 +1,73 @@
+// ============================================
+// CleanDayCRM - Enhanced Bookings API
+// ============================================
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions, generateBookingNumber } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createBookingSchema } from '@/lib/validations';
 import { generateRecurringDates } from '@/lib/utils';
-import { applyReferralCredits } from '@/lib/referral';
 import { sendBookingConfirmation } from '@/lib/notifications';
+import { findBestCleaner, autoAssignCleaner } from '@/lib/cleaner-assignment';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
-// GET /api/bookings - List bookings
+// Default pagination values
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+/**
+ * Calculate booking price based on service, addons, and discounts
+ */
+function calculateBookingPrice(params: {
+  basePrice: number;
+  addons?: Array<{ name: string; price: number; quantity?: number }>;
+  discountAmount?: number;
+  taxRate?: number;
+  creditsApplied?: number;
+}): {
+  subtotal: number;
+  addonsTotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  creditsApplied: number;
+  finalPrice: number;
+} {
+  const { basePrice, addons = [], discountAmount = 0, taxRate = 0, creditsApplied = 0 } = params;
+
+  // Calculate addons total
+  const addonsTotal = addons.reduce((sum, addon) => {
+    return sum + (addon.price * (addon.quantity || 1));
+  }, 0);
+
+  // Subtotal before discounts
+  const subtotal = basePrice + addonsTotal;
+
+  // Apply discount
+  const afterDiscount = Math.max(0, subtotal - discountAmount);
+
+  // Calculate tax
+  const taxAmount = afterDiscount * (taxRate / 100);
+
+  // Total before credits
+  const totalBeforeCredits = afterDiscount + taxAmount;
+
+  // Apply credits
+  const finalPrice = Math.max(0, totalBeforeCredits - creditsApplied);
+
+  return {
+    subtotal,
+    addonsTotal,
+    discountAmount,
+    taxAmount,
+    creditsApplied,
+    finalPrice,
+  };
+}
+
+// GET /api/bookings - List bookings with filters and pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -29,29 +86,45 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+
+    // Pagination parameters
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(
+      MAX_PAGE_SIZE,
+      Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_PAGE_SIZE)))
+    );
+    const skip = (page - 1) * limit;
+
+    // Filter parameters
     const status = searchParams.get('status');
+    const statuses = searchParams.get('statuses'); // comma-separated list
     const from = searchParams.get('from');
     const to = searchParams.get('to');
     const clientId = searchParams.get('clientId');
+    const cleanerId = searchParams.get('cleanerId');
+    const serviceType = searchParams.get('serviceType');
+    const locationId = searchParams.get('locationId');
+    const isRecurring = searchParams.get('isRecurring');
+    const isPaid = searchParams.get('isPaid');
+    const search = searchParams.get('search');
+    const sortBy = searchParams.get('sortBy') || 'scheduledDate';
+    const sortOrder = searchParams.get('sortOrder') || 'asc';
 
-    // Build date filter based on what's provided
-    let dateFilter: any = {};
-    if (from && to) {
-      // Both from and to: date range
-      dateFilter = {
-        gte: new Date(from),
-        lte: new Date(to),
-      };
-    } else if (from) {
-      // Only from: dates >= from (upcoming)
-      dateFilter = {
-        gte: new Date(from),
-      };
-    } else if (to) {
-      // Only to: dates <= to (past)
-      dateFilter = {
-        lte: new Date(to),
-      };
+    // Build date filter
+    const dateFilter: Record<string, Date> = {};
+    if (from) {
+      dateFilter.gte = new Date(from);
+    }
+    if (to) {
+      dateFilter.lte = new Date(to);
+    }
+
+    // Build status filter
+    let statusFilter: any = undefined;
+    if (status) {
+      statusFilter = status;
+    } else if (statuses) {
+      statusFilter = { in: statuses.split(',') };
     }
 
     // Build where clause based on user role
@@ -63,79 +136,148 @@ export async function GET(request: NextRequest) {
         select: { id: true },
       });
 
-      console.log('🔍 CLEANER QUERY DEBUG:', {
-        userId: session.user.id,
-        userRole: user.role,
-        teamMemberId: teamMember?.id,
-        companyId: user.companyId,
-      });
-
       if (!teamMember) {
-        console.log('❌ No team member found for cleaner');
-        // If no team member found, return empty array
-        return NextResponse.json({ success: true, data: [] });
+        return NextResponse.json({ success: true, data: [], pagination: { page, limit, total: 0, pages: 0 } });
       }
 
-      // For cleaners: build query with OR filter for assignments
-      const conditions: any[] = [
-        { companyId: user.companyId },
-        {
-          OR: [
-            { assignedTo: teamMember.id },
-            { assignedTo: null },
-          ],
-        },
-      ];
-
-      if (status) conditions.push({ status: status as any });
-      if (clientId) conditions.push({ clientId });
-      if (Object.keys(dateFilter).length > 0) conditions.push({ scheduledDate: dateFilter });
-
-      whereClause = { AND: conditions };
-      console.log('📋 WHERE CLAUSE:', JSON.stringify(whereClause, null, 2));
-    } else {
-      // For admins/owners: standard query without assignment filter
+      // For cleaners: only show their assigned bookings or unassigned
       whereClause = {
         companyId: user.companyId,
-        ...(status && { status: status as any }),
-        ...(clientId && { clientId }),
+        OR: [
+          { assignedCleanerId: teamMember.id },
+          { assignedCleanerId: null },
+        ],
+        ...(statusFilter && { status: statusFilter }),
         ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
+        ...(serviceType && { serviceType }),
       };
+    } else if (user.role === 'CLIENT') {
+      // For clients: only show their own bookings
+      const client = await prisma.client.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      if (!client) {
+        return NextResponse.json({ success: true, data: [], pagination: { page, limit, total: 0, pages: 0 } });
+      }
+
+      whereClause = {
+        companyId: user.companyId,
+        clientId: client.id,
+        ...(statusFilter && { status: statusFilter }),
+        ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
+        ...(serviceType && { serviceType }),
+      };
+    } else {
+      // For admins/owners: full access with all filters
+      whereClause = {
+        companyId: user.companyId,
+        ...(statusFilter && { status: statusFilter }),
+        ...(clientId && { clientId }),
+        ...(cleanerId && { assignedCleanerId: cleanerId }),
+        ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }),
+        ...(serviceType && { serviceType }),
+        ...(locationId && { locationId }),
+        ...(isRecurring !== null && isRecurring !== undefined && { isRecurring: isRecurring === 'true' }),
+        ...(isPaid !== null && isPaid !== undefined && { isPaid: isPaid === 'true' }),
+      };
+
+      // Search filter (client name, booking number, address)
+      if (search) {
+        whereClause.OR = [
+          { bookingNumber: { contains: search, mode: 'insensitive' } },
+          { client: { firstName: { contains: search, mode: 'insensitive' } } },
+          { client: { lastName: { contains: search, mode: 'insensitive' } } },
+          { address: { street: { contains: search, mode: 'insensitive' } } },
+        ];
+      }
     }
 
+    // Get total count for pagination
+    const total = await prisma.booking.count({ where: whereClause });
+
+    // Build orderBy
+    const validSortFields = ['scheduledDate', 'createdAt', 'finalPrice', 'status', 'bookingNumber'];
+    const orderField = validSortFields.includes(sortBy) ? sortBy : 'scheduledDate';
+    const orderDirection = sortOrder === 'desc' ? 'desc' : 'asc';
+
+    // Fetch bookings with relations
     const bookings = await prisma.booking.findMany({
       where: whereClause,
       include: {
-        client: true,
-        address: true,
-        assignee: {
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            isVip: true,
+            loyaltyTier: true,
+          },
+        },
+        address: {
+          select: {
+            id: true,
+            label: true,
+            street: true,
+            city: true,
+            state: true,
+            zip: true,
+            propertyType: true,
+            bedrooms: true,
+            bathrooms: true,
+          },
+        },
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
                 email: true,
+                phone: true,
+                avatar: true,
               },
             },
           },
         },
+        service: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            basePrice: true,
+          },
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
-      orderBy: {
-        scheduledDate: 'asc',
-      },
+      orderBy: { [orderField]: orderDirection },
+      skip,
+      take: limit,
     });
 
-    if (user.role === 'CLEANER') {
-      console.log('📊 QUERY RESULTS:', {
-        totalBookings: bookings.length,
-        bookingAssignments: bookings.map(b => ({
-          client: b.client.name,
-          assignedTo: b.assignedTo,
-          assigneeName: b.assignee?.user?.name || 'UNASSIGNED',
-        })),
-      });
-    }
+    // Calculate pagination metadata
+    const pages = Math.ceil(total / limit);
 
-    return NextResponse.json({ success: true, data: bookings });
+    return NextResponse.json({
+      success: true,
+      data: bookings,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages,
+        hasNext: page < pages,
+        hasPrev: page > 1,
+      },
+    });
   } catch (error) {
     console.error('GET /api/bookings error:', error);
     return NextResponse.json(
@@ -145,7 +287,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/bookings - Create booking (with optional recurring)
+// POST /api/bookings - Create booking with auto-generated booking number
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -159,12 +301,31 @@ export async function POST(request: NextRequest) {
     // Get user with companyId
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    // Only admins/owners can create bookings (and clients through public booking)
+    if (!['OWNER', 'ADMIN'].includes(user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden - Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    // Get company settings for pricing
+    const company = await prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: {
+        taxRate: true,
+        requireDeposit: true,
+        depositPercent: true,
+        minimumBookingPrice: true,
+      },
+    });
 
     // Verify client and address belong to user's company
     const client = await prisma.client.findFirst({
@@ -174,10 +335,9 @@ export async function POST(request: NextRequest) {
       },
       include: {
         addresses: {
-          where: {
-            id: validatedData.addressId,
-          },
+          where: { id: validatedData.addressId },
         },
+        preferences: true,
       },
     });
 
@@ -188,144 +348,213 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If recurring and no end date specified, default to 12 months from start date
-    const calculatedEndDate = validatedData.isRecurring && !validatedData.recurrenceEndDate
-      ? new Date(new Date(validatedData.scheduledDate).setFullYear(
-          new Date(validatedData.scheduledDate).getFullYear() + 1
-        ))
-      : validatedData.recurrenceEndDate;
+    // Calculate pricing
+    const pricing = calculateBookingPrice({
+      basePrice: validatedData.basePrice,
+      addons: validatedData.addons,
+      discountAmount: 0,
+      taxRate: company?.taxRate || 0,
+      creditsApplied: validatedData.creditsApplied || 0,
+    });
 
-    // Check if credits should be applied
-    const applyCreditsFlag = (body as any).applyCredits === true;
-    let creditsApplied = 0;
-    let finalPrice = validatedData.price;
+    // Ensure minimum booking price
+    if (company?.minimumBookingPrice && pricing.finalPrice < company.minimumBookingPrice) {
+      return NextResponse.json(
+        { success: false, error: `Minimum booking price is $${company.minimumBookingPrice}` },
+        { status: 400 }
+      );
+    }
 
-    // Create the main booking
-    const booking = await prisma.booking.create({
-      data: {
-        companyId: user.companyId,
-        userId: session.user.id,
+    // Generate unique booking number
+    const bookingNumber = generateBookingNumber();
+
+    // Calculate deposit if required
+    const depositAmount = company?.requireDeposit
+      ? pricing.finalPrice * ((company.depositPercent || 25) / 100)
+      : null;
+
+    // Handle AI cleaner assignment if requested
+    let assignedCleanerId = validatedData.assignedCleanerId || null;
+    let assignmentMethod: string | null = null;
+
+    if (body.autoAssignCleaner && !assignedCleanerId) {
+      const assignmentResult = await findBestCleaner({
         clientId: validatedData.clientId,
         addressId: validatedData.addressId,
         scheduledDate: validatedData.scheduledDate,
         duration: validatedData.duration,
         serviceType: validatedData.serviceType,
-        price: validatedData.price,
-        notes: validatedData.notes,
-        internalNotes: validatedData.internalNotes,
-        assignedTo: validatedData.assignedTo || null,
-        isRecurring: validatedData.isRecurring,
-        recurrenceFrequency: validatedData.recurrenceFrequency,
-        recurrenceEndDate: calculatedEndDate,
-        // Insurance payment tracking
-        hasInsuranceCoverage: validatedData.hasInsuranceCoverage || false,
+        companyId: user.companyId,
+        preferredCleanerId: client.preferences?.preferredCleaner || undefined,
+      });
+
+      if (assignmentResult.recommended) {
+        assignedCleanerId = assignmentResult.recommended.cleanerId;
+        assignmentMethod = 'AUTO';
+      }
+    } else if (assignedCleanerId) {
+      assignmentMethod = 'MANUAL';
+    }
+
+    // Calculate scheduled end date
+    const scheduledEndDate = new Date(validatedData.scheduledDate);
+    scheduledEndDate.setMinutes(scheduledEndDate.getMinutes() + validatedData.duration);
+
+    // Create the booking
+    const booking = await prisma.booking.create({
+      data: {
+        companyId: user.companyId,
+        bookingNumber,
+        clientId: validatedData.clientId,
+        addressId: validatedData.addressId,
+        createdById: session.user.id,
+        serviceId: validatedData.serviceId || null,
+        serviceType: validatedData.serviceType,
+        locationId: validatedData.locationId || null,
+        scheduledDate: validatedData.scheduledDate,
+        scheduledEndDate,
+        duration: validatedData.duration,
+        timeSlot: validatedData.timeSlot || null,
+        assignedCleanerId,
+        assignmentMethod,
+        basePrice: validatedData.basePrice,
+        addons: validatedData.addons || [],
+        subtotal: pricing.subtotal,
+        discountAmount: pricing.discountAmount,
+        taxAmount: pricing.taxAmount,
+        creditsApplied: pricing.creditsApplied,
+        finalPrice: pricing.finalPrice,
+        depositAmount,
+        hasInsurance: validatedData.hasInsurance || false,
         insuranceAmount: validatedData.insuranceAmount || 0,
         copayAmount: validatedData.copayAmount || 0,
-        copayDiscountApplied: validatedData.copayDiscountApplied || 0,
-        finalCopayAmount: validatedData.finalCopayAmount || 0,
-        // Referral credits applied
-        referralCreditsApplied: creditsApplied,
-        finalPrice: creditsApplied > 0 ? finalPrice : null,
+        customerNotes: validatedData.customerNotes || null,
+        internalNotes: validatedData.internalNotes || null,
+        cleanerNotes: validatedData.cleanerNotes || null,
+        isRecurring: validatedData.isRecurring || false,
+        recurrenceFrequency: validatedData.recurrenceFrequency || 'NONE',
+        recurrenceEndDate: validatedData.recurrenceEndDate || null,
+        status: 'PENDING',
+        statusHistory: [
+          {
+            status: 'PENDING',
+            timestamp: new Date().toISOString(),
+            userId: session.user.id,
+          },
+        ],
       },
       include: {
         client: true,
         address: true,
+        assignedCleaner: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        service: true,
       },
     });
-
-    // Apply referral credits after booking is created
-    if (applyCreditsFlag && client.referralCreditsBalance > 0) {
-      const creditsToApply = Math.min(client.referralCreditsBalance, validatedData.price);
-
-      // Apply the credits with booking ID for audit trail
-      const result = await applyReferralCredits(client.id, creditsToApply, booking.id);
-      creditsApplied = result.creditsApplied;
-      finalPrice = validatedData.price - creditsApplied;
-
-      // Update booking with actual credits applied
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          referralCreditsApplied: creditsApplied,
-          finalPrice: creditsApplied > 0 ? finalPrice : null,
-        },
-      });
-
-      console.log('🎁 Referral credits applied:', {
-        bookingId: booking.id,
-        clientId: client.id,
-        clientName: client.name,
-        bookingPrice: validatedData.price,
-        creditsApplied,
-        finalPrice,
-        newBalance: result.newBalance,
-      });
-    }
 
     // Generate recurring bookings if needed
     let generatedBookings: any[] = [];
     if (
       validatedData.isRecurring &&
+      validatedData.recurrenceFrequency &&
       validatedData.recurrenceFrequency !== 'NONE'
     ) {
+      const endDate = validatedData.recurrenceEndDate ||
+        new Date(new Date(validatedData.scheduledDate).setFullYear(
+          new Date(validatedData.scheduledDate).getFullYear() + 1
+        ));
+
       const recurringDates = generateRecurringDates(
         validatedData.scheduledDate,
         validatedData.recurrenceFrequency as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY',
-        calculatedEndDate,
-        52 // Max 52 occurrences (safety limit)
+        endDate,
+        52
       );
 
       generatedBookings = await Promise.all(
-        recurringDates.map((date) =>
-          prisma.booking.create({
+        recurringDates.map((date) => {
+          const endDateTime = new Date(date);
+          endDateTime.setMinutes(endDateTime.getMinutes() + validatedData.duration);
+
+          return prisma.booking.create({
             data: {
               companyId: user.companyId,
-              userId: session.user.id,
+              bookingNumber: generateBookingNumber(),
               clientId: validatedData.clientId,
               addressId: validatedData.addressId,
-              scheduledDate: date,
-              duration: validatedData.duration,
+              createdById: session.user.id,
+              serviceId: validatedData.serviceId || null,
               serviceType: validatedData.serviceType,
-              price: validatedData.price,
-              notes: validatedData.notes,
-              internalNotes: validatedData.internalNotes,
-              isRecurring: true,
-              recurrenceFrequency: validatedData.recurrenceFrequency,
-              recurrenceParentId: booking.id, // Link to parent
-              // Insurance payment tracking
-              hasInsuranceCoverage: validatedData.hasInsuranceCoverage || false,
+              locationId: validatedData.locationId || null,
+              scheduledDate: date,
+              scheduledEndDate: endDateTime,
+              duration: validatedData.duration,
+              timeSlot: validatedData.timeSlot || null,
+              basePrice: validatedData.basePrice,
+              addons: validatedData.addons || [],
+              subtotal: pricing.subtotal,
+              discountAmount: pricing.discountAmount,
+              taxAmount: pricing.taxAmount,
+              creditsApplied: 0, // Credits only apply to first booking
+              finalPrice: pricing.subtotal - pricing.discountAmount + pricing.taxAmount,
+              depositAmount,
+              hasInsurance: validatedData.hasInsurance || false,
               insuranceAmount: validatedData.insuranceAmount || 0,
               copayAmount: validatedData.copayAmount || 0,
-              copayDiscountApplied: validatedData.copayDiscountApplied || 0,
-              finalCopayAmount: validatedData.finalCopayAmount || 0,
+              customerNotes: validatedData.customerNotes || null,
+              internalNotes: validatedData.internalNotes || null,
+              cleanerNotes: validatedData.cleanerNotes || null,
+              isRecurring: true,
+              recurrenceFrequency: validatedData.recurrenceFrequency,
+              recurrenceParentId: booking.id,
+              status: 'PENDING',
+              statusHistory: [
+                {
+                  status: 'PENDING',
+                  timestamp: new Date().toISOString(),
+                  userId: session.user.id,
+                },
+              ],
             },
-          })
-        )
+          });
+        })
       );
     }
 
-    // Send booking confirmation email/SMS (async, don't await to avoid blocking)
-    sendBookingConfirmation(booking.id).catch(error => {
+    // Send booking confirmation (async)
+    sendBookingConfirmation(booking.id).catch((error) => {
       console.error('Failed to send booking confirmation:', error);
-      // Don't fail the booking creation if confirmation fails
     });
 
     return NextResponse.json({
       success: true,
       data: booking,
-      generatedBookings,
-      message: `Booking created successfully${
+      generatedBookings: generatedBookings.length,
+      assignmentResult: assignedCleanerId ? {
+        cleanerId: assignedCleanerId,
+        method: assignmentMethod,
+      } : null,
+      message: `Booking ${bookingNumber} created successfully${
         generatedBookings.length > 0
           ? ` with ${generatedBookings.length} recurring instances`
           : ''
-      }`,
+      }${assignedCleanerId && assignmentMethod === 'AUTO' ? ' (cleaner auto-assigned)' : ''}`,
     });
   } catch (error) {
     console.error('POST /api/bookings error:', error);
 
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Invalid input data' },
+        { success: false, error: 'Invalid input data', details: error },
         { status: 400 }
       );
     }

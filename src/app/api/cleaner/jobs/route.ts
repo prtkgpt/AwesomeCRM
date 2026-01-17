@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { BookingStatus } from '@prisma/client';
 
-// Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
-// GET /api/cleaner/jobs - Get cleaner's assigned jobs + unassigned jobs
+// GET /api/cleaner/jobs - List assigned jobs with filters and pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     // Only cleaners can access this endpoint
     if (user.role !== 'CLEANER') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden - Cleaner role required' }, { status: 403 });
     }
 
     // Get the cleaner's team member record
@@ -38,162 +38,194 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Team member profile not found' }, { status: 404 });
     }
 
-    console.log('🟢 CLEANER JOBS - User:', user.id);
-    console.log('🟢 CLEANER JOBS - TeamMember ID:', teamMember.id);
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
 
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-    const tomorrow = new Date(todayEnd.getTime() + 1);
+    // Pagination
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const skip = (page - 1) * limit;
 
-    console.log('🟢 CLEANER JOBS - Today range:', todayStart, 'to', todayEnd);
-    console.log('🟢 CLEANER JOBS - Current time:', now);
+    // Date filters
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    // Get today's jobs (assigned to this cleaner OR unassigned)
-    const todayJobsRaw = await prisma.booking.findMany({
-      where: {
-        companyId: user.companyId, // Only jobs from the same company
-        scheduledDate: {
-          gte: todayStart,
-          lte: todayEnd,
-        },
-        OR: [
-          { assignedTo: teamMember.id }, // Assigned to this cleaner
-          { assignedTo: null },          // Unassigned jobs
-        ],
-      },
+    // Status filter (comma-separated list)
+    const statusFilter = searchParams.get('status');
+    const statuses = statusFilter
+      ? statusFilter.split(',').filter(s => Object.values(BookingStatus).includes(s as BookingStatus)) as BookingStatus[]
+      : null;
+
+    // Build where clause
+    const whereClause: any = {
+      assignedCleanerId: teamMember.id,
+      companyId: user.companyId,
+    };
+
+    // Apply date range filter
+    if (startDate || endDate) {
+      whereClause.scheduledDate = {};
+      if (startDate) {
+        whereClause.scheduledDate.gte = new Date(startDate);
+      }
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        whereClause.scheduledDate.lte = endDateTime;
+      }
+    }
+
+    // Apply status filter
+    if (statuses && statuses.length > 0) {
+      whereClause.status = { in: statuses };
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.booking.count({
+      where: whereClause,
+    });
+
+    // Fetch jobs with pagination
+    const jobs = await prisma.booking.findMany({
+      where: whereClause,
       include: {
         client: {
           select: {
-            name: true,
+            id: true,
+            firstName: true,
+            lastName: true,
             phone: true,
-            preferences: true, // Include client preferences
+            email: true,
           },
         },
         address: {
           select: {
+            id: true,
             street: true,
+            unit: true,
             city: true,
             state: true,
             zip: true,
-            gateCode: true,
+            lat: true,
+            lng: true,
+            entryInstructions: true,
             parkingInfo: true,
-            petInfo: true,
-            preferences: true,
+            gateCode: true,
+            hasPets: true,
+            petDetails: true,
           },
         },
-      },
-      orderBy: {
-        scheduledDate: 'asc',
-      },
-    });
-
-    // Calculate wage for each job (hide total price from cleaners)
-    const todayJobs = todayJobsRaw.map(job => {
-      const durationHours = job.duration / 60; // Convert minutes to hours
-      const wage = teamMember.hourlyRate ? teamMember.hourlyRate * durationHours : 0;
-
-      // Return job without price, add wage and hourlyRate instead
-      const { price, ...jobWithoutPrice } = job;
-      return {
-        ...jobWithoutPrice,
-        wage: parseFloat(wage.toFixed(2)), // Cleaner's wage
-        hourlyRate: teamMember.hourlyRate || 0, // Cleaner's hourly rate
-      };
-    });
-
-    console.log('🟢 CLEANER JOBS - Found today jobs:', todayJobs.length);
-    if (todayJobs.length > 0) {
-      console.log('🟢 CLEANER JOBS - Today jobs:', todayJobs.map(j => ({
-        id: j.id.slice(0, 8),
-        scheduledDate: j.scheduledDate,
-        client: j.client.name
-      })));
-    }
-
-    // Get upcoming jobs (next 7 days) - assigned to this cleaner OR unassigned
-    const nextWeek = new Date(tomorrow);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-
-    const upcomingJobsRaw = await prisma.booking.findMany({
-      where: {
-        companyId: user.companyId, // Only jobs from the same company
-        scheduledDate: {
-          gte: tomorrow,
-          lt: nextWeek,
-        },
-        status: 'SCHEDULED',
-        OR: [
-          { assignedTo: teamMember.id }, // Assigned to this cleaner
-          { assignedTo: null },          // Unassigned jobs
-        ],
-      },
-      include: {
-        client: {
+        service: {
           select: {
+            id: true,
             name: true,
-            phone: true,
-            preferences: true, // Include client preferences
+            type: true,
           },
         },
-        address: {
+        checklist: {
           select: {
-            street: true,
-            city: true,
-            state: true,
-            zip: true,
+            id: true,
+            totalTasks: true,
+            completedTasks: true,
           },
         },
       },
       orderBy: {
         scheduledDate: 'asc',
       },
-      take: 10,
+      skip,
+      take: limit,
     });
 
-    // Calculate wage for upcoming jobs (hide total price from cleaners)
-    const upcomingJobs = upcomingJobsRaw.map(job => {
-      const durationHours = job.duration / 60; // Convert minutes to hours
-      const wage = teamMember.hourlyRate ? teamMember.hourlyRate * durationHours : 0;
+    // Transform jobs (hide customer price, show cleaner wage)
+    const jobsFormatted = jobs.map((job) => {
+      const durationHours = job.duration / 60;
+      const estimatedWage = teamMember.hourlyRate ? teamMember.hourlyRate * durationHours : 0;
 
-      // Return job without price, add wage and hourlyRate instead
-      const { price, ...jobWithoutPrice } = job;
       return {
-        ...jobWithoutPrice,
-        wage: parseFloat(wage.toFixed(2)), // Cleaner's wage
-        hourlyRate: teamMember.hourlyRate || 0, // Cleaner's hourly rate
+        id: job.id,
+        bookingNumber: job.bookingNumber,
+        scheduledDate: job.scheduledDate,
+        scheduledEndDate: job.scheduledEndDate,
+        duration: job.duration,
+        status: job.status,
+        serviceType: job.serviceType,
+        service: job.service,
+        isRecurring: job.isRecurring,
+        recurrenceFrequency: job.recurrenceFrequency,
+        client: {
+          id: job.client.id,
+          name: `${job.client.firstName} ${job.client.lastName || ''}`.trim(),
+          phone: job.client.phone,
+          email: job.client.email,
+        },
+        address: job.address,
+        estimatedWage: parseFloat(estimatedWage.toFixed(2)),
+        cleanerNotes: job.cleanerNotes,
+        customerNotes: job.customerNotes,
+        // Status timestamps
+        onMyWayAt: job.onMyWayAt,
+        arrivedAt: job.arrivedAt,
+        clockedInAt: job.clockedInAt,
+        clockedOutAt: job.clockedOutAt,
+        completedAt: job.completedAt,
+        // Feedback
+        customerRating: job.customerRating,
+        customerFeedback: job.customerFeedback,
+        tipAmount: job.tipAmount,
+        // Checklist progress
+        checklist: job.checklist ? {
+          id: job.checklist.id,
+          totalTasks: job.checklist.totalTasks,
+          completedTasks: job.checklist.completedTasks,
+          percentComplete: job.checklist.totalTasks > 0
+            ? Math.round((job.checklist.completedTasks / job.checklist.totalTasks) * 100)
+            : 0,
+        } : null,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
       };
     });
 
-    console.log('🟢 CLEANER JOBS - Found upcoming jobs:', upcomingJobs.length);
-    if (upcomingJobs.length > 0) {
-      console.log('🟢 CLEANER JOBS - Upcoming jobs:', upcomingJobs.map(j => ({
-        id: j.id.slice(0, 8),
-        scheduledDate: j.scheduledDate,
-        client: j.client.name
-      })));
-    }
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNextPage = page < totalPages;
+    const hasPreviousPage = page > 1;
 
     return NextResponse.json({
       success: true,
-      todayJobs,
-      upcomingJobs,
+      data: {
+        jobs: jobsFormatted,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalCount,
+          limit,
+          hasNextPage,
+          hasPreviousPage,
+        },
+        filters: {
+          startDate: startDate || null,
+          endDate: endDate || null,
+          statuses: statuses || [],
+        },
+      },
     });
   } catch (error) {
-    console.error('🔴 GET /api/cleaner/jobs error:', error);
+    console.error('GET /api/cleaner/jobs error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to fetch jobs: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
+    if (error instanceof Error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to fetch jobs: ${error.message}`,
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch jobs - unknown error' },
+      { success: false, error: 'Failed to fetch jobs' },
       { status: 500 }
     );
   }

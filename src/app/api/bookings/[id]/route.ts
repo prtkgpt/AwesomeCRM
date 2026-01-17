@@ -1,3 +1,7 @@
+// ============================================
+// CleanDayCRM - Single Booking API
+// ============================================
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -9,16 +13,18 @@ import { sendEmail } from '@/lib/email';
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
-// GET /api/bookings/[id] - Get booking details
+// GET /api/bookings/[id] - Get full booking details with all relations
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { id } = await params;
 
     // Get user with companyId and role
     const user = await prisma.user.findUnique({
@@ -46,59 +52,220 @@ export async function GET(
         );
       }
 
-      // For cleaners: use AND to properly combine conditions with OR
       whereClause = {
         AND: [
-          { id: params.id },
+          { id },
           { companyId: user.companyId },
           {
             OR: [
-              { assignedTo: teamMember.id },
-              { assignedTo: null },
+              { assignedCleanerId: teamMember.id },
+              { assignedCleanerId: null },
             ],
           },
         ],
       };
-    } else {
-      // For admins/owners: standard query
+    } else if (user.role === 'CLIENT') {
+      const client = await prisma.client.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      if (!client) {
+        return NextResponse.json(
+          { success: false, error: 'Client profile not found' },
+          { status: 404 }
+        );
+      }
+
       whereClause = {
-        id: params.id,
+        id,
+        companyId: user.companyId,
+        clientId: client.id,
+      };
+    } else {
+      whereClause = {
+        id,
         companyId: user.companyId,
       };
     }
 
+    // Fetch booking with all relations
     const booking = await prisma.booking.findFirst({
       where: whereClause,
       include: {
-        client: true,
-        address: true,
-        assignee: {
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            alternatePhone: true,
+            preferredContactMethod: true,
+            isVip: true,
+            loyaltyTier: true,
+            loyaltyPoints: true,
+            creditBalance: true,
+            stripeCustomerId: true,
+            autoChargeEnabled: true,
+            hasInsurance: true,
+            insuranceProvider: true,
+            notes: true,
+          },
+        },
+        address: {
+          select: {
+            id: true,
+            label: true,
+            street: true,
+            unit: true,
+            city: true,
+            state: true,
+            zip: true,
+            lat: true,
+            lng: true,
+            propertyType: true,
+            squareFootage: true,
+            bedrooms: true,
+            bathrooms: true,
+            floors: true,
+            hasBasement: true,
+            hasGarage: true,
+            hasYard: true,
+            hasPool: true,
+            parkingInfo: true,
+            gateCode: true,
+            alarmCode: true,
+            lockboxCode: true,
+            keyLocation: true,
+            entryInstructions: true,
+            hasPets: true,
+            petDetails: true,
+            petInstructions: true,
+            cleanerNotes: true,
+            specialInstructions: true,
+          },
+        },
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                id: true,
+                firstName: true,
+                lastName: true,
                 email: true,
+                phone: true,
+                avatar: true,
               },
             },
           },
         },
-        completedByUser: {
+        service: {
           select: {
+            id: true,
             name: true,
+            description: true,
+            type: true,
+            basePrice: true,
+            baseDuration: true,
+            includedTasks: true,
+          },
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        completedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
         },
-        approvedByUser: {
+        approvedBy: {
           select: {
-            name: true,
+            id: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
+          },
+        },
+        timeEntries: {
+          orderBy: { clockIn: 'desc' },
+          take: 10,
+        },
+        checklist: true,
+        photos: {
+          orderBy: { createdAt: 'desc' },
+        },
+        reviews: {
+          include: {
+            client: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            total: true,
+            amountPaid: true,
+            amountDue: true,
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            amount: true,
+            method: true,
+            status: true,
+            transactionId: true,
+            createdAt: true,
           },
         },
         messages: {
-          orderBy: {
-            createdAt: 'desc',
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            type: true,
+            channel: true,
+            to: true,
+            subject: true,
+            body: true,
+            status: true,
+            sentAt: true,
+            deliveredAt: true,
+          },
+        },
+        qualityCheck: {
+          select: {
+            id: true,
+            status: true,
+            overallScore: true,
+            completedAt: true,
+            notes: true,
           },
         },
       },
@@ -111,7 +278,53 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, data: booking });
+    // Get related recurring bookings if this is a recurring booking
+    let recurringBookings = null;
+    if (booking.isRecurring) {
+      if (booking.recurrenceParentId) {
+        // This is a child booking, get siblings
+        recurringBookings = await prisma.booking.findMany({
+          where: {
+            OR: [
+              { id: booking.recurrenceParentId },
+              { recurrenceParentId: booking.recurrenceParentId },
+            ],
+            NOT: { id: booking.id },
+          },
+          select: {
+            id: true,
+            bookingNumber: true,
+            scheduledDate: true,
+            status: true,
+            isPaid: true,
+          },
+          orderBy: { scheduledDate: 'asc' },
+          take: 10,
+        });
+      } else {
+        // This is a parent booking, get children
+        recurringBookings = await prisma.booking.findMany({
+          where: { recurrenceParentId: booking.id },
+          select: {
+            id: true,
+            bookingNumber: true,
+            scheduledDate: true,
+            status: true,
+            isPaid: true,
+          },
+          orderBy: { scheduledDate: 'asc' },
+          take: 10,
+        });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...booking,
+        recurringBookings,
+      },
+    });
   } catch (error) {
     console.error('GET /api/bookings/[id] error:', error);
     return NextResponse.json(
@@ -121,10 +334,10 @@ export async function GET(
   }
 }
 
-// PUT /api/bookings/[id] - Update booking
+// PUT /api/bookings/[id] - Update booking (reschedule, change cleaner, update status, add notes)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -132,32 +345,37 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const validatedData = updateBookingSchema.parse(body);
 
     // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true, role: true },
+      select: { companyId: true, role: true, firstName: true, lastName: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Cleaners cannot use PUT endpoint to update bookings
+    // Cleaners cannot update bookings through this endpoint
     if (user.role === 'CLEANER') {
       return NextResponse.json(
-        { success: false, error: 'Forbidden - Cleaners cannot update bookings' },
+        { success: false, error: 'Forbidden - Use cleaner-specific actions' },
         { status: 403 }
       );
     }
 
-    // Verify ownership
+    // Get existing booking
     const existingBooking = await prisma.booking.findFirst({
       where: {
-        id: params.id,
+        id,
         companyId: user.companyId,
+      },
+      include: {
+        client: true,
+        address: true,
       },
     });
 
@@ -169,45 +387,111 @@ export async function PUT(
     }
 
     // Check if cleaner assignment has changed
-    const assignmentChanged = validatedData.assignedTo !== undefined &&
-                              existingBooking.assignedTo !== validatedData.assignedTo;
+    const assignmentChanged =
+      validatedData.assignedCleanerId !== undefined &&
+      existingBooking.assignedCleanerId !== validatedData.assignedCleanerId;
+
+    // Check if rescheduling
+    const isRescheduling =
+      validatedData.scheduledDate !== undefined &&
+      new Date(validatedData.scheduledDate).getTime() !== existingBooking.scheduledDate.getTime();
+
+    // Build status history entry if status is changing
+    let statusHistory = existingBooking.statusHistory as any[] || [];
+    if (validatedData.status && validatedData.status !== existingBooking.status) {
+      statusHistory = [
+        ...statusHistory,
+        {
+          status: validatedData.status,
+          timestamp: new Date().toISOString(),
+          userId: session.user.id,
+          userName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        },
+      ];
+    }
+
+    // Calculate new end date if duration or scheduled date changes
+    let scheduledEndDate = existingBooking.scheduledEndDate;
+    if (validatedData.scheduledDate || validatedData.duration) {
+      const startDate = validatedData.scheduledDate
+        ? new Date(validatedData.scheduledDate)
+        : existingBooking.scheduledDate;
+      const duration = validatedData.duration || existingBooking.duration;
+      scheduledEndDate = new Date(startDate);
+      scheduledEndDate.setMinutes(scheduledEndDate.getMinutes() + duration);
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      ...(validatedData.clientId && { clientId: validatedData.clientId }),
+      ...(validatedData.addressId && { addressId: validatedData.addressId }),
+      ...(validatedData.serviceId !== undefined && { serviceId: validatedData.serviceId }),
+      ...(validatedData.serviceType && { serviceType: validatedData.serviceType }),
+      ...(validatedData.scheduledDate && {
+        scheduledDate: new Date(validatedData.scheduledDate),
+        scheduledEndDate,
+      }),
+      ...(validatedData.duration && { duration: validatedData.duration }),
+      ...(validatedData.timeSlot !== undefined && { timeSlot: validatedData.timeSlot }),
+      ...(validatedData.status && { status: validatedData.status, statusHistory }),
+      ...(validatedData.basePrice !== undefined && { basePrice: validatedData.basePrice }),
+      ...(validatedData.discountAmount !== undefined && { discountAmount: validatedData.discountAmount }),
+      ...(validatedData.tipAmount !== undefined && { tipAmount: validatedData.tipAmount }),
+      ...(validatedData.isPaid !== undefined && { isPaid: validatedData.isPaid }),
+      ...(validatedData.paymentMethod && { paymentMethod: validatedData.paymentMethod }),
+      ...(validatedData.customerNotes !== undefined && { customerNotes: validatedData.customerNotes }),
+      ...(validatedData.internalNotes !== undefined && { internalNotes: validatedData.internalNotes }),
+      ...(validatedData.cleanerNotes !== undefined && { cleanerNotes: validatedData.cleanerNotes }),
+      ...(validatedData.isRecurring !== undefined && { isRecurring: validatedData.isRecurring }),
+      ...(validatedData.recurrenceFrequency && { recurrenceFrequency: validatedData.recurrenceFrequency }),
+      ...(validatedData.isPaused !== undefined && { isPaused: validatedData.isPaused }),
+      ...(validatedData.pausedUntil !== undefined && { pausedUntil: validatedData.pausedUntil }),
+    };
+
+    // Handle cleaner assignment
+    if (validatedData.assignedCleanerId !== undefined) {
+      updateData.assignedCleanerId = validatedData.assignedCleanerId;
+      if (assignmentChanged) {
+        updateData.assignmentMethod = 'MANUAL';
+      }
+    }
+
+    // Recalculate final price if pricing fields changed
+    if (validatedData.basePrice !== undefined || validatedData.discountAmount !== undefined || validatedData.tipAmount !== undefined) {
+      const basePrice = validatedData.basePrice ?? existingBooking.basePrice;
+      const discountAmount = validatedData.discountAmount ?? existingBooking.discountAmount;
+      const tipAmount = validatedData.tipAmount ?? existingBooking.tipAmount;
+      const taxAmount = existingBooking.taxAmount;
+      const creditsApplied = existingBooking.creditsApplied;
+
+      updateData.finalPrice = basePrice - discountAmount + taxAmount + tipAmount - creditsApplied;
+    }
 
     // Update booking
     const booking = await prisma.booking.update({
-      where: { id: params.id },
-      data: {
-        ...(validatedData.clientId && { clientId: validatedData.clientId }),
-        ...(validatedData.addressId && { addressId: validatedData.addressId }),
-        ...(validatedData.scheduledDate && { scheduledDate: validatedData.scheduledDate }),
-        ...(validatedData.duration && { duration: validatedData.duration }),
-        ...(validatedData.serviceType && { serviceType: validatedData.serviceType }),
-        ...(validatedData.status && { status: validatedData.status }),
-        ...(validatedData.price !== undefined && { price: validatedData.price }),
-        ...(validatedData.notes !== undefined && { notes: validatedData.notes }),
-        ...(validatedData.internalNotes !== undefined && { internalNotes: validatedData.internalNotes }),
-        ...(validatedData.isPaid !== undefined && { isPaid: validatedData.isPaid }),
-        ...(validatedData.paymentMethod && { paymentMethod: validatedData.paymentMethod }),
-        ...(validatedData.assignedTo !== undefined && { assignedTo: validatedData.assignedTo }),
-      },
+      where: { id },
+      data: updateData,
       include: {
         client: true,
         address: true,
-        assignee: {
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
                 email: true,
                 phone: true,
               },
             },
           },
         },
+        service: true,
       },
     });
 
     // Send notification to newly assigned cleaner
-    if (assignmentChanged && booking.assignee) {
+    if (assignmentChanged && booking.assignedCleaner) {
       const company = await prisma.company.findUnique({
         where: { id: user.companyId },
         select: {
@@ -219,9 +503,9 @@ export async function PUT(
         },
       });
 
-      const cleanerName = booking.assignee.user.name || 'there';
-      const cleanerEmail = booking.assignee.user.email;
-      const cleanerPhone = booking.assignee.user.phone;
+      const cleanerName = `${booking.assignedCleaner.user.firstName || ''} ${booking.assignedCleaner.user.lastName || ''}`.trim() || 'there';
+      const cleanerEmail = booking.assignedCleaner.user.email;
+      const cleanerPhone = booking.assignedCleaner.user.phone;
 
       const scheduledDate = new Date(booking.scheduledDate);
       const dateStr = scheduledDate.toLocaleDateString('en-US', {
@@ -235,122 +519,50 @@ export async function PUT(
       });
 
       const fullAddress = `${booking.address.street}, ${booking.address.city}, ${booking.address.state} ${booking.address.zip}`;
+      const clientName = `${booking.client.firstName} ${booking.client.lastName || ''}`.trim();
 
       // Send SMS notification
-      if (cleanerPhone && company) {
+      if (cleanerPhone && company?.twilioAccountSid) {
         try {
-          const smsMessage = `Hi ${cleanerName}! You've been assigned a new cleaning job on ${dateStr} at ${timeStr}. Client: ${booking.client.name}. Location: ${fullAddress}. Check your dashboard for details.`;
+          const smsMessage = `Hi ${cleanerName}! You've been assigned a new cleaning job on ${dateStr} at ${timeStr}. Client: ${clientName}. Location: ${fullAddress}. Check your dashboard for details.`;
 
           await sendSMS(cleanerPhone, smsMessage, {
-            accountSid: company.twilioAccountSid || undefined,
+            accountSid: company.twilioAccountSid,
             authToken: company.twilioAuthToken || undefined,
             from: company.twilioPhoneNumber || undefined,
           });
-          console.log('✅ Cleaner assignment SMS sent to:', cleanerPhone);
+          console.log('Cleaner assignment SMS sent to:', cleanerPhone);
         } catch (error) {
-          console.error('❌ Failed to send SMS to cleaner:', error);
+          console.error('Failed to send SMS to cleaner:', error);
         }
       }
 
       // Send email notification
-      if (cleanerEmail && company) {
+      if (cleanerEmail && company?.resendApiKey) {
         try {
-          const emailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>New Job Assignment</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background-color: #2563eb; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-    <h1 style="margin: 0; font-size: 28px;">🧹 New Job Assignment</h1>
-    <p style="margin: 10px 0 0 0; font-size: 16px;">You have a new cleaning scheduled</p>
-  </div>
-
-  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-    <p style="font-size: 18px; margin-top: 0;">Hi ${cleanerName},</p>
-
-    <p style="font-size: 16px;">You've been assigned a new cleaning job. Here are the details:</p>
-
-    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
-      <h2 style="margin-top: 0; color: #2563eb; font-size: 20px;">Job Details</h2>
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Client:</strong></td>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${booking.client.name}</td>
-        </tr>
-        <tr>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Date & Time:</strong></td>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${dateStr}<br>${timeStr}</td>
-        </tr>
-        <tr>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Service Type:</strong></td>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${booking.serviceType.replace('_', ' ')}</td>
-        </tr>
-        <tr>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Duration:</strong></td>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${booking.duration} minutes</td>
-        </tr>
-        <tr>
-          <td style="padding: 10px 0;"><strong>Address:</strong></td>
-          <td style="padding: 10px 0; text-align: right;">${fullAddress}</td>
-        </tr>
-      </table>
-    </div>
-
-    ${booking.address.gateCode ? `
-    <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-      <p style="margin: 0; color: #92400e;"><strong>🔑 Gate Code:</strong> ${booking.address.gateCode}</p>
-    </div>
-    ` : ''}
-
-    ${booking.address.parkingInfo ? `
-    <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
-      <p style="margin: 0; color: #1e40af;"><strong>🅿️ Parking Info:</strong> ${booking.address.parkingInfo}</p>
-    </div>
-    ` : ''}
-
-    ${booking.address.petInfo ? `
-    <div style="background-color: #fce7f3; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ec4899;">
-      <p style="margin: 0; color: #831843;"><strong>🐾 Pet Info:</strong> ${booking.address.petInfo}</p>
-    </div>
-    ` : ''}
-
-    ${booking.notes ? `
-    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6b7280;">
-      <p style="margin: 0; color: #374151;"><strong>📝 Notes:</strong> ${booking.notes}</p>
-    </div>
-    ` : ''}
-
-    <p style="font-size: 14px; margin-top: 20px;">
-      Log in to your dashboard to view full details and manage this job.
-    </p>
-
-    <p style="font-size: 14px; margin-top: 20px;">
-      Best regards,<br>
-      <strong>${company?.name || 'Your Company'}</strong>
-    </p>
-  </div>
-
-  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
-    <p>© ${new Date().getFullYear()} ${company?.name || 'CleanDay CRM'}. All rights reserved.</p>
-  </div>
-</body>
-</html>
-          `;
-
           await sendEmail({
             to: cleanerEmail,
-            subject: `New Job Assignment - ${booking.client.name} on ${dateStr}`,
-            html: emailHtml,
+            subject: `New Job Assignment - ${clientName} on ${dateStr}`,
+            html: `
+              <h2>New Job Assignment</h2>
+              <p>Hi ${cleanerName},</p>
+              <p>You've been assigned a new cleaning job:</p>
+              <ul>
+                <li><strong>Client:</strong> ${clientName}</li>
+                <li><strong>Date:</strong> ${dateStr} at ${timeStr}</li>
+                <li><strong>Service:</strong> ${booking.serviceType.replace('_', ' ')}</li>
+                <li><strong>Duration:</strong> ${booking.duration} minutes</li>
+                <li><strong>Address:</strong> ${fullAddress}</li>
+              </ul>
+              <p>Log in to your dashboard to view full details.</p>
+              <p>Best regards,<br>${company.name}</p>
+            `,
             type: 'notification',
-            apiKey: company.resendApiKey || undefined,
+            apiKey: company.resendApiKey,
           });
-          console.log('✅ Cleaner assignment email sent to:', cleanerEmail);
+          console.log('Cleaner assignment email sent to:', cleanerEmail);
         } catch (error) {
-          console.error('❌ Failed to send email to cleaner:', error);
+          console.error('Failed to send email to cleaner:', error);
         }
       }
     }
@@ -358,7 +570,9 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       data: booking,
-      message: 'Booking updated successfully',
+      message: isRescheduling
+        ? 'Booking rescheduled successfully'
+        : 'Booking updated successfully',
     });
   } catch (error) {
     console.error('PUT /api/bookings/[id] error:', error);
@@ -377,16 +591,22 @@ export async function PUT(
   }
 }
 
-// DELETE /api/bookings/[id] - Delete booking
+// DELETE /api/bookings/[id] - Cancel booking with optional cancellation fee
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const applyCancellationFee = searchParams.get('applyCancellationFee') === 'true';
+    const reason = searchParams.get('reason') || 'Cancelled by admin';
+    const hardDelete = searchParams.get('hardDelete') === 'true';
 
     // Get user with companyId and role
     const user = await prisma.user.findUnique({
@@ -398,19 +618,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Cleaners cannot delete bookings
+    // Cleaners cannot delete/cancel bookings
     if (user.role === 'CLEANER') {
       return NextResponse.json(
-        { success: false, error: 'Forbidden - Cleaners cannot delete bookings' },
+        { success: false, error: 'Forbidden - Cleaners cannot cancel bookings' },
         { status: 403 }
       );
     }
 
-    // Verify ownership - use companyId for multi-tenant isolation
+    // Get existing booking
     const existingBooking = await prisma.booking.findFirst({
       where: {
-        id: params.id,
+        id,
         companyId: user.companyId,
+      },
+      include: {
+        client: true,
       },
     });
 
@@ -421,28 +644,140 @@ export async function DELETE(
       );
     }
 
-    // Delete booking
-    await prisma.booking.delete({
-      where: { id: params.id },
+    // Get company settings for cancellation fee
+    const company = await prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: {
+        cancellationFeePercent: true,
+        cancellationWindow: true,
+      },
     });
+
+    // Calculate cancellation fee if applicable
+    let cancellationFee: number | null = null;
+    if (applyCancellationFee && company?.cancellationFeePercent) {
+      const hoursUntilBooking =
+        (existingBooking.scheduledDate.getTime() - Date.now()) / (1000 * 60 * 60);
+
+      // Apply fee if within cancellation window
+      if (hoursUntilBooking <= (company.cancellationWindow || 24)) {
+        cancellationFee =
+          existingBooking.finalPrice * (company.cancellationFeePercent / 100);
+      }
+    }
+
+    // Hard delete only if explicitly requested and booking is in PENDING status
+    if (hardDelete && existingBooking.status === 'PENDING') {
+      await prisma.booking.delete({
+        where: { id },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Booking deleted successfully',
+      });
+    }
+
+    // Soft cancel - update status to CANCELLED
+    const statusHistory = (existingBooking.statusHistory as any[]) || [];
+    statusHistory.push({
+      status: 'CANCELLED',
+      timestamp: new Date().toISOString(),
+      userId: session.user.id,
+      reason,
+    });
+
+    const booking = await prisma.booking.update({
+      where: { id },
+      data: {
+        status: 'CANCELLED',
+        statusHistory,
+        cancelledAt: new Date(),
+        cancelledById: session.user.id,
+        cancellationReason: reason,
+        cancellationFee,
+      },
+      include: {
+        client: true,
+        address: true,
+        assignedCleaner: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Notify cleaner if assigned
+    if (booking.assignedCleaner) {
+      const cleanerEmail = booking.assignedCleaner.user.email;
+      if (cleanerEmail) {
+        const companyWithApi = await prisma.company.findUnique({
+          where: { id: user.companyId },
+          select: { name: true, resendApiKey: true },
+        });
+
+        if (companyWithApi?.resendApiKey) {
+          const scheduledDate = new Date(booking.scheduledDate);
+          const dateStr = scheduledDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+          });
+
+          try {
+            await sendEmail({
+              to: cleanerEmail,
+              subject: `Job Cancelled - ${dateStr}`,
+              html: `
+                <h2>Job Cancelled</h2>
+                <p>The following job has been cancelled:</p>
+                <ul>
+                  <li><strong>Client:</strong> ${booking.client.firstName} ${booking.client.lastName || ''}</li>
+                  <li><strong>Date:</strong> ${dateStr}</li>
+                  <li><strong>Address:</strong> ${booking.address.street}, ${booking.address.city}</li>
+                  <li><strong>Reason:</strong> ${reason}</li>
+                </ul>
+                <p>Please check your dashboard for your updated schedule.</p>
+                <p>Best regards,<br>${companyWithApi.name}</p>
+              `,
+              type: 'notification',
+              apiKey: companyWithApi.resendApiKey,
+            });
+          } catch (error) {
+            console.error('Failed to send cancellation email to cleaner:', error);
+          }
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Booking deleted successfully',
+      data: booking,
+      cancellationFee,
+      message: cancellationFee
+        ? `Booking cancelled with $${cancellationFee.toFixed(2)} cancellation fee`
+        : 'Booking cancelled successfully',
     });
   } catch (error) {
     console.error('DELETE /api/bookings/[id] error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete booking' },
+      { success: false, error: 'Failed to cancel booking' },
       { status: 500 }
     );
   }
 }
 
-// PATCH /api/bookings/[id] - Partial update (for documentation fields)
+// PATCH /api/bookings/[id] - Partial update (for specific fields)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -450,6 +785,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
 
     // Get user with companyId and role
@@ -478,23 +814,21 @@ export async function PATCH(
         );
       }
 
-      // For cleaners: use AND to properly combine conditions with OR
       whereClause = {
         AND: [
-          { id: params.id },
+          { id },
           { companyId: user.companyId },
           {
             OR: [
-              { assignedTo: teamMember.id },
-              { assignedTo: null },
+              { assignedCleanerId: teamMember.id },
+              { assignedCleanerId: null },
             ],
           },
         ],
       };
     } else {
-      // For admins/owners: standard query
       whereClause = {
-        id: params.id,
+        id,
         companyId: user.companyId,
       };
     }
@@ -511,48 +845,75 @@ export async function PATCH(
       );
     }
 
-    // Prepare update data
-    const updateData: any = {
-      ...(body.insuranceDocumentation !== undefined && { insuranceDocumentation: body.insuranceDocumentation }),
-      ...(body.cleaningObservations !== undefined && { cleaningObservations: body.cleaningObservations }),
-      ...(body.copayPaid !== undefined && { copayPaid: body.copayPaid }),
-      ...(body.copayPaymentMethod !== undefined && { copayPaymentMethod: body.copayPaymentMethod }),
-      ...(body.copayPaidAt !== undefined && { copayPaidAt: body.copayPaidAt }),
-    };
+    // Define allowed fields based on role
+    const cleanerAllowedFields = ['cleanerNotes'];
+    const adminAllowedFields = [
+      'customerNotes',
+      'internalNotes',
+      'cleanerNotes',
+      'status',
+      'isPaid',
+      'paymentMethod',
+      'tipAmount',
+    ];
 
-    // Handle status updates
-    if (body.status !== undefined) {
-      updateData.status = body.status;
+    const allowedFields =
+      user.role === 'CLEANER' ? cleanerAllowedFields : adminAllowedFields;
 
-      // If marking as completed, track who completed it and when
-      if (body.status === 'COMPLETED') {
-        updateData.completedAt = new Date();
-        updateData.completedBy = session.user.id;
+    // Filter body to only allowed fields
+    const updateData: any = {};
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
       }
     }
 
-    // Update booking with partial data
+    // Handle status changes with history
+    if (updateData.status && updateData.status !== existingBooking.status) {
+      const statusHistory = (existingBooking.statusHistory as any[]) || [];
+      statusHistory.push({
+        status: updateData.status,
+        timestamp: new Date().toISOString(),
+        userId: session.user.id,
+      });
+      updateData.statusHistory = statusHistory;
+
+      // Set completion fields if marking as completed
+      if (updateData.status === 'COMPLETED' || updateData.status === 'CLEANER_COMPLETED') {
+        updateData.completedAt = new Date();
+        updateData.completedById = session.user.id;
+      }
+    }
+
+    // Update booking
     const booking = await prisma.booking.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
-        client: true,
-        address: true,
-        assignee: {
+        client: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        address: {
+          select: {
+            street: true,
+            city: true,
+            state: true,
+            zip: true,
+          },
+        },
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
                 email: true,
               },
             },
-          },
-        },
-        completedByUser: {
-          select: {
-            name: true,
-            email: true,
-            role: true,
           },
         },
       },
@@ -561,12 +922,12 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       data: booking,
-      message: 'Documentation updated successfully',
+      message: 'Booking updated successfully',
     });
   } catch (error) {
     console.error('PATCH /api/bookings/[id] error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update documentation' },
+      { success: false, error: 'Failed to update booking' },
       { status: 500 }
     );
   }
