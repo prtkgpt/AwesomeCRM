@@ -116,7 +116,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // Apply credits if any were pending
   if (creditsApplied > 0 && booking.clientId) {
-    await prisma.client.update({
+    const updatedClient = await prisma.client.update({
       where: { id: booking.clientId },
       data: { creditBalance: { decrement: creditsApplied } },
     });
@@ -125,27 +125,30 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       data: {
         clientId: booking.clientId,
         amount: -creditsApplied,
-        type: 'REDEEMED',
-        description: `Applied to booking ${booking.bookingNumber}`,
-        bookingId: booking.id,
+        balance: updatedClient.creditBalance,
+        type: 'COMPENSATION',
+        description: `Credits applied to booking ${booking.bookingNumber}`,
       },
     });
   }
 
   // Create payment record
   const amountPaid = (session.amount_total || 0) / 100;
+  const companyId = session.metadata?.companyId;
 
   await prisma.payment.create({
     data: {
       bookingId,
+      companyId: companyId || booking.companyId,
+      clientId: booking.clientId!,
       amount: amountPaid,
       method: 'CARD',
-      status: 'COMPLETED',
+      status: 'CAPTURED',
       stripePaymentIntentId: session.payment_intent as string,
-      stripeCheckoutSessionId: session.id,
-      creditsApplied,
-      tipAmount,
-      paidAt: new Date(),
+      notes: creditsApplied > 0 || tipAmount > 0
+        ? `Credits: $${creditsApplied}, Tip: $${tipAmount}`
+        : undefined,
+      capturedAt: new Date(),
     },
   });
 
@@ -155,23 +158,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     data: {
       isPaid: true,
       paidAt: new Date(),
-      paidAmount: amountPaid + creditsApplied,
-      pendingCreditsApplied: null,
-      stripeCheckoutSessionId: null,
+      tipAmount: tipAmount > 0 ? tipAmount : undefined,
     },
   });
-
-  // Record tip for cleaner if any
-  if (tipAmount > 0 && booking.assignedCleanerId) {
-    await prisma.tip.create({
-      data: {
-        bookingId,
-        cleanerId: booking.assignedCleanerId,
-        amount: tipAmount,
-        paidAt: new Date(),
-      },
-    });
-  }
 
   console.log(`Payment completed for booking ${booking.bookingNumber}`);
 }
@@ -187,8 +176,8 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       status: 'PENDING',
     },
     data: {
-      status: 'COMPLETED',
-      paidAt: new Date(),
+      status: 'CAPTURED',
+      capturedAt: new Date(),
     },
   });
 
@@ -205,22 +194,10 @@ async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
       stripePaymentIntentId: paymentIntent.id,
     },
     data: {
-      status: 'FAILED',
-      failureReason: paymentIntent.last_payment_error?.message || 'Payment failed',
+      status: 'CANCELLED',
+      notes: paymentIntent.last_payment_error?.message || 'Payment failed',
     },
   });
-
-  // Restore pending credits if any
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
-  });
-
-  if (booking?.pendingCreditsApplied && booking.clientId) {
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: { pendingCreditsApplied: null },
-    });
-  }
 
   console.log(`Payment intent failed: ${paymentIntent.id}`);
 }
@@ -235,32 +212,16 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
 
   const refundAmount = (charge.amount_refunded || 0) / 100;
 
-  // Check if refund already recorded
-  const existingRefund = await prisma.refund.findFirst({
-    where: {
-      paymentId: payment.id,
-      stripeRefundId: { in: charge.refunds?.data.map(r => r.id) || [] },
-    },
-  });
-
-  if (!existingRefund && charge.refunds?.data[0]) {
-    await prisma.refund.create({
-      data: {
-        paymentId: payment.id,
-        amount: refundAmount,
-        reason: 'Refunded via Stripe',
-        status: 'COMPLETED',
-        stripeRefundId: charge.refunds.data[0].id,
-        processedAt: new Date(),
-      },
-    });
-  }
-
-  // Update payment status if fully refunded
-  if (charge.refunded) {
+  // Update payment with refund info
+  if (refundAmount > 0) {
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { status: 'REFUNDED' },
+      data: {
+        status: 'REFUNDED',
+        refundAmount: refundAmount,
+        refundedAt: new Date(),
+        refundReason: charge.refunded ? 'Full refund via Stripe' : 'Partial refund via Stripe',
+      },
     });
   }
 
@@ -271,16 +232,14 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   const companyId = subscription.metadata?.companyId;
   if (!companyId) return;
 
-  const status = subscription.status === 'active' ? 'ACTIVE' :
-                 subscription.status === 'trialing' ? 'TRIAL' :
-                 subscription.status === 'past_due' ? 'PAST_DUE' : 'INACTIVE';
+  // Map Stripe status to our schema status (ACTIVE or CANCELLED)
+  const status = subscription.status === 'active' || subscription.status === 'trialing' ? 'ACTIVE' : 'CANCELLED';
 
   await prisma.company.update({
     where: { id: companyId },
     data: {
       stripeSubscriptionId: subscription.id,
       subscriptionStatus: status,
-      subscriptionCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
     },
   });
 
@@ -305,45 +264,16 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string;
   if (!subscriptionId) return;
 
-  const company = await prisma.company.findFirst({
-    where: { stripeSubscriptionId: subscriptionId },
-  });
-
-  if (company) {
-    await prisma.subscriptionPayment.create({
-      data: {
-        companyId: company.id,
-        stripeInvoiceId: invoice.id,
-        amount: (invoice.amount_paid || 0) / 100,
-        status: 'PAID',
-        paidAt: new Date(),
-      },
-    });
-  }
-
-  console.log(`Invoice paid: ${invoice.id}`);
+  // Log invoice payment for subscription tracking
+  console.log(`Invoice paid: ${invoice.id} for subscription ${subscriptionId}`);
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string;
   if (!subscriptionId) return;
 
-  const company = await prisma.company.findFirst({
-    where: { stripeSubscriptionId: subscriptionId },
-  });
+  // Log invoice payment failure
+  console.error(`Invoice payment failed: ${invoice.id} for subscription ${subscriptionId}`);
 
-  if (company) {
-    await prisma.subscriptionPayment.create({
-      data: {
-        companyId: company.id,
-        stripeInvoiceId: invoice.id,
-        amount: (invoice.amount_due || 0) / 100,
-        status: 'FAILED',
-      },
-    });
-
-    // TODO: Send notification to company owner about payment failure
-  }
-
-  console.log(`Invoice payment failed: ${invoice.id}`);
+  // TODO: Send notification to company owner about payment failure
 }

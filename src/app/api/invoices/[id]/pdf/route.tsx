@@ -16,17 +16,28 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user's company ID for authorization
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Fetch the invoice with all necessary data
     const invoice = await prisma.invoice.findFirst({
       where: {
         id: params.id,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
       include: {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             phone: true,
           },
@@ -46,12 +57,11 @@ export async function GET(
             },
           },
         },
-        user: {
+        company: {
           select: {
             name: true,
             email: true,
             phone: true,
-            businessName: true,
           },
         },
       },

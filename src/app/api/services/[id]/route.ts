@@ -51,7 +51,7 @@ export async function GET(
       where: { id: params.id, companyId: user.companyId },
       include: {
         pricingRules: {
-          orderBy: { priority: 'asc' },
+          orderBy: { sortOrder: 'asc' },
         },
         _count: {
           select: { bookings: true },

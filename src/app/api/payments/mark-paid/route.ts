@@ -18,11 +18,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = markPaidSchema.parse(body);
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Verify booking ownership
     const booking = await prisma.booking.findFirst({
       where: {
         id: validatedData.bookingId,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 
@@ -39,7 +49,7 @@ export async function POST(request: NextRequest) {
       data: {
         isPaid: true,
         paymentMethod: validatedData.paymentMethod,
-        paidAt: validatedData.paidAt || new Date(),
+        paidAt: new Date(),
       },
       include: {
         client: true,

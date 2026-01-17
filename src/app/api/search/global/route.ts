@@ -35,7 +35,6 @@ export async function GET(request: NextRequest) {
           clients: [],
           bookings: [],
           invoices: [],
-          estimates: [],
           team: [],
         },
       });
@@ -45,7 +44,6 @@ export async function GET(request: NextRequest) {
       clients: [],
       bookings: [],
       invoices: [],
-      estimates: [],
       team: [],
     };
 
@@ -55,14 +53,16 @@ export async function GET(request: NextRequest) {
         where: {
           companyId: user.companyId,
           OR: [
-            { name: { contains: query, mode: 'insensitive' } },
+            { firstName: { contains: query, mode: 'insensitive' } },
+            { lastName: { contains: query, mode: 'insensitive' } },
             { email: { contains: query, mode: 'insensitive' } },
             { phone: { contains: query, mode: 'insensitive' } },
           ],
         },
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
           email: true,
           phone: true,
           addresses: {
@@ -80,19 +80,22 @@ export async function GET(request: NextRequest) {
         take: limit,
       });
 
-      results.clients = clients.map((client) => ({
-        id: client.id,
-        type: 'client',
-        title: client.name,
-        subtitle: client.email || client.phone || '',
-        description: client.addresses[0]
-          ? `${client.addresses[0].city}, ${client.addresses[0].state}`
-          : '',
-        metadata: {
-          bookingsCount: client._count.bookings,
-        },
-        url: `/clients/${client.id}`,
-      }));
+      results.clients = clients.map((client) => {
+        const clientName = `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown';
+        return {
+          id: client.id,
+          type: 'client',
+          title: clientName,
+          subtitle: client.email || client.phone || '',
+          description: client.addresses[0]
+            ? `${client.addresses[0].city}, ${client.addresses[0].state}`
+            : '',
+          metadata: {
+            bookingsCount: client._count.bookings,
+          },
+          url: `/clients/${client.id}`,
+        };
+      });
     }
 
     // Search Bookings/Jobs
@@ -111,7 +114,8 @@ export async function GET(request: NextRequest) {
       const bookingWhere: any = {
         companyId: user.companyId,
         OR: [
-          { client: { name: { contains: query, mode: 'insensitive' } } },
+          { client: { firstName: { contains: query, mode: 'insensitive' } } },
+          { client: { lastName: { contains: query, mode: 'insensitive' } } },
           { client: { email: { contains: query, mode: 'insensitive' } } },
           { address: { street: { contains: query, mode: 'insensitive' } } },
           { address: { city: { contains: query, mode: 'insensitive' } } },
@@ -122,8 +126,8 @@ export async function GET(request: NextRequest) {
       if (user.role === 'CLEANER' && cleanerTeamMemberId) {
         bookingWhere.AND = {
           OR: [
-            { assignedTo: cleanerTeamMemberId },
-            { assignedTo: null },
+            { assignedCleanerId: cleanerTeamMemberId },
+            { assignedCleanerId: null },
           ],
         };
       }
@@ -135,10 +139,11 @@ export async function GET(request: NextRequest) {
           serviceType: true,
           status: true,
           scheduledDate: true,
-          price: true,
+          finalPrice: true,
           client: {
             select: {
-              name: true,
+              firstName: true,
+              lastName: true,
             },
           },
           address: {
@@ -148,11 +153,12 @@ export async function GET(request: NextRequest) {
               state: true,
             },
           },
-          assignee: {
+          assignedCleaner: {
             select: {
               user: {
                 select: {
-                  name: true,
+                  firstName: true,
+                  lastName: true,
                 },
               },
             },
@@ -164,21 +170,29 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      results.bookings = bookings.map((booking) => ({
-        id: booking.id,
-        type: 'booking',
-        title: `${booking.serviceType} - ${booking.client.name}`,
-        subtitle: new Date(booking.scheduledDate).toLocaleDateString(),
-        description: booking.address
-          ? `${booking.address.street}, ${booking.address.city}`
-          : '',
-        metadata: {
-          status: booking.status,
-          price: booking.price,
-          assignee: booking.assignee?.user.name,
-        },
-        url: `/jobs/${booking.id}`,
-      }));
+      results.bookings = bookings.map((booking) => {
+        const clientName = booking.client
+          ? `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Unknown'
+          : 'Unknown';
+        const cleanerName = booking.assignedCleaner?.user
+          ? `${booking.assignedCleaner.user.firstName || ''} ${booking.assignedCleaner.user.lastName || ''}`.trim()
+          : undefined;
+        return {
+          id: booking.id,
+          type: 'booking',
+          title: `${booking.serviceType} - ${clientName}`,
+          subtitle: new Date(booking.scheduledDate).toLocaleDateString(),
+          description: booking.address
+            ? `${booking.address.street}, ${booking.address.city}`
+            : '',
+          metadata: {
+            status: booking.status,
+            price: booking.finalPrice,
+            assignee: cleanerName,
+          },
+          url: `/jobs/${booking.id}`,
+        };
+      });
     }
 
     // Search Invoices
@@ -188,7 +202,8 @@ export async function GET(request: NextRequest) {
           companyId: user.companyId,
           OR: [
             { invoiceNumber: { contains: query, mode: 'insensitive' } },
-            { client: { name: { contains: query, mode: 'insensitive' } } },
+            { client: { firstName: { contains: query, mode: 'insensitive' } } },
+            { client: { lastName: { contains: query, mode: 'insensitive' } } },
             { client: { email: { contains: query, mode: 'insensitive' } } },
           ],
         },
@@ -200,7 +215,8 @@ export async function GET(request: NextRequest) {
           dueDate: true,
           client: {
             select: {
-              name: true,
+              firstName: true,
+              lastName: true,
             },
           },
         },
@@ -210,70 +226,23 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      results.invoices = invoices.map((invoice) => ({
-        id: invoice.id,
-        type: 'invoice',
-        title: `Invoice ${invoice.invoiceNumber}`,
-        subtitle: invoice.client.name,
-        description: `Due: ${new Date(invoice.dueDate).toLocaleDateString()}`,
-        metadata: {
-          status: invoice.status,
-          amount: invoice.total,
-        },
-        url: `/invoices/${invoice.id}`,
-      }));
-    }
-
-    // Search Estimates
-    if (!entityType || entityType === 'estimates') {
-      const estimates = await prisma.booking.findMany({
-        where: {
-          companyId: user.companyId,
-          estimateToken: { not: null },
-          OR: [
-            { client: { name: { contains: query, mode: 'insensitive' } } },
-            { client: { email: { contains: query, mode: 'insensitive' } } },
-            { address: { street: { contains: query, mode: 'insensitive' } } },
-          ],
-        },
-        select: {
-          id: true,
-          serviceType: true,
-          estimateAccepted: true,
-          price: true,
-          createdAt: true,
-          client: {
-            select: {
-              name: true,
-            },
+      results.invoices = invoices.map((invoice) => {
+        const clientName = invoice.client
+          ? `${invoice.client.firstName || ''} ${invoice.client.lastName || ''}`.trim() || 'Unknown'
+          : 'Unknown';
+        return {
+          id: invoice.id,
+          type: 'invoice',
+          title: `Invoice ${invoice.invoiceNumber}`,
+          subtitle: clientName,
+          description: `Due: ${new Date(invoice.dueDate).toLocaleDateString()}`,
+          metadata: {
+            status: invoice.status,
+            amount: invoice.total,
           },
-          address: {
-            select: {
-              street: true,
-              city: true,
-            },
-          },
-        },
-        take: limit,
-        orderBy: {
-          createdAt: 'desc',
-        },
+          url: `/invoices/${invoice.id}`,
+        };
       });
-
-      results.estimates = estimates.map((estimate) => ({
-        id: estimate.id,
-        type: 'estimate',
-        title: `${estimate.serviceType} Estimate`,
-        subtitle: estimate.client.name,
-        description: estimate.address
-          ? `${estimate.address.street}, ${estimate.address.city}`
-          : '',
-        metadata: {
-          status: estimate.estimateAccepted ? 'ACCEPTED' : 'PENDING',
-          price: estimate.price,
-        },
-        url: `/estimates?id=${estimate.id}`,
-      }));
     }
 
     // Search Team Members (Owner/Admin only)
@@ -286,7 +255,8 @@ export async function GET(request: NextRequest) {
           companyId: user.companyId,
           user: {
             OR: [
-              { name: { contains: query, mode: 'insensitive' } },
+              { firstName: { contains: query, mode: 'insensitive' } },
+              { lastName: { contains: query, mode: 'insensitive' } },
               { email: { contains: query, mode: 'insensitive' } },
               { phone: { contains: query, mode: 'insensitive' } },
             ],
@@ -298,7 +268,8 @@ export async function GET(request: NextRequest) {
           isActive: true,
           user: {
             select: {
-              name: true,
+              firstName: true,
+              lastName: true,
               email: true,
               phone: true,
               role: true,
@@ -308,18 +279,23 @@ export async function GET(request: NextRequest) {
         take: limit,
       });
 
-      results.team = teamMembers.map((member) => ({
-        id: member.id,
-        type: 'team',
-        title: member.user.name || 'Unknown',
-        subtitle: member.user.email || member.user.phone || '',
-        description: member.specialties?.join(', ') || member.user.role,
-        metadata: {
-          role: member.user.role,
-          isActive: member.isActive,
-        },
-        url: `/team/${member.id}/edit`,
-      }));
+      results.team = teamMembers.map((member) => {
+        const memberName = member.user
+          ? `${member.user.firstName || ''} ${member.user.lastName || ''}`.trim() || 'Unknown'
+          : 'Unknown';
+        return {
+          id: member.id,
+          type: 'team',
+          title: memberName,
+          subtitle: member.user?.email || member.user?.phone || '',
+          description: member.specialties?.join(', ') || member.user?.role,
+          metadata: {
+            role: member.user?.role,
+            isActive: member.isActive,
+          },
+          url: `/team/${member.id}/edit`,
+        };
+      });
     }
 
     // Calculate total results
@@ -327,7 +303,6 @@ export async function GET(request: NextRequest) {
       results.clients.length +
       results.bookings.length +
       results.invoices.length +
-      results.estimates.length +
       results.team.length;
 
     return NextResponse.json({
@@ -339,7 +314,6 @@ export async function GET(request: NextRequest) {
         clientsCount: results.clients.length,
         bookingsCount: results.bookings.length,
         invoicesCount: results.invoices.length,
-        estimatesCount: results.estimates.length,
         teamCount: results.team.length,
       },
     });

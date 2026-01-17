@@ -59,7 +59,7 @@ export async function POST(
         scheduledDate: {
           gte: now,
         },
-        status: 'SCHEDULED', // Only pause scheduled bookings
+        status: 'CONFIRMED', // Only pause confirmed bookings
       },
     });
 

@@ -35,9 +35,8 @@ export async function POST(request: NextRequest) {
           gte: twentyFourHoursFromNow,
           lte: twentyFiveHoursFromNow,
         },
-        status: 'SCHEDULED',
+        status: 'CONFIRMED',
         isPaid: false,
-        paymentPreAuthAt: null, // Not yet pre-authorized
       },
       include: {
         client: true,
@@ -49,8 +48,10 @@ export async function POST(request: NextRequest) {
 
     for (const booking of upcomingBookings) {
       try {
+        const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
+
         // Skip if client doesn't have auto-charge enabled
-        if (!booking.client.autoChargeEnabled || !booking.client.stripePaymentMethodId) {
+        if (!booking.client.autoChargeEnabled || !booking.client.defaultPaymentMethodId) {
           results.push({
             bookingId: booking.id,
             status: 'skipped',
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
           amount: 100, // $1.00 in cents
           currency: 'usd',
           customer: booking.client.stripeCustomerId,
-          payment_method: booking.client.stripePaymentMethodId,
+          payment_method: booking.client.defaultPaymentMethodId,
           off_session: true,
           capture_method: 'manual', // Don't actually charge, just authorize
           confirm: true,
@@ -90,23 +91,14 @@ export async function POST(request: NextRequest) {
         if (paymentIntent.status === 'requires_capture') {
           await stripe.paymentIntents.cancel(paymentIntent.id);
 
-          // Update booking with pre-auth info
-          await prisma.booking.update({
-            where: { id: booking.id },
-            data: {
-              paymentPreAuthAt: new Date(),
-              paymentPreAuthAmount: booking.price,
-            },
-          });
-
           results.push({
             bookingId: booking.id,
             status: 'success',
-            client: booking.client.name,
-            amount: booking.price,
+            client: clientName,
+            amount: booking.finalPrice,
           });
 
-          console.log(`✅ Pre-authorized card for ${booking.client.name} - Booking ${booking.id}`);
+          console.log(`✅ Pre-authorized card for ${clientName} - Booking ${booking.id}`);
         } else {
           results.push({
             bookingId: booking.id,

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         birthday: {
           not: null,
         },
-        enableBirthdayGreetings: true,
+        enableBirthdayGreeting: true,
         OR: [
           { lastBirthdayGreetingSent: null },
           { lastBirthdayGreetingSent: { lt: yearStart } },
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         anniversary: {
           not: null,
         },
-        enableAnniversaryGreetings: true,
+        enableAnniversaryGreeting: true,
         OR: [
           { lastAnniversaryGreetingSent: null },
           { lastAnniversaryGreetingSent: { lt: yearStart } },

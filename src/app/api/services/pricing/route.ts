@@ -11,34 +11,22 @@ import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
 const createPricingRuleSchema = z.object({
-  serviceId: z.string().cuid().optional(), // If null, applies to all services
+  serviceId: z.string().cuid().optional(),
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
-  type: z.enum([
-    'SQUARE_FOOTAGE',
-    'ROOM_COUNT',
-    'BATHROOM_COUNT',
-    'FREQUENCY',
-    'TIME_OF_DAY',
-    'DAY_OF_WEEK',
-    'SEASONAL',
-    'PROPERTY_TYPE',
-    'ADD_ON',
-    'DISCOUNT',
-    'MINIMUM',
-    'EXTRA_DIRTY',
-    'PETS',
-  ]),
-  condition: z.record(z.any()).optional(), // Flexible conditions
-  adjustment: z.object({
-    type: z.enum(['FIXED', 'PERCENTAGE', 'PER_UNIT', 'MULTIPLIER']),
-    value: z.number(),
-    unit: z.string().optional(), // e.g., "sqft", "room", "bathroom"
-  }),
-  priority: z.number().int().default(100),
+  type: z.string(), // BEDROOM, BATHROOM, SQFT, ADDON, FREQUENCY, TIME_OF_DAY, CUSTOM
+  price: z.number(),
+  duration: z.number().int().default(0),
+  priceType: z.enum(['FLAT', 'PERCENT', 'PER_UNIT']).default('FLAT'),
+  quantity: z.number().optional(),
+  minValue: z.number().optional(),
+  maxValue: z.number().optional(),
+  frequency: z.string().optional(),
+  dayOfWeek: z.string().optional(),
+  timeSlot: z.string().optional(),
   isActive: z.boolean().default(true),
-  validFrom: z.string().datetime().optional(),
-  validTo: z.string().datetime().optional(),
+  isPublic: z.boolean().default(true),
+  sortOrder: z.number().int().default(0),
 });
 
 // GET /api/services/pricing - List pricing rules
@@ -72,11 +60,11 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         service: {
-          select: { id: true, name: true, category: true },
+          select: { id: true, name: true },
         },
       },
       orderBy: [
-        { priority: 'asc' },
+        { sortOrder: 'asc' },
         { createdAt: 'desc' },
       ],
     });
@@ -121,7 +109,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { serviceId, validFrom, validTo, ...ruleData } = validation.data;
+    const { serviceId, ...ruleData } = validation.data;
 
     // Verify service belongs to company if specified
     if (serviceId) {
@@ -138,8 +126,6 @@ export async function POST(request: NextRequest) {
         ...ruleData,
         companyId: user.companyId,
         serviceId: serviceId || null,
-        validFrom: validFrom ? new Date(validFrom) : null,
-        validTo: validTo ? new Date(validTo) : null,
       },
       include: {
         service: {

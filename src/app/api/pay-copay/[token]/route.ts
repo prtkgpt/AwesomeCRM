@@ -22,11 +22,12 @@ export async function GET(
             cashappUsername: true,
           },
         },
-        assignee: {
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },
@@ -49,8 +50,8 @@ export async function GET(
       );
     }
 
-    // Check if copay already paid
-    if (booking.copayPaid) {
+    // Check if already paid
+    if (booking.isPaid) {
       return NextResponse.json(
         { success: false, error: 'Copay already paid', alreadyPaid: true },
         { status: 400 }
@@ -97,8 +98,8 @@ export async function POST(
       );
     }
 
-    // Check if copay already paid
-    if (booking.copayPaid) {
+    // Check if already paid
+    if (booking.isPaid) {
       return NextResponse.json(
         { success: false, error: 'Copay already paid' },
         { status: 400 }
@@ -115,14 +116,14 @@ export async function POST(
 
     // Update booking with payment information
     const updateData: any = {
-      copayPaid: true,
-      copayPaidAt: new Date(),
-      copayPaymentMethod: paymentMethod,
+      isPaid: true,
+      paidAt: new Date(),
+      paymentMethod: paymentMethod === 'STRIPE' ? 'CARD' : paymentMethod,
     };
 
     // If Stripe payment, store the payment intent ID
     if (paymentMethod === 'STRIPE' && stripePaymentIntentId) {
-      updateData.copayStripePaymentIntentId = stripePaymentIntentId;
+      updateData.stripePaymentIntentId = stripePaymentIntentId;
     }
 
     const updatedBooking = await prisma.booking.update({

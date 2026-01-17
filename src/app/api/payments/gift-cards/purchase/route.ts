@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Find company by slug
     const company = await prisma.company.findFirst({
-      where: { slug: companySlug, isActive: true },
+      where: { slug: companySlug },
     });
 
     if (!company) {
@@ -102,18 +102,16 @@ export async function POST(request: NextRequest) {
       data: {
         companyId: company.id,
         code,
-        originalAmount: amount,
+        initialAmount: amount,
         currentBalance: amount,
         recipientEmail,
         recipientName,
-        senderName,
-        senderEmail,
-        message,
-        deliveryDate: deliveryDate ? parseISO(deliveryDate) : null,
+        purchaserName: senderName,
+        purchaserEmail: senderEmail,
+        personalMessage: message,
         expiresAt: addMonths(new Date(), 12),
         isActive: false, // Will be activated after payment
-        isPending: true,
-        stripeCheckoutSessionId: checkoutSession.id,
+        stripePaymentId: checkoutSession.id,
       },
     });
 

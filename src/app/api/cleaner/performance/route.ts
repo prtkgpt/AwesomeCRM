@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     // Get all completed jobs (both CLEANER_COMPLETED and COMPLETED)
     const allCompletedJobs = await prisma.booking.findMany({
       where: {
-        assignedTo: teamMember.id,
+        assignedCleanerId: teamMember.id,
         status: {
           in: ['COMPLETED', 'CLEANER_COMPLETED'],
         },
@@ -59,7 +59,8 @@ export async function GET(req: NextRequest) {
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         address: {
@@ -123,7 +124,7 @@ export async function GET(req: NextRequest) {
       .map((job) => ({
         id: job.id,
         date: job.scheduledDate,
-        client: job.client.name,
+        client: `${job.client.firstName || ''} ${job.client.lastName || ''}`.trim(),
         city: job.address.city,
         rating: job.customerRating,
         tip: job.tipAmount || 0,
@@ -175,11 +176,9 @@ export async function GET(req: NextRequest) {
     }
 
     // Get cleaner reviews (if any)
-    const cleanerReviews = await prisma.cleaningReview.findMany({
+    const cleanerReviews = await prisma.review.findMany({
       where: {
-        booking: {
-          assignedTo: teamMember.id,
-        },
+        cleanerId: teamMember.id,
       },
       orderBy: {
         createdAt: 'desc',
@@ -225,10 +224,10 @@ export async function GET(req: NextRequest) {
           id: review.id,
           date: review.createdAt,
           overallRating: review.overallRating,
-          houseConditionRating: review.houseConditionRating,
-          customerRating: review.customerRating,
-          tipRating: review.tipRating,
-          notes: review.notes,
+          qualityRating: review.qualityRating,
+          punctualityRating: review.punctualityRating,
+          communicationRating: review.communicationRating,
+          comment: review.comment,
         })),
       },
     });

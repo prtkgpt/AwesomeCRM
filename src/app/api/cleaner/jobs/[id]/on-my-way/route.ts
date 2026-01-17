@@ -21,7 +21,7 @@ export async function POST(
     // Get user with role check
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, role: true, companyId: true, name: true },
+      select: { id: true, role: true, companyId: true, firstName: true, lastName: true },
     });
 
     if (!user) {
@@ -46,13 +46,14 @@ export async function POST(
     const booking = await prisma.booking.findFirst({
       where: {
         id: params.id,
-        assignedTo: teamMember.id,
+        assignedCleanerId: teamMember.id,
         companyId: user.companyId,
       },
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             phone: true,
           },
         },
@@ -82,7 +83,7 @@ export async function POST(
     }
 
     // Check if already marked "On My Way"
-    if (booking.onMyWaySentAt) {
+    if (booking.onMyWayAt) {
       return NextResponse.json(
         { error: 'Already marked as "On My Way" for this job' },
         { status: 400 }
@@ -93,11 +94,15 @@ export async function POST(
     const updatedBooking = await prisma.booking.update({
       where: { id: params.id },
       data: {
-        onMyWaySentAt: new Date(),
+        onMyWayAt: new Date(),
       },
     });
 
-    console.log(`✅ Cleaner ${user.name} is on the way to job ${params.id} for ${booking.client.name}`);
+    const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Your cleaner';
+    const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim();
+    const clientFirstName = booking.client.firstName || 'there';
+
+    console.log(`✅ Cleaner ${userName} is on the way to job ${params.id} for ${clientName}`);
 
     // Send SMS to client if they have a phone number
     let smsSent = false;
@@ -105,11 +110,11 @@ export async function POST(
 
     if (booking.client.phone && booking.company.twilioAccountSid && booking.company.twilioAuthToken && booking.company.twilioPhoneNumber) {
       try {
-        const client = twilio(booking.company.twilioAccountSid, booking.company.twilioAuthToken);
+        const twilioClient = twilio(booking.company.twilioAccountSid, booking.company.twilioAuthToken);
 
-        const message = `Hi ${booking.client.name.split(' ')[0]}! ${user.name} from ${booking.company.name} is on the way to ${booking.address.street}, ${booking.address.city}. We'll be there soon!`;
+        const message = `Hi ${clientFirstName}! ${userName} from ${booking.company.name} is on the way to ${booking.address.street}, ${booking.address.city}. We'll be there soon!`;
 
-        const sms = await client.messages.create({
+        const sms = await twilioClient.messages.create({
           body: message,
           from: booking.company.twilioPhoneNumber,
           to: booking.client.phone,
@@ -121,12 +126,13 @@ export async function POST(
             companyId: user.companyId!,
             userId: user.id,
             bookingId: booking.id,
+            channel: 'SMS',
             to: booking.client.phone,
             from: booking.company.twilioPhoneNumber,
             body: message,
             type: 'ON_MY_WAY',
             status: sms.status === 'queued' || sms.status === 'sent' ? 'SENT' : 'PENDING',
-            twilioSid: sms.sid,
+            providerId: sms.sid,
           },
         });
 
@@ -147,7 +153,7 @@ export async function POST(
       smsSent,
       smsError,
       message: smsSent
-        ? `Marked as "On My Way" and sent SMS to ${booking.client.name}`
+        ? `Marked as "On My Way" and sent SMS to ${clientName}`
         : `Marked as "On My Way" (SMS not sent: ${smsError || 'missing phone or Twilio config'})`,
     });
   } catch (error) {

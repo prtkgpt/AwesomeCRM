@@ -151,7 +151,6 @@ export async function POST(
         periodStart: validatedData.periodStart,
         periodEnd: validatedData.periodEnd,
         receiptUrl: validatedData.receiptUrl,
-        createdBy: session.user.id,
       },
     });
 

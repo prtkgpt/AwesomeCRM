@@ -20,7 +20,7 @@ export async function POST(
     // Get user with role check
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, role: true, companyId: true, name: true },
+      select: { id: true, role: true, companyId: true, firstName: true, lastName: true },
     });
 
     if (!user) {
@@ -45,13 +45,14 @@ export async function POST(
     const booking = await prisma.booking.findFirst({
       where: {
         id: params.id,
-        assignedTo: teamMember.id,
+        assignedCleanerId: teamMember.id,
         companyId: user.companyId,
       },
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         address: {
@@ -105,7 +106,8 @@ export async function POST(
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         address: {
@@ -117,7 +119,9 @@ export async function POST(
       },
     });
 
-    console.log(`✅ Cleaner ${user.name} clocked out from job ${params.id} for ${booking.client.name} (Duration: ${durationMinutes} minutes)`);
+    const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim();
+    console.log(`✅ Cleaner ${userName} clocked out from job ${params.id} for ${clientName} (Duration: ${durationMinutes} minutes)`);
 
     return NextResponse.json({
       success: true,

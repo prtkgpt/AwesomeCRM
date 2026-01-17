@@ -53,7 +53,6 @@ export async function POST(
         where: { id: booking.id },
         data: {
           tipAmount: amount,
-          tipPaidVia: 'STRIPE',
         },
       });
 
@@ -62,13 +61,14 @@ export async function POST(
         message: 'Tip recorded successfully',
       });
     } else if (paymentType === 'COPAY') {
+      // Record copay as paid via the main payment fields
       await prisma.booking.update({
         where: { id: booking.id },
         data: {
-          copayPaid: true,
-          copayPaidAt: new Date(),
-          copayPaymentMethod: 'STRIPE',
-          copayStripePaymentIntentId: paymentIntentId,
+          isPaid: true,
+          paidAt: new Date(),
+          paymentMethod: 'CARD',
+          stripePaymentIntentId: paymentIntentId,
         },
       });
 

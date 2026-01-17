@@ -14,17 +14,17 @@ const createPromotionSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   code: z.string().min(3).max(20).regex(/^[A-Z0-9-]+$/).optional(), // Auto-generate if not provided
-  type: z.enum(['PERCENTAGE', 'FIXED_AMOUNT', 'FREE_SERVICE', 'BUY_ONE_GET_ONE']),
-  value: z.number().positive(),
-  minOrderValue: z.number().min(0).default(0),
+  discountType: z.enum(['PERCENT', 'FIXED', 'FREE_ADDON']),
+  discountValue: z.number().positive(),
+  minOrderAmount: z.number().min(0).optional(),
   maxDiscount: z.number().positive().optional(),
-  usageLimit: z.number().int().positive().optional(), // Total uses
-  usageLimitPerUser: z.number().int().positive().default(1),
-  validFrom: z.string().datetime(),
-  validTo: z.string().datetime(),
-  applicableServices: z.array(z.string().cuid()).optional(), // Empty = all services
-  applicableClientTiers: z.array(z.enum(['BASIC', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'])).optional(),
-  isFirstTimeOnly: z.boolean().default(false),
+  maxUsageCount: z.number().int().positive().optional(), // Total uses
+  maxUsagePerUser: z.number().int().positive().optional(),
+  startsAt: z.string().datetime(),
+  expiresAt: z.string().datetime().optional(),
+  serviceTypes: z.array(z.string()).optional(),
+  newCustomersOnly: z.boolean().default(false),
+  firstBookingOnly: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });
 
@@ -56,61 +56,52 @@ export async function GET(request: NextRequest) {
 
     if (status === 'active') {
       where.isActive = true;
-      where.validFrom = { lte: now };
-      where.validTo = { gte: now };
+      where.startsAt = { lte: now };
+      where.OR = [
+        { expiresAt: null },
+        { expiresAt: { gte: now } },
+      ];
     } else if (status === 'expired') {
-      where.validTo = { lt: now };
+      where.expiresAt = { lt: now };
     } else if (status === 'upcoming') {
-      where.validFrom = { gt: now };
+      where.startsAt = { gt: now };
     }
 
-    if (type) where.type = type;
+    if (type) where.discountType = type;
 
-    const [promotions, total] = await Promise.all([
+    const [promotions, total, totalActive] = await Promise.all([
       prisma.promotion.findMany({
         where,
-        include: {
-          _count: {
-            select: { usages: true },
-          },
-        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       prisma.promotion.count({ where }),
-    ]);
-
-    // Calculate stats
-    const stats = {
-      totalActive: await prisma.promotion.count({
+      prisma.promotion.count({
         where: {
           companyId: user.companyId,
           isActive: true,
-          validFrom: { lte: now },
-          validTo: { gte: now },
+          startsAt: { lte: now },
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gte: now } },
+          ],
         },
       }),
-      totalUsages: await prisma.promotionUsage.count({
-        where: { promotion: { companyId: user.companyId } },
-      }),
-      totalSavings: await prisma.promotionUsage.aggregate({
-        where: { promotion: { companyId: user.companyId } },
-        _sum: { discountAmount: true },
-      }),
-    };
+    ]);
 
     return NextResponse.json({
       success: true,
       data: promotions.map(p => ({
         ...p,
-        usageCount: p._count.usages,
-        isExpired: p.validTo < now,
-        isUpcoming: p.validFrom > now,
+        usageCount: p.currentUsage,
+        isExpired: p.expiresAt ? p.expiresAt < now : false,
+        isUpcoming: p.startsAt > now,
       })),
       stats: {
-        ...stats,
-        totalSavings: stats.totalSavings._sum.discountAmount || 0,
+        totalActive,
+        totalUsages: 0,
+        totalSavings: 0,
       },
       pagination: {
         page,
@@ -155,7 +146,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { validFrom, validTo, ...promotionData } = validation.data;
+    const { startsAt, expiresAt, ...promotionData } = validation.data;
 
     // Generate code if not provided
     const code = promotionData.code || `PROMO-${generateToken(6).toUpperCase()}`;
@@ -176,9 +167,8 @@ export async function POST(request: NextRequest) {
         ...promotionData,
         code,
         companyId: user.companyId,
-        validFrom: new Date(validFrom),
-        validTo: new Date(validTo),
-        createdById: session.user.id,
+        startsAt: new Date(startsAt),
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
       },
     });
 

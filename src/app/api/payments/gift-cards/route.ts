@@ -56,12 +56,9 @@ export async function GET(request: NextRequest) {
     if (status === 'active') {
       where.isActive = true;
       where.expiresAt = { gt: new Date() };
-      where.OR = [
-        { currentBalance: { gt: 0 } },
-        { isRedeemed: false },
-      ];
+      where.currentBalance = { gt: 0 };
     } else if (status === 'redeemed') {
-      where.isRedeemed = true;
+      where.currentBalance = 0;
     } else if (status === 'expired') {
       where.expiresAt = { lt: new Date() };
     }
@@ -70,11 +67,9 @@ export async function GET(request: NextRequest) {
       prisma.giftCard.findMany({
         where,
         include: {
-          purchasedBy: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-          redeemedBy: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+          transactions: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -87,7 +82,7 @@ export async function GET(request: NextRequest) {
     // Calculate stats
     const stats = await prisma.giftCard.aggregate({
       where: { companyId: user.companyId },
-      _sum: { originalAmount: true, currentBalance: true },
+      _sum: { initialAmount: true, currentBalance: true },
       _count: { id: true },
     });
 
@@ -105,7 +100,7 @@ export async function GET(request: NextRequest) {
       data: giftCards,
       stats: {
         totalSold: stats._count.id,
-        totalValue: stats._sum.originalAmount || 0,
+        totalValue: stats._sum.initialAmount || 0,
         outstandingBalance: stats._sum.currentBalance || 0,
         activeCards,
       },
@@ -161,13 +156,12 @@ export async function POST(request: NextRequest) {
       data: {
         companyId: user.companyId,
         code,
-        originalAmount: amount,
+        initialAmount: amount,
         currentBalance: amount,
         recipientEmail,
         recipientName,
-        message,
+        personalMessage: message,
         expiresAt: addMonths(new Date(), expiresInMonths),
-        createdById: session.user.id,
         isActive: true,
       },
     });

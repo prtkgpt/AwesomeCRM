@@ -29,21 +29,23 @@ export async function GET(request: NextRequest) {
           gte: twentyFiveHoursAgo,
           lte: twentyFourHoursAgo,
         },
-        feedbackLinkSentAt: null, // Haven't sent feedback request yet
+        feedbackSentAt: null, // Haven't sent feedback request yet
       },
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             phone: true,
           },
         },
-        assignee: {
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },
@@ -79,8 +81,10 @@ export async function GET(request: NextRequest) {
         }
 
         const feedbackUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/feedback/${feedbackToken}`;
-        const clientName = booking.client.name;
-        const cleanerName = booking.assignee?.user.name || 'your cleaner';
+        const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
+        const cleanerFirstName = booking.assignedCleaner?.user.firstName || '';
+        const cleanerLastName = booking.assignedCleaner?.user.lastName || '';
+        const cleanerName = `${cleanerFirstName} ${cleanerLastName}`.trim() || 'your cleaner';
         const companyName = booking.company.name;
 
         const sentVia: string[] = [];
@@ -144,7 +148,7 @@ export async function GET(request: NextRequest) {
       <ul style="margin: 10px 0; padding-left: 20px; color: #1e40af; font-size: 14px;">
         <li>Rate your cleaning experience (1-5 stars)</li>
         <li>Leave feedback about ${cleanerName}</li>
-        ${booking.hasInsuranceCoverage && booking.copayAmount > 0 ? '<li>Pay your insurance copay</li>' : ''}
+        ${booking.hasInsurance && booking.copayAmount > 0 ? '<li>Pay your insurance copay</li>' : ''}
         ${!booking.isPaid ? '<li>Complete your payment</li>' : ''}
         <li>Leave a tip for ${cleanerName} (optional)</li>
         <li>Share a Google review if you loved the service ⭐</li>
@@ -189,14 +193,14 @@ export async function GET(request: NextRequest) {
           await prisma.booking.update({
             where: { id: booking.id },
             data: {
-              feedbackLinkSentAt: new Date(),
+              feedbackSentAt: new Date(),
             },
           });
 
           sent++;
           results.push({
             bookingId: booking.id,
-            clientName: booking.client.name,
+            clientName,
             sentVia,
             success: true,
           });
@@ -204,7 +208,7 @@ export async function GET(request: NextRequest) {
           failed++;
           results.push({
             bookingId: booking.id,
-            clientName: booking.client.name,
+            clientName,
             errors: errors.length > 0 ? errors : ['No contact method available'],
             success: false,
           });

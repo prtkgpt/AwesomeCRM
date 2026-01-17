@@ -24,17 +24,24 @@ export async function GET(request: NextRequest) {
     // Find bookings scheduled 23-24 hours from now that haven't had reminders sent
     const bookingsToRemind = await prisma.booking.findMany({
       where: {
-        status: 'SCHEDULED',
-        reminderSent: false,
+        status: 'CONFIRMED',
+        reminderSentAt: null,
         scheduledDate: {
           gte: twentyThreeHoursFromNow,
           lte: twentyFourHoursFromNow,
         },
       },
       include: {
-        client: true,
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
         address: true,
-        user: {
+        company: {
           include: {
             messageTemplates: {
               where: {
@@ -44,6 +51,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        createdBy: true,
       },
     });
 
@@ -52,11 +60,11 @@ export async function GET(request: NextRequest) {
 
     for (const booking of bookingsToRemind) {
       try {
-        // Get reminder template
-        const template = booking.user.messageTemplates[0];
+        // Get reminder template from company
+        const template = booking.company.messageTemplates[0];
 
         if (!template) {
-          console.log(`No reminder template for user ${booking.userId}`);
+          console.log(`No reminder template for company ${booking.companyId}`);
           failed++;
           continue;
         }
@@ -68,14 +76,18 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        // Compute client name
+        const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
+        const creatorName = `${booking.createdBy.firstName || ''} ${booking.createdBy.lastName || ''}`.trim();
+
         // Fill template variables
-        const message = fillTemplate(template.template, {
-          clientName: booking.client.name,
+        const message = fillTemplate(template.body, {
+          clientName,
           date: formatDate(booking.scheduledDate, 'EEEE, MMM d'),
           time: formatTime(booking.scheduledDate),
-          price: formatCurrency(booking.price),
-          address: `${booking.address.street}, ${booking.address.city}`,
-          businessName: booking.user.businessName || booking.user.name || 'CleanerCRM',
+          price: formatCurrency(booking.finalPrice),
+          address: `${booking.address?.street || ''}, ${booking.address?.city || ''}`,
+          businessName: booking.company?.name || creatorName || 'CleanerCRM',
         });
 
         // Send SMS
@@ -87,21 +99,22 @@ export async function GET(request: NextRequest) {
           await prisma.message.create({
             data: {
               companyId: booking.companyId,
-              userId: booking.userId,
+              userId: booking.createdById,
               bookingId: booking.id,
               to: normalizedPhone,
               from: twilioPhoneNumber!,
               body: message,
+              channel: 'SMS',
               type: 'REMINDER',
               status: 'SENT',
-              twilioSid: result.sid,
+              providerId: result.sid,
             },
           });
 
           // Mark reminder as sent
           await prisma.booking.update({
             where: { id: booking.id },
-            data: { reminderSent: true },
+            data: { reminderSentAt: new Date() },
           });
 
           sent++;
@@ -110,11 +123,12 @@ export async function GET(request: NextRequest) {
           await prisma.message.create({
             data: {
               companyId: booking.companyId,
-              userId: booking.userId,
+              userId: booking.createdById,
               bookingId: booking.id,
               to: normalizedPhone,
               from: twilioPhoneNumber!,
               body: message,
+              channel: 'SMS',
               type: 'REMINDER',
               status: 'FAILED',
               errorMessage: result.error,

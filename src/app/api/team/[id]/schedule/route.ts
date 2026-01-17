@@ -279,9 +279,10 @@ export async function PUT(
     };
 
     // Validate time ranges
+    type DaySchedule = { enabled: boolean; start: string; end: string; breakStart?: string; breakEnd?: string };
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
     for (const day of days) {
-      const daySchedule = newSchedule.recurring[day];
+      const daySchedule = newSchedule.recurring[day] as DaySchedule | undefined;
       if (daySchedule && daySchedule.enabled) {
         const startTime = parseInt(daySchedule.start.replace(':', ''));
         const endTime = parseInt(daySchedule.end.replace(':', ''));

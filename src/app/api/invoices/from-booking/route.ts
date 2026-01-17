@@ -73,12 +73,12 @@ export async function POST(request: Request) {
       {
         description: `${serviceTypeLabels[booking.serviceType] || booking.serviceType} - ${booking.address.street}, ${booking.address.city}`,
         quantity: 1,
-        rate: booking.price,
-        amount: booking.price,
+        rate: booking.finalPrice,
+        amount: booking.finalPrice,
       },
     ];
 
-    const subtotal = booking.price;
+    const subtotal = booking.finalPrice;
     const taxAmount = tax;
     const total = subtotal + taxAmount;
 
@@ -95,15 +95,15 @@ export async function POST(request: Request) {
     const invoice = await prisma.invoice.create({
       data: {
         companyId: user.companyId,
-        userId: session.user.id,
         clientId: booking.clientId,
         bookingId: booking.id,
         invoiceNumber,
         dueDate,
         lineItems,
         subtotal,
-        tax: taxAmount,
+        taxAmount,
         total,
+        amountDue: total,
         notes: notes || `Service completed on ${new Date(booking.scheduledDate).toLocaleDateString()}`,
         terms: terms || 'Payment due within 30 days',
         status: 'DRAFT',
@@ -112,7 +112,8 @@ export async function POST(request: Request) {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },

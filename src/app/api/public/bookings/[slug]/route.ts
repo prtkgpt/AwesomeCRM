@@ -69,7 +69,6 @@ export async function POST(
       select: {
         id: true,
         name: true,
-        enabledFeatures: true,
         users: {
           where: { role: 'OWNER' },
           take: 1,
@@ -114,17 +113,19 @@ export async function POST(
       });
 
       if (!client) {
+        // Parse the name into first and last name
+        const nameParts = validatedData.name.trim().split(/\s+/);
+        const firstName = nameParts[0] || 'Customer';
+        const lastName = nameParts.slice(1).join(' ') || undefined;
+
         // Create new client (assigned to company owner)
         client = await tx.client.create({
           data: {
             companyId: company.id,
-            userId: defaultUserId,
-            name: validatedData.name,
+            firstName,
+            lastName,
             email: validatedData.email || undefined,
             phone: validatedData.phone,
-            hasInsurance: validatedData.hasInsurance || false,
-            insuranceProvider: validatedData.insuranceProvider || undefined,
-            helperBeesReferralId: validatedData.helperBeesReferralId || undefined,
             addresses: {
               create: {
                 street: validatedData.street,
@@ -209,18 +210,26 @@ export async function POST(
       // Map the service type to database enum value
       const dbServiceType = serviceTypeMap[validatedData.serviceType] || 'STANDARD';
 
+      // Generate booking number
+      const bookingCount = await tx.booking.count({ where: { companyId: company.id } });
+      const bookingNumber = `BK${String(bookingCount + 1).padStart(5, '0')}`;
+
       const booking = await tx.booking.create({
         data: {
           companyId: company.id,
-          userId: defaultUserId,
+          createdById: defaultUserId,
           clientId: client.id,
           addressId: address.id,
+          bookingNumber,
           scheduledDate,
           duration: 180, // Default 3 hours - admin will adjust based on service type and extras
           serviceType: dbServiceType,
-          price: 0, // Price will be calculated later by admin
-          status: 'SCHEDULED',
-          notes: fullNotes || undefined,
+          basePrice: 0, // Price will be calculated later by admin
+          subtotal: 0,
+          finalPrice: 0,
+          status: 'CONFIRMED',
+          // Store notes in addons JSON field since notes doesn't exist
+          addons: fullNotes ? { customerNotes: fullNotes } : undefined,
         },
         include: {
           client: true,

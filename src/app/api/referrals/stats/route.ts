@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { calculateReferralTier, getTierInfo, TIER_CONFIG, getExpiringCredits, CREDIT_EXPIRATION_DAYS } from '@/lib/referral';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -46,8 +45,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Find the client associated with this user
-    // For CUSTOMER role, use customerClient relation
-    // For others (ADMIN/OWNER), they might want to see a specific client
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get('clientId');
 
@@ -60,7 +57,8 @@ export async function GET(request: NextRequest) {
           referrals: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
               email: true,
               createdAt: true,
             },
@@ -69,14 +67,15 @@ export async function GET(request: NextRequest) {
         },
       });
     } else {
-      // Customer can only view their own stats
+      // For non-admin users, find client by email
       client = await prisma.client.findFirst({
-        where: { customerUserId: session.user.id, companyId: user.companyId },
+        where: { email: session.user.email, companyId: user.companyId },
         include: {
           referrals: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
               email: true,
               createdAt: true,
             },
@@ -95,46 +94,26 @@ export async function GET(request: NextRequest) {
 
     // Calculate tier info
     const currentTier = client.referralTier;
-    const tierInfo = getTierInfo(currentTier);
     const referralCount = client.referrals.length;
 
-    // Calculate progress to next tier
-    let nextTier = null;
-    let referralsToNextTier = 0;
-    if (currentTier === 'NONE' || currentTier === 'BRONZE') {
-      nextTier = currentTier === 'NONE' ? 'BRONZE' : 'SILVER';
-      const nextTierConfig = nextTier === 'BRONZE' ? TIER_CONFIG.BRONZE : TIER_CONFIG.SILVER;
-      referralsToNextTier = nextTierConfig.minReferrals - referralCount;
-    } else if (currentTier === 'SILVER') {
-      nextTier = 'GOLD';
-      referralsToNextTier = TIER_CONFIG.GOLD.minReferrals - referralCount;
-    }
-
-    // Get credits expiring soon (within 30 days)
-    const expiringCredits = await getExpiringCredits(client.id, 30);
-    const expiringAmount = expiringCredits.reduce((sum, credit) => sum + credit.amount, 0);
+    // Format referrals with computed names
+    const formattedReferrals = client.referrals.map(r => ({
+      id: r.id,
+      name: `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Unknown',
+      email: r.email,
+      createdAt: r.createdAt,
+    }));
 
     return NextResponse.json({
       success: true,
       data: {
         referralCode: client.referralCode,
-        referralCount: client.referrals.length,
-        referrals: client.referrals,
-        creditsEarned: client.referralCreditsEarned,
-        creditsUsed: client.referralCreditsUsed,
-        creditsBalance: client.referralCreditsBalance,
+        referralCount,
+        referrals: formattedReferrals,
+        creditsBalance: client.creditBalance || 0,
         referrerReward: company.referralReferrerReward || 0,
         refereeReward: company.referralRefereeReward || 0,
-        // Tier info
         currentTier: currentTier,
-        tierInfo: tierInfo,
-        tierBonusEarned: client.referralTierBonusEarned,
-        nextTier: nextTier,
-        referralsToNextTier: Math.max(0, referralsToNextTier),
-        // Expiration info
-        creditExpirationDays: CREDIT_EXPIRATION_DAYS,
-        expiringCredits: expiringCredits,
-        expiringAmount: expiringAmount,
       },
     });
   } catch (error) {

@@ -20,8 +20,7 @@ export async function GET(
         slug: true,
         email: true,
         phone: true,
-        businessType: true,
-        enabledFeatures: true,
+        businessTypes: true,
       },
     });
 

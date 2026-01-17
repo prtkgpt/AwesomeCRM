@@ -354,7 +354,7 @@ export async function PUT(
       updatedItems = items;
     } else if (itemId && updates) {
       // Single item update
-      const currentItems = booking.checklist.items as ChecklistData;
+      const currentItems = booking.checklist.items as unknown as ChecklistData;
 
       if (currentItems.areas && Array.isArray(currentItems.areas)) {
         for (const area of currentItems.areas) {
@@ -400,7 +400,7 @@ export async function PUT(
       }
     } else if (areaName && updates) {
       // Batch update for an area
-      const currentItems = booking.checklist.items as ChecklistData;
+      const currentItems = booking.checklist.items as unknown as ChecklistData;
 
       if (currentItems.areas && Array.isArray(currentItems.areas)) {
         const area = currentItems.areas.find((a: ChecklistArea) => a.name === areaName);

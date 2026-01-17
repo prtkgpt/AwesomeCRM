@@ -34,15 +34,17 @@ export async function POST(
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             stripeCustomerId: true,
           },
         },
-        assignee: {
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
                 email: true,
               },
             },
@@ -63,7 +65,7 @@ export async function POST(
       );
     }
 
-    if (!booking.assignee) {
+    if (!booking.assignedCleaner) {
       return NextResponse.json(
         { success: false, error: 'No cleaner assigned to this booking' },
         { status: 400 }
@@ -73,20 +75,23 @@ export async function POST(
     // Create Stripe payment intent
     // Amount in cents (Stripe requires smallest currency unit)
     const amountInCents = Math.round(tipAmount * 100);
+    const cleanerUser = booking.assignedCleaner.user;
+    const cleanerName = `${cleanerUser.firstName || ''} ${cleanerUser.lastName || ''}`.trim() || 'Cleaner';
+    const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'usd',
       metadata: {
         bookingId: booking.id,
-        cleanerName: booking.assignee.user.name || 'Cleaner',
-        cleanerEmail: booking.assignee.user.email,
-        clientName: booking.client.name,
+        cleanerName,
+        cleanerEmail: cleanerUser.email,
+        clientName,
         type: 'TIP',
         feedbackToken: params.token,
       },
-      description: `Tip for ${booking.assignee.user.name || 'cleaner'} - ${booking.company.name}`,
-      receipt_email: booking.assignee.user.email,
+      description: `Tip for ${cleanerName} - ${booking.company.name}`,
+      receipt_email: cleanerUser.email,
     });
 
     return NextResponse.json({

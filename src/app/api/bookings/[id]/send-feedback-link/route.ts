@@ -42,16 +42,18 @@ export async function POST(
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             phone: true,
           },
         },
-        assignee: {
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },
@@ -88,8 +90,10 @@ export async function POST(
     }
 
     const feedbackUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/feedback/${feedbackToken}`;
-    const clientName = booking.client.name;
-    const cleanerName = booking.assignee?.user.name || 'your cleaner';
+    const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Valued Customer';
+    const cleanerName = booking.assignedCleaner?.user
+      ? `${booking.assignedCleaner.user.firstName || ''} ${booking.assignedCleaner.user.lastName || ''}`.trim() || 'your cleaner'
+      : 'your cleaner';
     const companyName = booking.company.name;
 
     const sentVia: string[] = [];
@@ -153,7 +157,7 @@ export async function POST(
       <ul style="margin: 10px 0; padding-left: 20px; color: #1e40af; font-size: 14px;">
         <li>Rate your cleaning experience</li>
         <li>Leave feedback about ${cleanerName}</li>
-        ${booking.hasInsuranceCoverage && booking.copayAmount > 0 ? '<li>Pay your insurance copay</li>' : ''}
+        ${booking.hasInsurance && booking.copayAmount > 0 ? '<li>Pay your insurance copay</li>' : ''}
         ${!booking.isPaid ? '<li>Complete your payment</li>' : ''}
         <li>Leave a tip for ${cleanerName} (optional)</li>
         <li>Share a Google review if you loved the service</li>
@@ -206,7 +210,7 @@ export async function POST(
     await prisma.booking.update({
       where: { id: params.id },
       data: {
-        feedbackLinkSentAt: new Date(),
+        feedbackSentAt: new Date(),
       },
     });
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions, generateBookingNumber } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // Force dynamic rendering for this route
@@ -108,11 +108,21 @@ export async function POST(request: NextRequest) {
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         try {
-          // Validate required fields
-          if (!row.name || !row.phone || !row.street || !row.city || !row.state || !row.zip) {
-            errors.push(`Row ${i + 2}: Missing required fields (name, phone, street, city, state, zip)`);
+          // Validate required fields - support both "name" and "firstName" columns
+          const hasName = row.name || row.firstName;
+          if (!hasName || !row.phone || !row.street || !row.city || !row.state || !row.zip) {
+            errors.push(`Row ${i + 2}: Missing required fields (name or firstName, phone, street, city, state, zip)`);
             failed++;
             continue;
+          }
+
+          // Parse name into firstName/lastName
+          let firstName = row.firstName || '';
+          let lastName = row.lastName || '';
+          if (!firstName && row.name) {
+            const nameParts = row.name.trim().split(/\s+/);
+            firstName = nameParts[0] || '';
+            lastName = nameParts.slice(1).join(' ') || '';
           }
 
           // Check if client with this email already exists (if email provided)
@@ -139,14 +149,13 @@ export async function POST(request: NextRequest) {
           await prisma.client.create({
             data: {
               companyId: user.companyId,
-              userId: session.user.id,
-              name: row.name,
+              firstName,
+              lastName: lastName || null,
               email: row.email || null,
               phone: row.phone,
               hasInsurance,
               insuranceProvider: hasInsurance ? row.insuranceProvider || null : null,
-              standardCopayAmount: copayAmount,
-              // cleaningObservations: row.cleaningObservations || null, // TODO: Re-enable after migration
+              standardCopay: copayAmount,
               addresses: {
                 create: {
                   label: 'Primary Address',
@@ -221,12 +230,12 @@ export async function POST(request: NextRequest) {
           }
 
           // Validate status - must match BookingStatus enum in schema
-          const validStatuses = ['SCHEDULED', 'CLEANER_COMPLETED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
+          const validStatuses = ['PENDING', 'CONFIRMED', 'CLEANER_COMPLETED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
           const statusUpper = row.status.toUpperCase();
           // Map common alternative names to valid statuses
           const statusMap: Record<string, string> = {
-            'IN_PROGRESS': 'SCHEDULED',
-            'PENDING': 'SCHEDULED',
+            'IN_PROGRESS': 'CONFIRMED',
+            'SCHEDULED': 'CONFIRMED',
             'DONE': 'COMPLETED',
           };
           const mappedStatus = statusMap[statusUpper] || statusUpper;
@@ -258,12 +267,15 @@ export async function POST(request: NextRequest) {
               companyId: user.companyId,
               clientId: client.id,
               addressId: client.addresses[0].id,
+              bookingNumber: generateBookingNumber(),
               scheduledDate,
               duration: 120, // Default 2 hours
               status: mappedStatus as any,
               serviceType: validServiceType as any,
-              price,
-              userId: session.user.id,
+              basePrice: price,
+              subtotal: price,
+              finalPrice: price,
+              createdById: session.user.id,
             },
           });
 

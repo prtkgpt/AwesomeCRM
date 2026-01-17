@@ -38,12 +38,14 @@ export async function GET(
         companyId: user.companyId,
       },
       include: {
-        redeemedBy: {
-          select: { id: true, firstName: true, lastName: true },
-        },
         transactions: {
           orderBy: { createdAt: 'desc' },
           take: 10,
+          include: {
+            client: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
         },
       },
     });
@@ -52,7 +54,7 @@ export async function GET(
       return NextResponse.json({ error: 'Gift card not found' }, { status: 404 });
     }
 
-    const isExpired = giftCard.expiresAt < new Date();
+    const isExpired = giftCard.expiresAt ? giftCard.expiresAt < new Date() : false;
     const isUsable = giftCard.isActive && !isExpired && giftCard.currentBalance > 0;
 
     return NextResponse.json({
@@ -120,7 +122,7 @@ export async function POST(
       return NextResponse.json({ error: 'Gift card is not active' }, { status: 400 });
     }
 
-    if (giftCard.expiresAt < new Date()) {
+    if (giftCard.expiresAt && giftCard.expiresAt < new Date()) {
       return NextResponse.json({ error: 'Gift card has expired' }, { status: 400 });
     }
 
@@ -128,24 +130,7 @@ export async function POST(
       return NextResponse.json({ error: 'Gift card has no remaining balance' }, { status: 400 });
     }
 
-    if (giftCard.redeemedById) {
-      return NextResponse.json({ error: 'Gift card has already been redeemed' }, { status: 400 });
-    }
-
-    // Determine which client to credit
-    let targetClientId = clientId;
-
-    // If user is a CLIENT role, use their associated client record
-    if (user.role === 'CLIENT' && !targetClientId) {
-      const clientRecord = await prisma.client.findFirst({
-        where: { userId: session.user.id, companyId: user.companyId },
-      });
-      if (clientRecord) {
-        targetClientId = clientRecord.id;
-      }
-    }
-
-    if (!targetClientId) {
+    if (!clientId) {
       return NextResponse.json(
         { error: 'Client ID required for redemption' },
         { status: 400 }
@@ -154,7 +139,7 @@ export async function POST(
 
     // Verify client belongs to same company
     const client = await prisma.client.findFirst({
-      where: { id: targetClientId, companyId: user.companyId },
+      where: { id: clientId, companyId: user.companyId },
     });
 
     if (!client) {
@@ -162,34 +147,35 @@ export async function POST(
     }
 
     const creditAmount = giftCard.currentBalance;
+    const newClientBalance = (client.creditBalance || 0) + creditAmount;
 
     // Start transaction
     await prisma.$transaction([
       // Add credits to client
       prisma.client.update({
-        where: { id: targetClientId },
-        data: { creditBalance: { increment: creditAmount } },
+        where: { id: clientId },
+        data: { creditBalance: newClientBalance },
       }),
 
       // Record credit transaction
       prisma.creditTransaction.create({
         data: {
-          clientId: targetClientId,
+          clientId,
           amount: creditAmount,
-          type: 'GIFT_CARD',
+          balance: newClientBalance,
+          type: 'GIFT_CARD_CREDIT',
           description: `Redeemed gift card ${giftCard.code}`,
-          giftCardId: giftCard.id,
+          referenceType: 'GIFT_CARD',
+          referenceId: giftCard.id,
         },
       }),
 
-      // Mark gift card as redeemed
+      // Update gift card balance
       prisma.giftCard.update({
         where: { id: giftCard.id },
         data: {
-          redeemedById: targetClientId,
-          redeemedAt: new Date(),
           currentBalance: 0,
-          isRedeemed: true,
+          isActive: false,
         },
       }),
 
@@ -198,9 +184,9 @@ export async function POST(
         data: {
           giftCardId: giftCard.id,
           type: 'REDEMPTION',
-          amount: creditAmount,
-          balanceAfter: 0,
-          clientId: targetClientId,
+          amount: -creditAmount,
+          balance: 0,
+          clientId,
         },
       }),
     ]);

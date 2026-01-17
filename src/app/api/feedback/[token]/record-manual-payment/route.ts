@@ -38,9 +38,9 @@ export async function POST(
       await prisma.booking.update({
         where: { id: booking.id },
         data: {
-          copayPaid: true,
-          copayPaidAt: new Date(),
-          copayPaymentMethod: paymentMethod,
+          isPaid: true,
+          paidAt: new Date(),
+          paymentMethod: paymentMethod,
         },
       });
 
@@ -55,7 +55,6 @@ export async function POST(
         where: { id: booking.id },
         data: {
           tipAmount: amount,
-          tipPaidVia: paymentMethod,
         },
       });
 

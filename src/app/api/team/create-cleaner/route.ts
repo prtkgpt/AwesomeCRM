@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic';
 
 const createCleanerSchema = z.object({
   // User fields
-  name: z.string().min(1, 'Name is required'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().optional(),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -21,11 +22,11 @@ const createCleanerSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   zip: z.string().optional(),
-  emergencyContact: z.string().optional(),
-  emergencyPhone: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
   hourlyRate: z.number().optional(),
   employeeId: z.string().optional(),
-  experience: z.string().optional(),
+  yearsExperience: z.number().int().optional(),
   speed: z.string().optional(),
   serviceAreas: z.array(z.string()).optional(),
   specialties: z.array(z.string()).optional(),
@@ -86,7 +87,8 @@ export async function POST(request: NextRequest) {
         const updatedUser = await tx.user.update({
           where: { id: existingUser.id },
           data: {
-            name: validatedData.name,
+            firstName: validatedData.firstName,
+            lastName: validatedData.lastName,
             phone: validatedData.phone,
             passwordHash: hashedPassword,
           },
@@ -101,11 +103,11 @@ export async function POST(request: NextRequest) {
             city: validatedData.city,
             state: validatedData.state,
             zip: validatedData.zip,
-            emergencyContact: validatedData.emergencyContact,
-            emergencyPhone: validatedData.emergencyPhone,
+            emergencyContactName: validatedData.emergencyContactName,
+            emergencyContactPhone: validatedData.emergencyContactPhone,
             hourlyRate: validatedData.hourlyRate,
             employeeId: validatedData.employeeId,
-            experience: validatedData.experience,
+            yearsExperience: validatedData.yearsExperience,
             speed: validatedData.speed,
             serviceAreas: validatedData.serviceAreas || [],
             specialties: validatedData.specialties || [],
@@ -120,7 +122,8 @@ export async function POST(request: NextRequest) {
         data: {
           id: result.user.id,
           email: result.user.email,
-          name: result.user.name,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
           role: result.user.role,
         },
         message: 'Cleaner account reactivated successfully',
@@ -136,7 +139,8 @@ export async function POST(request: NextRequest) {
       const newUser = await tx.user.create({
         data: {
           email: validatedData.email,
-          name: validatedData.name,
+          firstName: validatedData.firstName,
+          lastName: validatedData.lastName,
           phone: validatedData.phone,
           passwordHash: hashedPassword,
           role: 'CLEANER',
@@ -156,13 +160,13 @@ export async function POST(request: NextRequest) {
           state: validatedData.state,
           zip: validatedData.zip,
           // Emergency contact
-          emergencyContact: validatedData.emergencyContact,
-          emergencyPhone: validatedData.emergencyPhone,
+          emergencyContactName: validatedData.emergencyContactName,
+          emergencyContactPhone: validatedData.emergencyContactPhone,
           // Employment
           hourlyRate: validatedData.hourlyRate,
           employeeId: validatedData.employeeId,
           // Work details
-          experience: validatedData.experience,
+          yearsExperience: validatedData.yearsExperience,
           speed: validatedData.speed,
           serviceAreas: validatedData.serviceAreas || [],
           specialties: validatedData.specialties || [],
@@ -177,7 +181,8 @@ export async function POST(request: NextRequest) {
       data: {
         id: result.user.id,
         email: result.user.email,
-        name: result.user.name,
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
         role: result.user.role,
       },
       message: 'Cleaner account created successfully',

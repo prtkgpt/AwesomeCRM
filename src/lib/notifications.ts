@@ -15,7 +15,7 @@ export async function sendBookingConfirmation(bookingId: string) {
         client: true,
         address: true,
         company: true,
-        assignee: {
+        assignedCleaner: {
           include: {
             user: true,
           },
@@ -38,17 +38,19 @@ export async function sendBookingConfirmation(bookingId: string) {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
 
+    const clientFirstName = client.firstName || 'Customer';
+
     // Send email confirmation
     if (client.email) {
       try {
         const emailTemplate = getBookingConfirmationEmailTemplate({
-          customerName: client.name.split(' ')[0], // First name
+          customerName: clientFirstName,
           companyName: company.name,
           serviceType,
           scheduledDate: booking.scheduledDate.toISOString(),
           address: formattedAddress,
-          price: booking.price,
-          accountCreated: !!client.customerUserId,
+          price: booking.finalPrice,
+          accountCreated: !!client.userId,
         });
 
         await sendEmail({
@@ -63,12 +65,13 @@ export async function sendBookingConfirmation(bookingId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: booking.userId,
+            userId: booking.createdById,
             bookingId: booking.id,
             to: client.email,
             from: company.email || 'noreply@cleanday.com',
             body: `Booking confirmation email sent`,
             type: 'CONFIRMATION',
+            channel: 'EMAIL',
             status: 'SENT',
           },
         });
@@ -79,12 +82,13 @@ export async function sendBookingConfirmation(bookingId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: booking.userId,
+            userId: booking.createdById,
             bookingId: booking.id,
             to: client.email!,
             from: company.email || 'noreply@cleanday.com',
             body: `Failed to send confirmation email`,
             type: 'CONFIRMATION',
+            channel: 'EMAIL',
             status: 'FAILED',
             errorMessage: emailError instanceof Error ? emailError.message : 'Unknown error',
           },
@@ -108,7 +112,7 @@ export async function sendBookingConfirmation(bookingId: string) {
               minute: '2-digit'
             }),
             address: formattedAddress,
-            price: booking.price.toFixed(2),
+            price: booking.finalPrice.toFixed(2),
           }
         );
 
@@ -122,14 +126,15 @@ export async function sendBookingConfirmation(bookingId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: booking.userId,
+            userId: booking.createdById,
             bookingId: booking.id,
             to: client.phone,
             from: company.twilioPhoneNumber,
             body: smsBody,
             type: 'CONFIRMATION',
+            channel: 'SMS',
             status: smsResult.success ? 'SENT' : 'FAILED',
-            twilioSid: smsResult.sid,
+            providerId: smsResult.sid,
             errorMessage: smsResult.error,
           },
         });
@@ -140,12 +145,13 @@ export async function sendBookingConfirmation(bookingId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: booking.userId,
+            userId: booking.createdById,
             bookingId: booking.id,
             to: client.phone!,
             from: company.twilioPhoneNumber!,
             body: `Failed to send confirmation SMS`,
             type: 'CONFIRMATION',
+            channel: 'SMS',
             status: 'FAILED',
             errorMessage: smsError instanceof Error ? smsError.message : 'Unknown error',
           },
@@ -156,7 +162,7 @@ export async function sendBookingConfirmation(bookingId: string) {
     // Mark confirmation as sent
     await prisma.booking.update({
       where: { id: bookingId },
-      data: { confirmationSent: true },
+      data: { confirmationSentAt: new Date() },
     });
 
     return { success: true };
@@ -179,7 +185,7 @@ export async function sendBirthdayGreeting(clientId: string) {
       include: { company: true },
     });
 
-    if (!client || !client.enableBirthdayGreetings) {
+    if (!client || !client.enableBirthdayGreeting) {
       return { success: false, reason: 'Client not found or greetings disabled' };
     }
 
@@ -197,7 +203,7 @@ export async function sendBirthdayGreeting(clientId: string) {
     }
 
     const { company } = client;
-    const firstName = client.name.split(' ')[0];
+    const firstName = client.firstName || 'Customer';
 
     // Send email
     if (client.email) {
@@ -222,7 +228,8 @@ export async function sendBirthdayGreeting(clientId: string) {
             to: client.email,
             from: company.email || 'noreply@cleanday.com',
             body: 'Birthday greeting email sent',
-            type: 'BIRTHDAY_GREETING',
+            type: 'BIRTHDAY',
+            channel: 'EMAIL',
             status: 'SENT',
           },
         });
@@ -249,9 +256,10 @@ export async function sendBirthdayGreeting(clientId: string) {
             to: client.phone,
             from: company.twilioPhoneNumber,
             body: smsBody,
-            type: 'BIRTHDAY_GREETING',
+            type: 'BIRTHDAY',
+            channel: 'SMS',
             status: smsResult.success ? 'SENT' : 'FAILED',
-            twilioSid: smsResult.sid,
+            providerId: smsResult.sid,
             errorMessage: smsResult.error,
           },
         });
@@ -283,7 +291,7 @@ export async function sendAnniversaryGreeting(clientId: string) {
       include: { company: true },
     });
 
-    if (!client || !client.enableAnniversaryGreetings) {
+    if (!client || !client.enableAnniversaryGreeting) {
       return { success: false, reason: 'Client not found or greetings disabled' };
     }
 
@@ -301,7 +309,7 @@ export async function sendAnniversaryGreeting(clientId: string) {
     }
 
     const { company } = client;
-    const firstName = client.name.split(' ')[0];
+    const firstName = client.firstName || 'Customer';
 
     // Calculate years since anniversary
     const yearsAgo = client.anniversary
@@ -333,7 +341,8 @@ export async function sendAnniversaryGreeting(clientId: string) {
             to: client.email,
             from: company.email || 'noreply@cleanday.com',
             body: 'Anniversary greeting email sent',
-            type: 'ANNIVERSARY_GREETING',
+            type: 'ANNIVERSARY',
+            channel: 'EMAIL',
             status: 'SENT',
           },
         });
@@ -362,9 +371,10 @@ export async function sendAnniversaryGreeting(clientId: string) {
             to: client.phone,
             from: company.twilioPhoneNumber,
             body: smsBody,
-            type: 'ANNIVERSARY_GREETING',
+            type: 'ANNIVERSARY',
+            channel: 'SMS',
             status: smsResult.success ? 'SENT' : 'FAILED',
-            twilioSid: smsResult.sid,
+            providerId: smsResult.sid,
             errorMessage: smsResult.error,
           },
         });
@@ -403,13 +413,18 @@ export async function sendReviewRequest(bookingId: string) {
       return { success: false, reason: 'Booking not found' };
     }
 
-    // Only send to satisfied customers (4-5 stars)
-    if (!booking.customerRating || booking.customerRating < 4) {
+    // Only send to satisfied customers (4-5 stars based on review rating)
+    const review = await prisma.review.findFirst({
+      where: { bookingId },
+      select: { overallRating: true },
+    });
+
+    if (!review || review.overallRating < 4) {
       return { success: false, reason: 'Customer rating not high enough' };
     }
 
     const { client, company } = booking;
-    const firstName = client.name.split(' ')[0];
+    const firstName = client.firstName || 'Customer';
 
     // Send email
     if (client.email) {
@@ -432,12 +447,13 @@ export async function sendReviewRequest(bookingId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: booking.userId,
+            userId: booking.createdById,
             bookingId: booking.id,
             to: client.email,
             from: company.email || 'noreply@cleanday.com',
             body: 'Review request email sent',
             type: 'REVIEW_REQUEST',
+            channel: 'EMAIL',
             status: 'SENT',
           },
         });
@@ -466,14 +482,15 @@ export async function sendReviewRequest(bookingId: string) {
         await prisma.message.create({
           data: {
             companyId: company.id,
-            userId: booking.userId,
+            userId: booking.createdById,
             bookingId: booking.id,
             to: client.phone,
             from: company.twilioPhoneNumber,
             body: smsBody,
             type: 'REVIEW_REQUEST',
+            channel: 'SMS',
             status: smsResult.success ? 'SENT' : 'FAILED',
-            twilioSid: smsResult.sid,
+            providerId: smsResult.sid,
             errorMessage: smsResult.error,
           },
         });

@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate revenue from completed jobs
-    const revenue = completedJobs.reduce((sum, job) => sum + job.price, 0);
+    const revenue = completedJobs.reduce((sum, job) => sum + job.finalPrice, 0);
 
     // Get unpaid completed jobs
     const unpaidJobs = await prisma.booking.findMany({
@@ -75,14 +75,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const unpaidAmount = unpaidJobs.reduce((sum, job) => sum + job.price, 0);
+    const unpaidAmount = unpaidJobs.reduce((sum, job) => sum + job.finalPrice, 0);
 
     // Get upcoming jobs (next 7 days)
     const upcomingEndDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const upcomingJobs = await prisma.booking.count({
       where: {
         companyId: user.companyId,
-        status: 'SCHEDULED',
+        status: 'CONFIRMED',
         scheduledDate: {
           gte: now,
           lte: upcomingEndDate,

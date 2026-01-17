@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
         companyId: user.companyId,
         ...(search && {
           OR: [
-            { name: { contains: search, mode: 'insensitive' } },
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
             { email: { contains: search, mode: 'insensitive' } },
             { phone: { contains: search, mode: 'insensitive' } },
           ],
@@ -93,11 +94,12 @@ export async function POST(request: NextRequest) {
 
     // Create Stripe customer if email provided and Stripe is configured
     let stripeCustomerId: string | undefined;
+    const clientFullName = `${validatedData.firstName || ''} ${validatedData.lastName || ''}`.trim();
     if (validatedData.email && stripe) {
       try {
         const stripeCustomer = await stripe.customers.create({
           email: validatedData.email,
-          name: validatedData.name,
+          name: clientFullName,
           phone: validatedData.phone,
         });
         stripeCustomerId = stripeCustomer.id;
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique referral code for this client
-    let referralCode = generateReferralCode(validatedData.name, '');
+    let referralCode = generateReferralCode(clientFullName, '');
     let attempts = 0;
     const maxAttempts = 5;
 
@@ -137,15 +139,15 @@ export async function POST(request: NextRequest) {
 
       // Generate new code and try again
       attempts++;
-      referralCode = generateReferralCode(validatedData.name, '');
+      referralCode = generateReferralCode(clientFullName, '');
     }
 
     // Create client with addresses
     const client = await prisma.client.create({
       data: {
         companyId: user.companyId,
-        userId: session.user.id,
-        name: validatedData.name,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
         email: validatedData.email || null,
         phone: validatedData.phone,
         tags: validatedData.tags,
@@ -154,16 +156,14 @@ export async function POST(request: NextRequest) {
         // Referral program
         referralCode,
         referredById: referrerId,
-        // Insurance & Helper Bee's fields
+        // Insurance fields
         hasInsurance: validatedData.hasInsurance || false,
-        helperBeesReferralId: validatedData.helperBeesReferralId,
         insuranceProvider: validatedData.insuranceProvider,
+        insuranceMemberId: validatedData.insuranceMemberId,
         insurancePaymentAmount: validatedData.insurancePaymentAmount,
-        standardCopayAmount: validatedData.standardCopayAmount,
-        hasDiscountedCopay: validatedData.hasDiscountedCopay || false,
-        copayDiscountAmount: validatedData.copayDiscountAmount,
+        standardCopay: validatedData.standardCopay,
+        discountedCopay: validatedData.discountedCopay,
         copayNotes: validatedData.copayNotes,
-        // cleaningObservations: validatedData.cleaningObservations, // TODO: Run migration to add this column
         addresses: {
           create: validatedData.addresses.map((addr) => ({
             label: addr.label,
@@ -173,8 +173,13 @@ export async function POST(request: NextRequest) {
             zip: addr.zip,
             parkingInfo: addr.parkingInfo,
             gateCode: addr.gateCode,
-            petInfo: addr.petInfo,
-            preferences: addr.preferences,
+            alarmCode: addr.alarmCode,
+            keyLocation: addr.keyLocation,
+            entryInstructions: addr.entryInstructions,
+            hasPets: addr.hasPets,
+            petDetails: addr.petDetails,
+            petInstructions: addr.petInstructions,
+            cleanerNotes: addr.cleanerNotes,
             // Google Maps verification
             googlePlaceId: addr.googlePlaceId,
             lat: addr.lat,
@@ -199,10 +204,10 @@ export async function POST(request: NextRequest) {
     console.log('🟢 CLIENT CREATED - hasInsurance in DB:', client.hasInsurance);
     console.log('🟢 CLIENT CREATED - Full client:', JSON.stringify({
       id: client.id,
-      name: client.name,
+      firstName: client.firstName,
+      lastName: client.lastName,
       hasInsurance: client.hasInsurance,
       insuranceProvider: client.insuranceProvider,
-      helperBeesReferralId: client.helperBeesReferralId,
       referralCode: client.referralCode,
       referredById: client.referredById,
     }, null, 2));
@@ -220,10 +225,11 @@ export async function POST(request: NextRequest) {
             const referrer = await prisma.client.findUnique({
               where: { id: referrerId },
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
                 email: true,
                 referralCode: true,
-                referralCreditsBalance: true,
+                creditBalance: true,
               },
             });
 
@@ -238,18 +244,21 @@ export async function POST(request: NextRequest) {
             });
 
             if (referrer?.email && company) {
+              const referrerName = `${referrer.firstName || ''} ${referrer.lastName || ''}`.trim();
+              const newClientName = `${client.firstName || ''} ${client.lastName || ''}`.trim();
+
               const emailHtml = getReferralUsedEmailTemplate({
-                referrerName: referrer.name,
-                newCustomerName: client.name,
+                referrerName: referrerName,
+                newCustomerName: newClientName,
                 companyName: company.name,
                 creditsEarned: company.referralReferrerReward || 25,
-                creditsBalance: referrer.referralCreditsBalance,
+                creditsBalance: referrer.creditBalance,
                 referralCode: referrer.referralCode || '',
               });
 
               await sendEmail({
                 to: referrer.email,
-                subject: `🎉 ${client.name} used your referral code!`,
+                subject: `🎉 ${newClientName} used your referral code!`,
                 html: emailHtml,
                 type: 'notification',
                 apiKey: company.resendApiKey || undefined,

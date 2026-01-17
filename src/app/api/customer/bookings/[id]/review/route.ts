@@ -38,7 +38,7 @@ export async function POST(
       where: { id: bookingId },
       include: {
         client: true,
-        assignee: {
+        assignedCleaner: {
           include: {
             user: true
           }

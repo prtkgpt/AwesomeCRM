@@ -38,7 +38,8 @@ export async function GET(request: Request) {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },
@@ -123,15 +124,15 @@ export async function POST(request: Request) {
     const invoice = await prisma.invoice.create({
       data: {
         companyId: user.companyId,
-        userId: session.user.id,
         clientId,
         bookingId: bookingId || null,
         invoiceNumber,
         dueDate,
         lineItems,
         subtotal,
-        tax: taxAmount,
+        taxAmount,
         total,
+        amountDue: total,
         notes: notes || null,
         terms: terms || 'Payment due within 30 days',
         status: 'DRAFT',
@@ -140,7 +141,8 @@ export async function POST(request: Request) {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },

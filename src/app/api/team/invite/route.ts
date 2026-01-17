@@ -298,8 +298,6 @@ export async function POST(request: NextRequest) {
         invitedByName,
         inviteLink,
         expiresAt,
-        personalMessage: validatedData.message,
-        firstName: validatedData.firstName,
       });
 
       await sendEmail({

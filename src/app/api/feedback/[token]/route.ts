@@ -15,7 +15,8 @@ export async function GET(
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         company: {
@@ -29,11 +30,12 @@ export async function GET(
             cashappUsername: true,
           },
         },
-        assignee: {
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },

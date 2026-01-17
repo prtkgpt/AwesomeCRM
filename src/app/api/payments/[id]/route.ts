@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const updatePaymentSchema = z.object({
-  status: z.enum(['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED', 'CANCELLED']).optional(),
+  status: z.enum(['PENDING', 'AUTHORIZED', 'CAPTURED', 'PAID', 'REFUNDED', 'FAILED', 'CANCELLED']).optional(),
   notes: z.string().optional(),
 });
 
@@ -36,7 +36,7 @@ export async function GET(
     const payment = await prisma.payment.findFirst({
       where: {
         id: params.id,
-        booking: { companyId: user.companyId },
+        companyId: user.companyId,
       },
       include: {
         booking: {
@@ -53,10 +53,9 @@ export async function GET(
             address: true,
           },
         },
-        processedBy: {
+        client: {
           select: { id: true, firstName: true, lastName: true },
         },
-        refunds: true,
       },
     });
 
@@ -110,7 +109,7 @@ export async function PATCH(
     const payment = await prisma.payment.findFirst({
       where: {
         id: params.id,
-        booking: { companyId: user.companyId },
+        companyId: user.companyId,
       },
     });
 
@@ -122,8 +121,8 @@ export async function PATCH(
       where: { id: params.id },
       data: {
         ...validation.data,
-        ...(validation.data.status === 'COMPLETED' && !payment.paidAt
-          ? { paidAt: new Date() }
+        ...(validation.data.status === 'PAID' && !payment.capturedAt
+          ? { capturedAt: new Date() }
           : {}),
       },
       include: {
@@ -138,9 +137,9 @@ export async function PATCH(
     });
 
     // Update booking payment status if needed
-    if (validation.data.status) {
+    if (validation.data.status && payment.bookingId) {
       const totalPaid = await prisma.payment.aggregate({
-        where: { bookingId: payment.bookingId, status: 'COMPLETED' },
+        where: { bookingId: payment.bookingId, status: 'PAID' },
         _sum: { amount: true },
       });
 
@@ -149,13 +148,12 @@ export async function PATCH(
       });
 
       if (booking) {
-        const isPaid = (totalPaid._sum.amount || 0) >= (booking.finalPrice || booking.totalPrice);
+        const isPaid = (totalPaid._sum.amount || 0) >= booking.finalPrice;
         await prisma.booking.update({
           where: { id: payment.bookingId },
           data: {
             isPaid,
             paidAt: isPaid ? new Date() : null,
-            paidAmount: totalPaid._sum.amount || 0,
           },
         });
       }

@@ -32,11 +32,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get user's company
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Get client details
     const client = await prisma.client.findFirst({
       where: {
         id: clientId,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 
@@ -47,17 +57,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const clientName = `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Customer';
+
     // Create or retrieve Stripe customer
     let stripeCustomerId = client.stripeCustomerId;
 
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: client.email || undefined,
-        name: client.name,
+        name: clientName,
         phone: client.phone || undefined,
         metadata: {
           clientId: client.id,
-          userId: session.user.id,
+          companyId: user.companyId,
         },
       });
 
@@ -75,7 +87,7 @@ export async function POST(request: NextRequest) {
       payment_method_types: ['card'],
       metadata: {
         clientId: client.id,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 

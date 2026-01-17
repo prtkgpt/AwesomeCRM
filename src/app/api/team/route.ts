@@ -348,7 +348,7 @@ export async function POST(request: NextRequest) {
           speed: validatedData.speed || null,
 
           // Scheduling
-          availability: validatedData.availability ? JSON.stringify(validatedData.availability) : null,
+          availability: validatedData.availability ? JSON.stringify(validatedData.availability) : undefined,
           preferredHours: validatedData.preferredHours || null,
           maxJobsPerDay: validatedData.maxJobsPerDay || null,
 

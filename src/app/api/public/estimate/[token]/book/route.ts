@@ -15,10 +15,10 @@ export async function POST(
     const body = await request.json();
     const { name, email, phone, password, createAccount, payment } = body;
 
-    // Find booking by estimate token
+    // Find booking by feedback token (reusing for estimates)
     const booking = await prisma.booking.findFirst({
       where: {
-        estimateToken: params.token,
+        feedbackToken: params.token,
       },
       include: {
         client: true,
@@ -34,8 +34,8 @@ export async function POST(
       );
     }
 
-    // Check if already accepted
-    if (booking.estimateAccepted) {
+    // Check if already paid
+    if (booking.isPaid) {
       return NextResponse.json(
         { error: 'This estimate has already been accepted' },
         { status: 400 }
@@ -44,13 +44,6 @@ export async function POST(
 
     // TODO: Process payment with payment gateway (Stripe, etc.)
     // For now, we'll simulate successful payment
-    // In production, integrate with Stripe:
-    // const paymentIntent = await stripe.paymentIntents.create({
-    //   amount: Math.round(booking.price * 100),
-    //   currency: 'usd',
-    //   payment_method_types: ['card'],
-    // });
-
     const paymentProcessed = true; // Simulated success
 
     if (!paymentProcessed) {
@@ -60,21 +53,29 @@ export async function POST(
       );
     }
 
+    // Parse name into first/last
+    const nameParts = (name || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || booking.client?.firstName || 'Customer';
+    const lastName = nameParts.slice(1).join(' ') || booking.client?.lastName;
+
     // Start transaction
     const result = await prisma.$transaction(async (tx) => {
       // Update client with latest contact info
-      await tx.client.update({
-        where: { id: booking.clientId },
-        data: {
-          name,
-          email,
-          phone,
-        },
-      });
+      if (booking.clientId) {
+        await tx.client.update({
+          where: { id: booking.clientId },
+          data: {
+            firstName,
+            lastName,
+            email: email || undefined,
+            phone: phone || undefined,
+          },
+        });
+      }
 
       // Create customer account if requested
       let customerUser = null;
-      if (createAccount && password) {
+      if (createAccount && password && email) {
         // Check if user with email already exists
         const existingUser = await tx.user.findUnique({
           where: { email },
@@ -87,41 +88,24 @@ export async function POST(
             data: {
               email,
               passwordHash,
-              name,
+              firstName,
+              lastName,
               phone,
               companyId: booking.companyId,
-              role: 'CUSTOMER',
-            },
-          });
-
-          // Link client to customer user
-          await tx.client.update({
-            where: { id: booking.clientId },
-            data: {
-              customerUserId: customerUser.id,
+              role: 'CLIENT',
             },
           });
         }
       }
 
-      // Mark estimate as accepted and payment as completed
+      // Mark payment as completed
       const updatedBooking = await tx.booking.update({
         where: { id: booking.id },
         data: {
-          estimateAccepted: true,
-          estimateAcceptedAt: new Date(),
           isPaid: true,
           paidAt: new Date(),
-          paymentMethod: 'card',
-          status: 'SCHEDULED',
-          // Store payment info in internal notes (don't store actual card details!)
-          internalNotes: JSON.stringify({
-            ...((booking.internalNotes as any) || {}),
-            paymentProcessed: true,
-            paymentDate: new Date().toISOString(),
-            last4: payment.cardNumber.slice(-4),
-            billingZip: payment.billingZip,
-          }),
+          paymentMethod: 'CARD',
+          status: 'CONFIRMED',
         },
       });
 

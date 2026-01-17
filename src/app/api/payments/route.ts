@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 const createPaymentSchema = z.object({
   bookingId: z.string().cuid(),
   amount: z.number().positive(),
-  method: z.enum(['CARD', 'CASH', 'CHECK', 'BANK_TRANSFER', 'CREDIT']),
+  method: z.enum(['CARD', 'CASH', 'CHECK', 'BANK_TRANSFER', 'CREDITS']),
   notes: z.string().optional(),
   applyCredits: z.number().min(0).optional(),
 });
@@ -69,9 +69,6 @@ export async function GET(request: NextRequest) {
                 select: { id: true, firstName: true, lastName: true, email: true },
               },
             },
-          },
-          processedBy: {
-            select: { id: true, firstName: true, lastName: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -153,20 +150,20 @@ export async function POST(request: NextRequest) {
         creditsApplied = Math.min(applyCredits, client.creditBalance, amount);
         finalAmount = amount - creditsApplied;
 
-        // Deduct credits from client
-        await prisma.client.update({
+        // Deduct credits from client and get new balance
+        const updatedClient = await prisma.client.update({
           where: { id: booking.clientId },
           data: { creditBalance: { decrement: creditsApplied } },
         });
 
-        // Record credit transaction
+        // Record credit transaction (negative amount indicates redemption)
         await prisma.creditTransaction.create({
           data: {
             clientId: booking.clientId,
             amount: -creditsApplied,
-            type: 'REDEEMED',
-            description: `Applied to booking ${booking.bookingNumber}`,
-            bookingId: booking.id,
+            balance: updatedClient.creditBalance,
+            type: 'COMPENSATION',
+            description: `Credits applied to booking ${booking.bookingNumber}`,
           },
         });
       }
@@ -176,13 +173,13 @@ export async function POST(request: NextRequest) {
     const payment = await prisma.payment.create({
       data: {
         bookingId,
+        companyId: user.companyId,
+        clientId: booking.clientId!,
         amount: finalAmount,
         method,
-        status: 'COMPLETED',
-        notes,
-        creditsApplied,
-        processedById: session.user.id,
-        paidAt: new Date(),
+        status: 'CAPTURED',
+        notes: notes ? `${notes}${creditsApplied > 0 ? ` (Credits applied: $${creditsApplied})` : ''}` : (creditsApplied > 0 ? `Credits applied: $${creditsApplied}` : undefined),
+        capturedAt: new Date(),
       },
       include: {
         booking: {
@@ -197,18 +194,17 @@ export async function POST(request: NextRequest) {
 
     // Update booking payment status
     const totalPaid = await prisma.payment.aggregate({
-      where: { bookingId, status: 'COMPLETED' },
+      where: { bookingId, status: 'CAPTURED' },
       _sum: { amount: true },
     });
 
-    const isPaid = (totalPaid._sum.amount || 0) >= (booking.finalPrice || booking.totalPrice);
+    const isPaid = (totalPaid._sum.amount || 0) >= booking.finalPrice;
 
     await prisma.booking.update({
       where: { id: bookingId },
       data: {
         isPaid,
         paidAt: isPaid ? new Date() : null,
-        paidAmount: totalPaid._sum.amount || 0,
       },
     });
 

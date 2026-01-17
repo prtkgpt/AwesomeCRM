@@ -52,11 +52,23 @@ export async function GET(request: NextRequest) {
         },
       },
       include: {
-        client: true,
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
         address: true,
-        assignee: {
+        assignedCleaner: {
           include: {
-            user: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -71,11 +83,16 @@ export async function GET(request: NextRequest) {
       const timeUntilStart = scheduledDate.getTime() - now.getTime();
       const hoursUntilStart = timeUntilStart / (1000 * 60 * 60);
 
+      // Compute names
+      const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
+      const cleanerUser = booking.assignedCleaner?.user;
+      const cleanerName = cleanerUser ? `${cleanerUser.firstName || ''} ${cleanerUser.lastName || ''}`.trim() || cleanerUser.email || 'Cleaner' : 'Unassigned';
+
       // ACTION: Cleaning starting soon (within 2 hours)
       if (
         hoursUntilStart > 0 &&
         hoursUntilStart <= 2 &&
-        booking.status === 'SCHEDULED'
+        booking.status === 'CONFIRMED'
       ) {
         const hoursText =
           hoursUntilStart < 1
@@ -87,12 +104,12 @@ export async function GET(request: NextRequest) {
           type: 'action',
           category: 'cleaning_starting',
           title: `Cleaning starts in ${hoursText}`,
-          description: `${booking.client.name} at ${booking.address.street}, ${booking.address.city}`,
+          description: `${clientName} at ${booking.address?.street || ''}, ${booking.address?.city || ''}`,
           timestamp: scheduledDate,
           priority: hoursUntilStart < 1 ? 'high' : 'medium',
           metadata: {
-            clientName: booking.client.name,
-            cleanerName: booking.assignee?.user.name || 'Unassigned',
+            clientName,
+            cleanerName,
             jobId: booking.id,
           },
         });
@@ -102,22 +119,22 @@ export async function GET(request: NextRequest) {
       if (
         scheduledDate >= now &&
         scheduledDate <= tomorrow &&
-        booking.status === 'SCHEDULED' &&
-        booking.assignee
+        booking.status === 'CONFIRMED' &&
+        booking.assignedCleaner
       ) {
         activities.push({
           id: `reminder-${booking.id}`,
           type: 'action',
           category: 'reminder_needed',
           title: 'Send reminder to cleaner',
-          description: `Remind ${booking.assignee.user.name || booking.assignee.user.email} about tomorrow's cleaning at ${booking.client.name}`,
+          description: `Remind ${cleanerName || cleanerName} about tomorrow's cleaning at ${clientName}`,
           timestamp: new Date(scheduledDate.getTime() - 24 * 60 * 60 * 1000),
           priority: 'medium',
           metadata: {
-            clientName: booking.client.name,
+            clientName: clientName,
             cleanerName:
-              booking.assignee.user.name ||
-              booking.assignee.user.email,
+              cleanerName ||
+              cleanerName,
             jobId: booking.id,
           },
         });
@@ -125,21 +142,21 @@ export async function GET(request: NextRequest) {
 
       // ACTIVITY: Cleaner is "On My Way"
       if (
-        booking.onMyWaySentAt &&
-        booking.onMyWaySentAt >= oneDayAgo &&
-        booking.assignee
+        booking.onMyWayAt &&
+        booking.onMyWayAt >= oneDayAgo &&
+        booking.assignedCleaner
       ) {
         activities.push({
           id: `on-my-way-${booking.id}`,
           type: 'activity',
           category: 'on_my_way',
           title: 'Cleaner on the way',
-          description: `${booking.assignee.user.name || 'Cleaner'} is on the way to ${booking.client.name}`,
-          timestamp: booking.onMyWaySentAt,
+          description: `${cleanerName || 'Cleaner'} is on the way to ${clientName}`,
+          timestamp: booking.onMyWayAt,
           priority: 'medium',
           metadata: {
-            clientName: booking.client.name,
-            cleanerName: booking.assignee.user.name || booking.assignee.user.email,
+            clientName: clientName,
+            cleanerName: cleanerName || cleanerName,
             jobId: booking.id,
           },
         });
@@ -149,19 +166,19 @@ export async function GET(request: NextRequest) {
       if (
         booking.clockedInAt &&
         booking.clockedInAt >= oneDayAgo &&
-        booking.assignee
+        booking.assignedCleaner
       ) {
         activities.push({
           id: `clocked-in-${booking.id}`,
           type: 'activity',
           category: 'clocked_in',
           title: 'Cleaner started',
-          description: `${booking.assignee.user.name || 'Cleaner'} started cleaning at ${booking.client.name}`,
+          description: `${cleanerName || 'Cleaner'} started cleaning at ${clientName}`,
           timestamp: booking.clockedInAt,
           priority: 'medium',
           metadata: {
-            clientName: booking.client.name,
-            cleanerName: booking.assignee.user.name || booking.assignee.user.email,
+            clientName: clientName,
+            cleanerName: cleanerName || cleanerName,
             jobId: booking.id,
           },
         });
@@ -171,37 +188,37 @@ export async function GET(request: NextRequest) {
       if (
         booking.clockedOutAt &&
         booking.clockedOutAt >= oneDayAgo &&
-        booking.assignee
+        booking.assignedCleaner
       ) {
         activities.push({
           id: `clocked-out-${booking.id}`,
           type: 'activity',
           category: 'clocked_out',
           title: 'Cleaner finished',
-          description: `${booking.assignee.user.name || 'Cleaner'} finished cleaning at ${booking.client.name}`,
+          description: `${cleanerName || 'Cleaner'} finished cleaning at ${clientName}`,
           timestamp: booking.clockedOutAt,
           priority: 'low',
           metadata: {
-            clientName: booking.client.name,
-            cleanerName: booking.assignee.user.name || booking.assignee.user.email,
+            clientName: clientName,
+            cleanerName: cleanerName || cleanerName,
             jobId: booking.id,
           },
         });
       }
 
       // ACTION: Job completed by cleaner, pending admin review
-      if (booking.status === 'CLEANER_COMPLETED' && booking.assignee) {
+      if (booking.status === 'CLEANER_COMPLETED' && booking.assignedCleaner) {
         activities.push({
           id: `pending-review-${booking.id}`,
           type: 'action',
           category: 'pending_admin_review',
           title: 'Job completed - Review & Approve',
-          description: `${booking.assignee.user.name || 'Cleaner'} marked ${booking.client.name}'s job as completed. Review and approve to enable payment.`,
+          description: `${cleanerName || 'Cleaner'} marked ${clientName}'s job as completed. Review and approve to enable payment.`,
           timestamp: booking.updatedAt,
           priority: 'high',
           metadata: {
-            clientName: booking.client.name,
-            cleanerName: booking.assignee.user.name || booking.assignee.user.email,
+            clientName: clientName,
+            cleanerName: cleanerName || cleanerName,
             jobId: booking.id,
             bookingDate: scheduledDate,
           },
@@ -219,14 +236,14 @@ export async function GET(request: NextRequest) {
           type: 'activity',
           category: 'cleaning_completed',
           title: 'Cleaning completed',
-          description: `${booking.assignee?.user.name || 'Cleaner'} finished cleaning at ${booking.client.name}`,
+          description: `${cleanerName || 'Cleaner'} finished cleaning at ${clientName}`,
           timestamp: booking.updatedAt,
           priority: 'low',
           metadata: {
-            clientName: booking.client.name,
+            clientName: clientName,
             cleanerName:
-              booking.assignee?.user.name ||
-              booking.assignee?.user.email ||
+              cleanerName ||
+              cleanerName ||
               'Unassigned',
             jobId: booking.id,
           },
@@ -245,12 +262,12 @@ export async function GET(request: NextRequest) {
           type: 'activity',
           category: 'payment_charged',
           title: 'Payment processed',
-          description: `${booking.client.name} charged $${booking.price.toFixed(2)} for cleaning on ${scheduledDate.toLocaleDateString()}`,
+          description: `${clientName} charged $${booking.finalPrice.toFixed(2)} for cleaning on ${scheduledDate.toLocaleDateString()}`,
           timestamp: booking.updatedAt,
           priority: 'low',
           metadata: {
-            clientName: booking.client.name,
-            amount: booking.price,
+            clientName: clientName,
+            amount: booking.finalPrice,
             jobId: booking.id,
           },
         });
@@ -263,13 +280,13 @@ export async function GET(request: NextRequest) {
           type: 'activity',
           category: 'booking_created',
           title: 'Booking scheduled',
-          description: `Scheduled ${booking.client.name} for ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${booking.assignee ? ` (Assigned to ${booking.assignee.user.name || 'cleaner'})` : ''}`,
+          description: `Scheduled ${clientName} for ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${booking.assignedCleaner ? ` (Assigned to ${cleanerName || 'cleaner'})` : ''}`,
           timestamp: booking.createdAt,
           priority: 'low',
           metadata: {
-            clientName: booking.client.name,
-            cleanerName: booking.assignee?.user.name || 'Unassigned',
-            amount: booking.price,
+            clientName: clientName,
+            cleanerName: cleanerName || 'Unassigned',
+            amount: booking.finalPrice,
             jobId: booking.id,
           },
         });
@@ -284,13 +301,11 @@ export async function GET(request: NextRequest) {
           gte: oneDayAgo,
         },
       },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -300,17 +315,17 @@ export async function GET(request: NextRequest) {
 
     clients.forEach((client) => {
       if (client.createdAt && client.createdAt >= oneDayAgo) {
+        const cName = `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unknown';
         activities.push({
           id: `client-created-${client.id}`,
           type: 'activity',
           category: 'client_created',
           title: 'New client added',
-          description: `${client.user.name || client.user.email || 'Staff'} added ${client.name} as a new client`,
+          description: `Added ${cName} as a new client`,
           timestamp: client.createdAt,
           priority: 'low',
           metadata: {
-            clientName: client.name,
-            createdBy: client.user.name || client.user.email,
+            clientName: cName,
             clientId: client.id,
           },
         });
@@ -328,7 +343,8 @@ export async function GET(request: NextRequest) {
       include: {
         user: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -342,16 +358,17 @@ export async function GET(request: NextRequest) {
 
     teamMembers.forEach((member) => {
       if (member.createdAt && member.createdAt >= oneDayAgo) {
+        const memberName = `${member.user.firstName || ''} ${member.user.lastName || ''}`.trim() || member.user.email;
         activities.push({
           id: `team-member-added-${member.id}`,
           type: 'activity',
           category: 'team_member_added',
           title: 'New team member',
-          description: `${member.user.name || member.user.email} joined as ${member.user.role}`,
+          description: `${memberName} joined as ${member.user.role}`,
           timestamp: member.createdAt,
           priority: 'low',
           metadata: {
-            memberName: member.user.name || member.user.email,
+            memberName,
             role: member.user.role,
             memberId: member.id,
           },
@@ -371,7 +388,12 @@ export async function GET(request: NextRequest) {
         },
       },
       include: {
-        client: true,
+        client: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
       take: 10,
       orderBy: {
@@ -381,17 +403,18 @@ export async function GET(request: NextRequest) {
 
     estimates.forEach((estimate) => {
       if (estimate.createdAt && estimate.createdAt >= oneDayAgo) {
+        const estClientName = `${estimate.client.firstName || ''} ${estimate.client.lastName || ''}`.trim() || 'Customer';
         activities.push({
           id: `estimate-sent-${estimate.id}`,
           type: 'activity',
           category: 'estimate_sent',
           title: 'Estimate sent',
-          description: `Sent $${estimate.price.toFixed(2)} estimate to ${estimate.client.name}`,
+          description: `Sent $${estimate.finalPrice.toFixed(2)} estimate to ${estClientName}`,
           timestamp: estimate.createdAt,
           priority: 'low',
           metadata: {
-            clientName: estimate.client.name,
-            amount: estimate.price,
+            clientName: estClientName,
+            amount: estimate.finalPrice,
             estimateId: estimate.id,
           },
         });

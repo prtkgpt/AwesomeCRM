@@ -8,7 +8,8 @@ import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
 const updateProfileSchema = z.object({
-  name: z.string().min(1, 'Name is required').optional(),
+  firstName: z.string().min(1, 'First name is required').optional(),
+  lastName: z.string().optional(),
   email: z.string().email('Invalid email address').optional(),
   phone: z.string().optional(),
 });
@@ -29,7 +30,8 @@ export async function GET(request: NextRequest) {
       where: { id: session.user.id },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         phone: true,
         role: true,
@@ -102,13 +104,15 @@ export async function PATCH(request: NextRequest) {
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
       data: {
-        ...(validatedData.name !== undefined && { name: validatedData.name }),
+        ...(validatedData.firstName !== undefined && { firstName: validatedData.firstName }),
+        ...(validatedData.lastName !== undefined && { lastName: validatedData.lastName }),
         ...(validatedData.email !== undefined && { email: validatedData.email }),
         ...(validatedData.phone !== undefined && { phone: validatedData.phone }),
       },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         phone: true,
         role: true,

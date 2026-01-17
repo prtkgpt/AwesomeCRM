@@ -10,15 +10,16 @@ export async function GET(
   { params }: { params: { token: string } }
 ) {
   try {
-    // Find booking by estimate token
+    // Find booking by feedback token (reusing for estimates)
     const booking = await prisma.booking.findFirst({
       where: {
-        estimateToken: params.token,
+        feedbackToken: params.token,
       },
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             phone: true,
           },
@@ -49,20 +50,23 @@ export async function GET(
       );
     }
 
+    const clientName = booking.client
+      ? `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer'
+      : 'Customer';
+
     // Return public-safe estimate data
     return NextResponse.json({
       success: true,
       data: {
         id: booking.id,
-        token: booking.estimateToken,
-        clientName: booking.client.name,
-        clientEmail: booking.client.email,
-        clientPhone: booking.client.phone,
+        token: booking.feedbackToken,
+        clientName,
+        clientEmail: booking.client?.email,
+        clientPhone: booking.client?.phone,
         serviceType: booking.serviceType,
         scheduledDate: booking.scheduledDate,
         duration: booking.duration,
-        price: booking.price,
-        notes: booking.notes,
+        price: booking.finalPrice,
         status: booking.status,
         address: booking.address,
         company: booking.company,

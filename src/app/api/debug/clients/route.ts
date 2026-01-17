@@ -30,12 +30,13 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         hasInsurance: true,
         insuranceProvider: true,
-        helperBeesReferralId: true,
+        insuranceMemberId: true,
         insurancePaymentAmount: true,
-        standardCopayAmount: true,
+        standardCopay: true,
       },
       orderBy: {
         createdAt: 'desc',

@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         endDate = endOfMonth(now);
     }
 
-    // Get completed jobs with assignee information
+    // Get completed jobs with assignedCleaner information
     const completedJobs = await prisma.booking.findMany({
       where: {
         companyId: user.companyId,
@@ -60,17 +60,18 @@ export async function GET(request: NextRequest) {
           gte: startDate,
           lte: endDate,
         },
-        assignee: {
+        assignedCleaner: {
           isNot: null,
         },
       },
       include: {
-        assignee: {
+        assignedCleaner: {
           include: {
             user: {
               select: {
                 id: true,
-                name: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },
@@ -87,19 +88,23 @@ export async function GET(request: NextRequest) {
     }>();
 
     completedJobs.forEach((job) => {
-      if (!job.assignee) return;
+      if (!job.assignedCleaner) return;
 
-      const memberId = job.assignee.user.id;
+      const memberId = job.assignedCleaner.user.id;
       const existing = teamMemberStats.get(memberId);
 
       if (existing) {
-        existing.revenue += job.price;
+        existing.revenue += job.finalPrice;
         existing.jobsCompleted += 1;
       } else {
+        const user = job.assignedCleaner.user;
+        const userName = user
+          ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown'
+          : 'Unknown';
         teamMemberStats.set(memberId, {
-          id: job.assignee.user.id,
-          name: job.assignee.user.name || 'Unknown',
-          revenue: job.price,
+          id: job.assignedCleaner.user.id,
+          name: userName,
+          revenue: job.finalPrice,
           jobsCompleted: 1,
         });
       }

@@ -45,7 +45,7 @@ export async function POST(
     const booking = await prisma.booking.findFirst({
       where: {
         id: params.id,
-        assignedTo: teamMember.id,
+        assignedCleanerId: teamMember.id,
         companyId: user.companyId,
       },
     });
@@ -67,19 +67,21 @@ export async function POST(
         status: 'CLEANER_COMPLETED',  // Stage 1: Pending admin approval
         feedbackToken: feedbackToken,
         completedAt: new Date(),
-        completedBy: user.id,
+        completedById: user.id,
       },
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             phone: true,
           },
         },
         address: true,
-        completedByUser: {
+        completedBy: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },

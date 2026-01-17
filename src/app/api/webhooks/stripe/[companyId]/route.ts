@@ -193,7 +193,7 @@ async function handlePaymentIntentSucceeded(
       where: { id: bookingId },
       data: {
         isPaid: true,
-        paymentMethod: 'STRIPE',
+        paymentMethod: 'CARD',
         paidAt: new Date(),
         stripePaymentIntentId: paymentIntent.id,
       },
@@ -239,8 +239,7 @@ async function handlePaymentIntentFailed(
     await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        autoChargeAttemptedAt: new Date(),
-        autoChargeSuccessful: false,
+        paymentStatus: 'FAILED',
       },
     });
 

@@ -25,14 +25,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Only customers can access this endpoint
-    if (user.role !== 'CUSTOMER') {
+    if (user.role !== 'CLIENT') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Get customer's client record
     const client = await prisma.client.findFirst({
       where: {
-        email: user.email,
+        email: user.email || '',
         companyId: user.companyId,
       },
     });

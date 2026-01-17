@@ -60,11 +60,12 @@ export async function GET(req: NextRequest) {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             createdAt: true,
           },
         },
-        assignee: {
+        assignedCleaner: {
           select: {
             hourlyRate: true,
           },
@@ -76,13 +77,13 @@ export async function GET(req: NextRequest) {
     });
 
     // Calculate total revenue
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.price, 0);
-    const paidRevenue = completedBookings.filter(b => b.isPaid).reduce((sum, b) => sum + b.price, 0);
-    const unpaidRevenue = completedBookings.filter(b => !b.isPaid).reduce((sum, b) => sum + b.price, 0);
+    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.finalPrice, 0);
+    const paidRevenue = completedBookings.filter(b => b.isPaid).reduce((sum, b) => sum + b.finalPrice, 0);
+    const unpaidRevenue = completedBookings.filter(b => !b.isPaid).reduce((sum, b) => sum + b.finalPrice, 0);
 
     // Calculate total wages paid to cleaners (hourlyRate * duration in hours)
     const totalWages = completedBookings.reduce((sum, b) => {
-      const hourlyRate = b.assignee?.hourlyRate || 0;
+      const hourlyRate = b.assignedCleaner?.hourlyRate || 0;
       const hoursWorked = b.duration / 60;
       return sum + (hourlyRate * hoursWorked);
     }, 0);
@@ -102,11 +103,11 @@ export async function GET(req: NextRequest) {
           wages: 0,
         };
       }
-      const hourlyRate = booking.assignee?.hourlyRate || 0;
+      const hourlyRate = booking.assignedCleaner?.hourlyRate || 0;
       const hoursWorked = booking.duration / 60;
       const wage = hourlyRate * hoursWorked;
 
-      acc[type].revenue += booking.price;
+      acc[type].revenue += booking.finalPrice;
       acc[type].count += 1;
       acc[type].wages += wage;
       return acc;
@@ -131,23 +132,26 @@ export async function GET(req: NextRequest) {
         if (!acc[method]) {
           acc[method] = 0;
         }
-        acc[method] += booking.price;
+        acc[method] += booking.finalPrice;
         return acc;
       }, {});
 
     // Top customers by revenue
     const customerRevenue = completedBookings.reduce((acc: any, booking) => {
       const clientId = booking.clientId;
+      const clientName = booking.client
+        ? `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Unknown'
+        : 'Unknown';
       if (!acc[clientId]) {
         acc[clientId] = {
           clientId,
-          clientName: booking.client.name,
+          clientName,
           revenue: 0,
           bookings: 0,
-          firstBooking: booking.client.createdAt,
+          firstBooking: booking.client?.createdAt,
         };
       }
-      acc[clientId].revenue += booking.price;
+      acc[clientId].revenue += booking.finalPrice;
       acc[clientId].bookings += 1;
       return acc;
     }, {});
@@ -182,10 +186,10 @@ export async function GET(req: NextRequest) {
       const isNewCustomer = firstBooking && Math.abs(bookingDate.getTime() - firstBooking.getTime()) < 86400000; // same day
 
       if (isNewCustomer) {
-        newCustomerRevenue += booking.price;
+        newCustomerRevenue += booking.finalPrice;
         newCustomerCount++;
       } else {
-        returningCustomerRevenue += booking.price;
+        returningCustomerRevenue += booking.finalPrice;
         returningCustomerCount++;
       }
     });
@@ -202,9 +206,9 @@ export async function GET(req: NextRequest) {
         return bookingDate >= monthStart && bookingDate <= monthEnd;
       });
 
-      const monthRevenue = monthBookings.reduce((sum, b) => sum + b.price, 0);
+      const monthRevenue = monthBookings.reduce((sum, b) => sum + b.finalPrice, 0);
       const monthWages = monthBookings.reduce((sum, b) => {
-        const hourlyRate = b.assignee?.hourlyRate || 0;
+        const hourlyRate = b.assignedCleaner?.hourlyRate || 0;
         const hoursWorked = b.duration / 60;
         return sum + (hourlyRate * hoursWorked);
       }, 0);
@@ -230,7 +234,7 @@ export async function GET(req: NextRequest) {
 
     const outstandingAmount = completedBookings
       .filter(b => !b.isPaid)
-      .reduce((sum, b) => sum + b.price, 0);
+      .reduce((sum, b) => sum + b.finalPrice, 0);
 
     // Average booking value
     const avgBookingValue = completedBookings.length > 0 

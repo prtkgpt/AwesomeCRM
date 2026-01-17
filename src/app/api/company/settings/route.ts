@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 const updateCompanySettingsSchema = z.object({
   name: z.string().min(1, 'Company name is required').optional(),
   emailDomain: z.string().optional(),
-  hourlyRate: z.number().min(0, 'Hourly rate must be positive').optional(),
+  baseHourlyRate: z.number().min(0, 'Hourly rate must be positive').optional(),
   googleReviewUrl: z.string().optional(),
   yelpReviewUrl: z.string().optional(),
   twilioAccountSid: z.string().optional(),
@@ -22,16 +22,16 @@ const updateCompanySettingsSchema = z.object({
   stripeWebhookSecret: z.string().optional(),
   timezone: z.string().optional(),
   // Reminder settings
-  enableCustomerReminders: z.boolean().optional(),
-  enableCleanerReminders: z.boolean().optional(),
+  customerReminderEnabled: z.boolean().optional(),
+  cleanerReminderEnabled: z.boolean().optional(),
   customerReminderHours: z.number().min(1).max(72).optional(),
   cleanerReminderHours: z.number().min(1).max(72).optional(),
-  enableMorningOfReminder: z.boolean().optional(),
-  morningOfReminderTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
+  morningReminderEnabled: z.boolean().optional(),
+  morningReminderTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
   // Online Booking settings
   onlineBookingEnabled: z.boolean().optional(),
-  minimumLeadTimeHours: z.number().min(0).max(168).optional(), // Max 7 days
-  maxDaysAhead: z.number().min(1).max(365).optional(), // Max 1 year
+  minimumLeadTime: z.number().min(0).max(168).optional(), // Max 7 days
+  maximumLeadTime: z.number().min(1).max(365).optional(), // Max 1 year
   requireApproval: z.boolean().optional(),
 });
 
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         name: true,
         slug: true,
         emailDomain: true,
-        hourlyRate: true,
+        baseHourlyRate: true,
         googleReviewUrl: true,
         yelpReviewUrl: true,
         twilioAccountSid: true,
@@ -86,18 +86,18 @@ export async function GET(request: NextRequest) {
         stripeSecretKey: true,
         stripePublishableKey: true,
         stripeWebhookSecret: true,
-        enableCustomerReminders: true,
-        enableCleanerReminders: true,
+        customerReminderEnabled: true,
+        cleanerReminderEnabled: true,
         customerReminderHours: true,
         cleanerReminderHours: true,
-        enableMorningOfReminder: true,
-        morningOfReminderTime: true,
+        morningReminderEnabled: true,
+        morningReminderTime: true,
         onlineBookingEnabled: true,
-        minimumLeadTimeHours: true,
-        maxDaysAhead: true,
+        minimumLeadTime: true,
+        maximumLeadTime: true,
         requireApproval: true,
-        businessType: true,
-        enabledFeatures: true,
+        businessTypes: true,
+        features: true,
         timezone: true,
         createdAt: true,
         // Don't send auth tokens for security
@@ -197,8 +197,8 @@ export async function PATCH(request: NextRequest) {
     if (validatedData.emailDomain !== undefined) {
       updateData.emailDomain = validatedData.emailDomain || null;
     }
-    if (validatedData.hourlyRate !== undefined) {
-      updateData.hourlyRate = validatedData.hourlyRate;
+    if (validatedData.baseHourlyRate !== undefined) {
+      updateData.baseHourlyRate = validatedData.baseHourlyRate;
     }
     if (validatedData.googleReviewUrl !== undefined) {
       updateData.googleReviewUrl = validatedData.googleReviewUrl || null;
@@ -236,11 +236,11 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Reminder settings
-    if (validatedData.enableCustomerReminders !== undefined) {
-      updateData.enableCustomerReminders = validatedData.enableCustomerReminders;
+    if (validatedData.customerReminderEnabled !== undefined) {
+      updateData.customerReminderEnabled = validatedData.customerReminderEnabled;
     }
-    if (validatedData.enableCleanerReminders !== undefined) {
-      updateData.enableCleanerReminders = validatedData.enableCleanerReminders;
+    if (validatedData.cleanerReminderEnabled !== undefined) {
+      updateData.cleanerReminderEnabled = validatedData.cleanerReminderEnabled;
     }
     if (validatedData.customerReminderHours !== undefined) {
       updateData.customerReminderHours = validatedData.customerReminderHours;
@@ -248,22 +248,22 @@ export async function PATCH(request: NextRequest) {
     if (validatedData.cleanerReminderHours !== undefined) {
       updateData.cleanerReminderHours = validatedData.cleanerReminderHours;
     }
-    if (validatedData.enableMorningOfReminder !== undefined) {
-      updateData.enableMorningOfReminder = validatedData.enableMorningOfReminder;
+    if (validatedData.morningReminderEnabled !== undefined) {
+      updateData.morningReminderEnabled = validatedData.morningReminderEnabled;
     }
-    if (validatedData.morningOfReminderTime !== undefined) {
-      updateData.morningOfReminderTime = validatedData.morningOfReminderTime;
+    if (validatedData.morningReminderTime !== undefined) {
+      updateData.morningReminderTime = validatedData.morningReminderTime;
     }
 
     // Online Booking settings
     if (validatedData.onlineBookingEnabled !== undefined) {
       updateData.onlineBookingEnabled = validatedData.onlineBookingEnabled;
     }
-    if (validatedData.minimumLeadTimeHours !== undefined) {
-      updateData.minimumLeadTimeHours = validatedData.minimumLeadTimeHours;
+    if (validatedData.minimumLeadTime !== undefined) {
+      updateData.minimumLeadTime = validatedData.minimumLeadTime;
     }
-    if (validatedData.maxDaysAhead !== undefined) {
-      updateData.maxDaysAhead = validatedData.maxDaysAhead;
+    if (validatedData.maximumLeadTime !== undefined) {
+      updateData.maximumLeadTime = validatedData.maximumLeadTime;
     }
     if (validatedData.requireApproval !== undefined) {
       updateData.requireApproval = validatedData.requireApproval;
@@ -278,7 +278,7 @@ export async function PATCH(request: NextRequest) {
         name: true,
         slug: true,
         emailDomain: true,
-        hourlyRate: true,
+        baseHourlyRate: true,
         googleReviewUrl: true,
         yelpReviewUrl: true,
         twilioAccountSid: true,
@@ -287,15 +287,15 @@ export async function PATCH(request: NextRequest) {
         stripeSecretKey: true,
         stripePublishableKey: true,
         stripeWebhookSecret: true,
-        enableCustomerReminders: true,
-        enableCleanerReminders: true,
+        customerReminderEnabled: true,
+        cleanerReminderEnabled: true,
         customerReminderHours: true,
         cleanerReminderHours: true,
-        enableMorningOfReminder: true,
-        morningOfReminderTime: true,
+        morningReminderEnabled: true,
+        morningReminderTime: true,
         onlineBookingEnabled: true,
-        minimumLeadTimeHours: true,
-        maxDaysAhead: true,
+        minimumLeadTime: true,
+        maximumLeadTime: true,
         requireApproval: true,
       },
     });

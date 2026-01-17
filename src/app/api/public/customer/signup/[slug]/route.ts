@@ -53,31 +53,37 @@ export async function POST(
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Parse name into first/last
+    const nameParts = name.trim().split(/\s+/);
+    const firstName = nameParts[0] || 'Customer';
+    const lastName = nameParts.slice(1).join(' ') || undefined;
+
     // Create customer user and client in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create user account with CUSTOMER role
+      // Create user account with CLIENT role
       const user = await tx.user.create({
         data: {
           email,
           passwordHash,
-          name,
+          firstName,
+          lastName,
           phone: phone || null,
           companyId: company.id,
-          role: 'CUSTOMER',
+          role: 'CLIENT',
         },
       });
 
       // Create corresponding client record (for the company's client management)
+      const referralCode = `${firstName.toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
       const client = await tx.client.create({
         data: {
-          name,
+          firstName,
+          lastName,
           email,
           phone: phone || null,
           companyId: company.id,
-          userId: user.id, // Link to the user who created this client
-          customerUserId: user.id, // Link client to customer user account
-          // Generate referral code for the customer
-          referralCode: `${name.split(' ')[0].toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          referralCode,
         },
       });
 

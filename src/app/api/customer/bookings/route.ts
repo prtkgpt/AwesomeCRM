@@ -25,14 +25,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Only customers can access this endpoint
-    if (user.role !== 'CUSTOMER') {
+    if (user.role !== 'CLIENT') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Get customer's client record
     const client = await prisma.client.findFirst({
       where: {
-        email: user.email,
+        email: user.email || '',
         companyId: user.companyId,
       },
     });
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     if (filter === 'upcoming') {
       where.scheduledDate = { gte: now };
-      where.status = 'SCHEDULED';
+      where.status = 'CONFIRMED';
     } else if (filter === 'completed') {
       where.status = 'COMPLETED';
     }
@@ -62,8 +62,8 @@ export async function GET(request: NextRequest) {
         duration: true,
         serviceType: true,
         status: true,
-        price: true,
-        notes: true,
+        finalPrice: true,
+        customerNotes: true,
         customerRating: true,
         customerFeedback: true,
         address: {
@@ -74,11 +74,12 @@ export async function GET(request: NextRequest) {
             zip: true,
           },
         },
-        assignee: {
+        assignedCleaner: {
           select: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },

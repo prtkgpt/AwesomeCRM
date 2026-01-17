@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       where: { id: session.user.id },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         role: true,
         companyId: true,
@@ -42,12 +43,12 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         scheduledDate: true,
-        assignedTo: true,
-        client: { select: { name: true } },
-        assignee: {
+        assignedCleanerId: true,
+        client: { select: { firstName: true, lastName: true } },
+        assignedCleaner: {
           select: {
             id: true,
-            user: { select: { name: true } },
+            user: { select: { firstName: true, lastName: true } },
           },
         },
       },
@@ -65,8 +66,8 @@ export async function GET(request: NextRequest) {
             { scheduledDate: { gte: new Date() } },
             {
               OR: [
-                { assignedTo: teamMember.id },
-                { assignedTo: null },
+                { assignedCleanerId: teamMember.id },
+                { assignedCleanerId: null },
               ],
             },
           ],
@@ -74,12 +75,12 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           scheduledDate: true,
-          assignedTo: true,
-          client: { select: { name: true } },
-          assignee: {
+          assignedCleanerId: true,
+          client: { select: { firstName: true, lastName: true } },
+          assignedCleaner: {
             select: {
               id: true,
-              user: { select: { name: true } },
+              user: { select: { firstName: true, lastName: true } },
             },
           },
         },
@@ -94,17 +95,17 @@ export async function GET(request: NextRequest) {
         user: user,
         teamMember: teamMember,
         allBookings: allBookings.map(b => ({
-          client: b.client.name,
+          client: `${b.client.firstName || ''} ${b.client.lastName || ''}`.trim(),
           date: b.scheduledDate.toISOString().split('T')[0],
-          assignedTo: b.assignedTo,
-          assigneeName: b.assignee?.user?.name || 'UNASSIGNED',
-          matchesMe: b.assignedTo === teamMember?.id,
+          assignedCleanerId: b.assignedCleanerId,
+          assigneeName: b.assignedCleaner?.user ? `${b.assignedCleaner.user.firstName || ''} ${b.assignedCleaner.user.lastName || ''}`.trim() : 'UNASSIGNED',
+          matchesMe: b.assignedCleanerId === teamMember?.id,
         })),
         filteredBookings: filteredBookings.map(b => ({
-          client: b.client.name,
+          client: `${b.client.firstName || ''} ${b.client.lastName || ''}`.trim(),
           date: b.scheduledDate.toISOString().split('T')[0],
-          assignedTo: b.assignedTo,
-          assigneeName: b.assignee?.user?.name || 'UNASSIGNED',
+          assignedCleanerId: b.assignedCleanerId,
+          assigneeName: b.assignedCleaner?.user ? `${b.assignedCleaner.user.firstName || ''} ${b.assignedCleaner.user.lastName || ''}`.trim() : 'UNASSIGNED',
         })),
       },
     });

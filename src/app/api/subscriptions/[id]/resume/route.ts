@@ -90,28 +90,30 @@ export async function POST(
 
       // Create new bookings for the future dates
       const newBookings = await Promise.all(
-        recurringDates.map((date) =>
+        recurringDates.map((date, index) =>
           prisma.booking.create({
             data: {
               companyId: user.companyId,
-              userId: session.user.id,
+              createdById: session.user.id,
               clientId: subscription.clientId,
               addressId: subscription.addressId,
+              bookingNumber: `${subscription.bookingNumber}-R${Date.now()}-${index}`,
               scheduledDate: date,
               duration: subscription.duration,
               serviceType: subscription.serviceType,
-              price: subscription.price,
-              notes: subscription.notes,
+              basePrice: subscription.basePrice,
+              subtotal: subscription.subtotal,
+              finalPrice: subscription.finalPrice,
+              customerNotes: subscription.customerNotes,
               internalNotes: 'Generated after subscription resume',
+              cleanerNotes: subscription.cleanerNotes,
               isRecurring: true,
               recurrenceFrequency: subscription.recurrenceFrequency,
               recurrenceParentId: subscription.id,
-              assignedTo: subscription.assignedTo,
-              hasInsuranceCoverage: subscription.hasInsuranceCoverage,
+              assignedCleanerId: subscription.assignedCleanerId,
+              hasInsurance: subscription.hasInsurance,
               insuranceAmount: subscription.insuranceAmount,
               copayAmount: subscription.copayAmount,
-              copayDiscountApplied: subscription.copayDiscountApplied,
-              finalCopayAmount: subscription.finalCopayAmount,
             },
           })
         )

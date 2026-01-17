@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
           select: {
             name: true,
             stripeAccountId: true,
-            stripeCustomerId: true,
           },
         },
       },
@@ -74,7 +73,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Booking already paid' }, { status: 400 });
     }
 
-    let amountDue = booking.finalPrice || booking.totalPrice;
+    let amountDue = booking.finalPrice;
     let creditsApplied = 0;
 
     // Apply credits if requested
@@ -92,7 +91,7 @@ export async function POST(request: NextRequest) {
     if (amountDue <= 0) {
       // Process as credit-only payment
       if (creditsApplied > 0) {
-        await prisma.client.update({
+        const updatedClient = await prisma.client.update({
           where: { id: booking.clientId! },
           data: { creditBalance: { decrement: creditsApplied } },
         });
@@ -101,20 +100,22 @@ export async function POST(request: NextRequest) {
           data: {
             clientId: booking.clientId!,
             amount: -creditsApplied,
-            type: 'REDEEMED',
-            description: `Applied to booking ${booking.bookingNumber}`,
-            bookingId: booking.id,
+            balance: updatedClient.creditBalance,
+            type: 'COMPENSATION',
+            description: `Credits applied to booking ${booking.bookingNumber}`,
           },
         });
 
         await prisma.payment.create({
           data: {
             bookingId: booking.id,
+            companyId: user.companyId,
+            clientId: booking.clientId!,
             amount: 0,
-            method: 'CREDIT',
-            status: 'COMPLETED',
-            creditsApplied,
-            paidAt: new Date(),
+            method: 'CREDITS',
+            status: 'CAPTURED',
+            notes: `Credits applied: $${creditsApplied}`,
+            capturedAt: new Date(),
           },
         });
 
@@ -123,7 +124,6 @@ export async function POST(request: NextRequest) {
           data: {
             isPaid: true,
             paidAt: new Date(),
-            paidAmount: creditsApplied,
           },
         });
       }
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
             name: `${booking.serviceType} Cleaning`,
             description: `Booking #${booking.bookingNumber} - ${booking.address?.street}, ${booking.address?.city}`,
           },
-          unit_amount: Math.round((booking.finalPrice || booking.totalPrice) * 100),
+          unit_amount: Math.round(booking.finalPrice * 100),
         },
         quantity: 1,
       },
@@ -225,16 +225,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Store pending credits application
-    if (creditsApplied > 0) {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          pendingCreditsApplied: creditsApplied,
-          stripeCheckoutSessionId: checkoutSession.id,
-        },
-      });
-    }
+    // Store checkout session ID for webhook processing
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        stripePaymentIntentId: checkoutSession.payment_intent as string || null,
+      },
+    });
 
     return NextResponse.json({
       success: true,

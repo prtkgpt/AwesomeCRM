@@ -14,7 +14,7 @@ const addCreditsSchema = z.object({
   clientId: z.string().cuid(),
   amount: z.number().positive(),
   reason: z.string().min(1),
-  type: z.enum(['MANUAL', 'COMPENSATION', 'PROMOTION', 'REFERRAL_EARNED', 'TIER_BONUS']).default('MANUAL'),
+  type: z.enum(['COMPENSATION', 'PROMO_CREDIT', 'REFERRAL_EARNED', 'TIER_BONUS', 'LOYALTY_EARNED', 'GIFT_CARD_CREDIT']).default('COMPENSATION'),
 });
 
 // GET /api/payments/credits - List credit transactions
@@ -53,12 +53,6 @@ export async function GET(request: NextRequest) {
         include: {
           client: {
             select: { id: true, firstName: true, lastName: true, email: true },
-          },
-          booking: {
-            select: { id: true, bookingNumber: true },
-          },
-          issuedBy: {
-            select: { id: true, firstName: true, lastName: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -152,19 +146,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
+    // Calculate new balance
+    const newBalance = (client.creditBalance || 0) + amount;
+
     // Add credits
     const [updatedClient, transaction] = await prisma.$transaction([
       prisma.client.update({
         where: { id: clientId },
-        data: { creditBalance: { increment: amount } },
+        data: { creditBalance: newBalance },
       }),
       prisma.creditTransaction.create({
         data: {
           clientId,
           amount,
+          balance: newBalance,
           type,
           description: reason,
-          issuedById: session.user.id,
         },
         include: {
           client: {

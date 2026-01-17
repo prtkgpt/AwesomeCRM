@@ -272,11 +272,16 @@ export async function POST(request: NextRequest) {
         if (!client) {
           const hasAddress = row.street && row.city && row.state && row.zip;
 
+          // Split clientName into firstName/lastName
+          const nameParts = clientName.split(' ');
+          const firstName = row.firstName || nameParts[0] || 'Unknown';
+          const lastName = row.lastName || nameParts.slice(1).join(' ') || '';
+
           client = await prisma.client.create({
             data: {
               companyId: user.companyId,
-              userId: session.user.id,
-              name: clientName,
+              firstName,
+              lastName,
               email,
               phone,
               addresses: hasAddress
@@ -346,7 +351,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Determine booking status (cancelled bookings from export)
-        const status = row.type?.toLowerCase().includes('cancelled') ? 'CANCELLED' : 'SCHEDULED';
+        const status = row.type?.toLowerCase().includes('cancelled') ? 'CANCELLED' : 'CONFIRMED';
 
         // Get address ID (use first address or create with minimal info)
         let addressId = client.addresses[0]?.id;
@@ -374,22 +379,34 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Generate booking number
+        const bookingNumber = `BK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+        // Map payment method to enum or null
+        const validPaymentMethods = ['CARD', 'CASH', 'CHECK', 'ZELLE', 'VENMO', 'CASHAPP', 'BANK_TRANSFER', 'GIFT_CARD', 'CREDITS', 'INSURANCE'];
+        const paymentMethod = row.paymentMethod && validPaymentMethods.includes(row.paymentMethod.toUpperCase())
+          ? row.paymentMethod.toUpperCase() as 'CARD' | 'CASH' | 'CHECK' | 'ZELLE' | 'VENMO' | 'CASHAPP' | 'BANK_TRANSFER' | 'GIFT_CARD' | 'CREDITS' | 'INSURANCE'
+          : null;
+
         // Create booking
         await prisma.booking.create({
           data: {
             companyId: user.companyId,
-            userId: session.user.id,
+            createdById: session.user.id,
             clientId: client.id,
             addressId,
+            bookingNumber,
             scheduledDate,
             duration,
             serviceType,
             status,
-            price,
-            notes: row.notes,
+            basePrice: price,
+            subtotal: price,
+            finalPrice: price,
+            customerNotes: row.notes,
             internalNotes: row.internalNotes,
             isPaid: row.isPaid?.toLowerCase() === 'true' || row.amountPaid === row.price,
-            paymentMethod: row.paymentMethod,
+            paymentMethod,
           },
         });
 

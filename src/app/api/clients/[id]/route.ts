@@ -108,19 +108,19 @@ export async function PUT(
       const client = await tx.client.update({
         where: { id: params.id },
         data: {
-          name: validatedData.name,
+          firstName: validatedData.firstName,
+          lastName: validatedData.lastName,
           email: validatedData.email || null,
           phone: validatedData.phone,
           tags: validatedData.tags,
           notes: validatedData.notes,
           // Insurance fields
           hasInsurance: body.hasInsurance,
-          helperBeesReferralId: body.helperBeesReferralId,
           insuranceProvider: body.insuranceProvider,
+          insuranceMemberId: body.insuranceMemberId,
           insurancePaymentAmount: body.insurancePaymentAmount,
-          standardCopayAmount: body.standardCopayAmount,
-          hasDiscountedCopay: body.hasDiscountedCopay,
-          copayDiscountAmount: body.copayDiscountAmount,
+          standardCopay: body.standardCopay,
+          discountedCopay: body.discountedCopay,
           copayNotes: body.copayNotes,
         },
       });
@@ -141,8 +141,13 @@ export async function PUT(
             isVerified: body.address.isVerified,
             parkingInfo: body.address.parkingInfo,
             gateCode: body.address.gateCode,
-            petInfo: body.address.petInfo,
-            preferences: body.address.preferences,
+            alarmCode: body.address.alarmCode,
+            keyLocation: body.address.keyLocation,
+            entryInstructions: body.address.entryInstructions,
+            hasPets: body.address.hasPets,
+            petDetails: body.address.petDetails,
+            petInstructions: body.address.petInstructions,
+            cleanerNotes: body.address.cleanerNotes,
             propertyType: body.address.propertyType,
             squareFootage: body.address.squareFootage,
             bedrooms: body.address.bedrooms,
@@ -223,7 +228,8 @@ export async function PATCH(
     // Build update data object with only provided fields
     const updateData: any = {};
     if (body.notes !== undefined) updateData.notes = body.notes;
-    if (body.name !== undefined) updateData.name = body.name;
+    if (body.firstName !== undefined) updateData.firstName = body.firstName;
+    if (body.lastName !== undefined) updateData.lastName = body.lastName;
     if (body.email !== undefined) updateData.email = body.email || null;
     if (body.phone !== undefined) updateData.phone = body.phone;
     if (body.tags !== undefined) updateData.tags = body.tags;

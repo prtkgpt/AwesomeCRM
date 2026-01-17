@@ -11,29 +11,13 @@ import {
   addWeeks,
   addMonths,
   startOfDay,
-  endOfDay,
-  isBefore,
-  isAfter,
-  parseISO,
-  setHours,
-  setMinutes,
   format,
-  getDay,
 } from 'date-fns';
 import { generateBookingNumber } from '@/lib/auth';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
-// Days of week mapping
-const dayMapping: Record<string, number> = {
-  Sunday: 0,
-  Monday: 1,
-  Tuesday: 2,
-  Wednesday: 3,
-  Thursday: 4,
-  Friday: 5,
-  Saturday: 6,
-};
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,39 +37,50 @@ export async function GET(request: NextRequest) {
       errors: [] as string[],
     };
 
-    // Get all active recurring bookings
-    const recurringBookings = await prisma.recurringBooking.findMany({
+    // Get recurring parent bookings that need child bookings generated
+    // A recurring parent is a booking with isRecurring=true and no recurrenceParentId
+    const recurringParents = await prisma.booking.findMany({
       where: {
-        status: 'ACTIVE',
+        isRecurring: true,
+        recurrenceParentId: null,
+        recurrenceFrequency: { not: 'NONE' },
         OR: [
-          { endDate: null },
-          { endDate: { gte: now } },
+          { recurrenceEndDate: null },
+          { recurrenceEndDate: { gte: now } },
         ],
+        status: { in: ['CONFIRMED', 'COMPLETED'] },
       },
       include: {
         client: true,
         assignedCleaner: { include: { user: true } },
         company: true,
+        address: true,
       },
     });
 
-    for (const recurring of recurringBookings) {
+    for (const parent of recurringParents) {
       try {
-        // Calculate next occurrence(s) within the look-ahead window
-        const nextDates = calculateNextOccurrences(
-          recurring,
-          now,
-          lookAheadDate
-        );
+        // Calculate next occurrence based on frequency
+        const lastChild = await prisma.booking.findFirst({
+          where: {
+            recurrenceParentId: parent.id,
+          },
+          orderBy: {
+            scheduledDate: 'desc',
+          },
+        });
+
+        const lastDate = lastChild?.scheduledDate || parent.scheduledDate;
+        const nextDates = calculateNextOccurrences(parent, lastDate, lookAheadDate);
 
         for (const nextDate of nextDates) {
           // Check if booking already exists for this date
           const existingBooking = await prisma.booking.findFirst({
             where: {
-              recurringBookingId: recurring.id,
+              recurrenceParentId: parent.id,
               scheduledDate: {
                 gte: startOfDay(nextDate),
-                lte: endOfDay(nextDate),
+                lte: addDays(startOfDay(nextDate), 1),
               },
             },
           });
@@ -95,68 +90,42 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          // Parse preferred time
-          const [hours, minutes] = parseTime(recurring.preferredTime);
-          const scheduledDate = setMinutes(setHours(nextDate, hours), minutes);
-
-          // Create the booking
-          const booking = await prisma.booking.create({
+          // Create the child booking
+          await prisma.booking.create({
             data: {
-              companyId: recurring.companyId,
-              clientId: recurring.clientId,
+              companyId: parent.companyId,
+              clientId: parent.clientId,
+              addressId: parent.addressId,
+              createdById: parent.createdById,
               bookingNumber: generateBookingNumber(),
-              serviceType: recurring.serviceType,
-              scheduledDate,
-              duration: recurring.duration,
-              address: recurring.address,
-              latitude: recurring.latitude,
-              longitude: recurring.longitude,
-              assignedCleanerId: recurring.assignedCleanerId,
+              serviceType: parent.serviceType,
+              serviceId: parent.serviceId,
+              scheduledDate: nextDate,
+              scheduledEndDate: parent.scheduledEndDate
+                ? addDays(nextDate, 0) // Same day end
+                : null,
+              duration: parent.duration,
+              assignedCleanerId: parent.assignedCleanerId,
               status: 'CONFIRMED',
-              price: recurring.price,
+              basePrice: parent.basePrice,
+              subtotal: parent.subtotal,
+              finalPrice: parent.finalPrice,
               isRecurring: true,
-              recurringBookingId: recurring.id,
-              notes: recurring.notes,
-              createdAt: now,
-            },
-          });
-
-          // Update recurring booking stats
-          await prisma.recurringBooking.update({
-            where: { id: recurring.id },
-            data: {
-              nextOccurrence: calculateNextSingleOccurrence(recurring, nextDate),
-              totalOccurrences: { increment: 1 },
+              recurrenceParentId: parent.id,
+              customerNotes: parent.customerNotes,
             },
           });
 
           results.generated++;
-
-          // Log notification for cleaner if assigned
-          if (recurring.assignedCleanerId) {
-            await prisma.notification.create({
-              data: {
-                companyId: recurring.companyId,
-                userId: recurring.assignedCleaner?.userId,
-                type: 'NEW_ASSIGNMENT',
-                title: 'New Recurring Job Scheduled',
-                message: `A recurring cleaning job has been scheduled for ${format(
-                  scheduledDate,
-                  'EEEE, MMMM d'
-                )} at ${format(scheduledDate, 'h:mm a')}`,
-                channel: 'INTERNAL',
-                status: 'PENDING',
-                metadata: { bookingId: booking.id },
-              },
-            });
-          }
         }
       } catch (error) {
         results.errors.push(
-          `Recurring ${recurring.id}: ${error instanceof Error ? error.message : 'Unknown error'}`
+          `Parent ${parent.id}: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
     }
+
+    console.log(`✅ Recurring booking generation: ${results.generated} created, ${results.skipped} skipped`);
 
     return NextResponse.json({
       success: true,
@@ -174,90 +143,38 @@ export async function GET(request: NextRequest) {
 }
 
 function calculateNextOccurrences(
-  recurring: any,
-  startDate: Date,
+  parent: any,
+  lastDate: Date,
   endDate: Date
 ): Date[] {
   const dates: Date[] = [];
-  let currentDate = new Date(recurring.nextOccurrence || recurring.startDate || startDate);
+  let currentDate = new Date(lastDate);
 
-  // Make sure we start from today or later
-  if (isBefore(currentDate, startOfDay(startDate))) {
-    currentDate = findNextValidDate(recurring, startDate);
-  }
+  // Move to next occurrence based on frequency
+  currentDate = getNextDateByFrequency(parent.recurrenceFrequency, currentDate);
 
-  while (isBefore(currentDate, endDate) && dates.length < 10) {
-    // Check if this date is valid
-    const dayOfWeek = getDay(currentDate);
-    const preferredDayNumber = dayMapping[recurring.preferredDay];
-
-    if (dayOfWeek === preferredDayNumber) {
-      // Check if not past end date
-      if (!recurring.endDate || isBefore(currentDate, recurring.endDate)) {
-        dates.push(new Date(currentDate));
-      }
+  while (currentDate <= endDate && dates.length < 10) {
+    // Check if not past recurrence end date
+    if (!parent.recurrenceEndDate || currentDate <= parent.recurrenceEndDate) {
+      dates.push(new Date(currentDate));
     }
 
     // Move to next potential date
-    currentDate = getNextDateByFrequency(recurring, currentDate);
+    currentDate = getNextDateByFrequency(parent.recurrenceFrequency, currentDate);
   }
 
   return dates;
 }
 
-function findNextValidDate(recurring: any, fromDate: Date): Date {
-  let currentDate = startOfDay(fromDate);
-  const preferredDayNumber = dayMapping[recurring.preferredDay];
-
-  // Find the next preferred day
-  while (getDay(currentDate) !== preferredDayNumber) {
-    currentDate = addDays(currentDate, 1);
-  }
-
-  return currentDate;
-}
-
-function getNextDateByFrequency(recurring: any, fromDate: Date): Date {
-  switch (recurring.frequency) {
+function getNextDateByFrequency(frequency: string, fromDate: Date): Date {
+  switch (frequency) {
     case 'WEEKLY':
       return addWeeks(fromDate, 1);
     case 'BIWEEKLY':
       return addWeeks(fromDate, 2);
     case 'MONTHLY':
       return addMonths(fromDate, 1);
-    case 'CUSTOM':
-      return addDays(fromDate, recurring.customIntervalDays || 7);
     default:
       return addWeeks(fromDate, 1);
   }
-}
-
-function calculateNextSingleOccurrence(recurring: any, afterDate: Date): Date {
-  let nextDate = getNextDateByFrequency(recurring, afterDate);
-
-  // Adjust to the preferred day if needed
-  const preferredDayNumber = dayMapping[recurring.preferredDay];
-  while (getDay(nextDate) !== preferredDayNumber) {
-    nextDate = addDays(nextDate, 1);
-  }
-
-  return nextDate;
-}
-
-function parseTime(timeString: string): [number, number] {
-  // Parse time like "9:00 AM" or "14:00"
-  const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!match) return [9, 0]; // Default to 9:00 AM
-
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const period = match[3]?.toUpperCase();
-
-  if (period === 'PM' && hours !== 12) {
-    hours += 12;
-  } else if (period === 'AM' && hours === 12) {
-    hours = 0;
-  }
-
-  return [hours, minutes];
 }

@@ -83,6 +83,9 @@ export async function POST(
       // Use default
     }
 
+    // Compute client name
+    const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
+
     if (method === 'email') {
       // Send email
       if (!booking.client.email) {
@@ -93,11 +96,11 @@ export async function POST(
       }
 
       const emailHtml = getEstimateEmailTemplate({
-        customerName: booking.client.name,
+        customerName: clientName,
         companyName: booking.company.name,
         serviceType: serviceTypeDisplay,
         scheduledDate: booking.scheduledDate.toISOString(),
-        price: booking.price,
+        price: booking.finalPrice,
         estimateUrl,
       });
 
@@ -141,9 +144,9 @@ export async function POST(
       }
 
       const smsMessage = getEstimateSMSMessage({
-        customerName: booking.client.name,
+        customerName: clientName,
         companyName: booking.company.name,
-        price: booking.price,
+        price: booking.finalPrice,
         estimateUrl,
       });
 

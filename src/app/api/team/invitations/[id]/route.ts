@@ -24,7 +24,8 @@ export async function PATCH(
       select: {
         companyId: true,
         role: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         company: {
           select: {
             name: true,
@@ -81,7 +82,7 @@ export async function PATCH(
 
     // Resend invitation email
     const inviteLink = `${process.env.NEXTAUTH_URL}/invite/${invitation.token}`;
-    const invitedByName = user.name || 'Your team administrator';
+    const invitedByName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Your team administrator';
     const companyName = user.company?.name || 'Your Company';
 
     try {

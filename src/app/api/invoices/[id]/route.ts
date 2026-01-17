@@ -36,7 +36,8 @@ export async function GET(
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             phone: true,
           },
@@ -56,12 +57,11 @@ export async function GET(
             },
           },
         },
-        user: {
+        company: {
           select: {
             name: true,
             email: true,
             phone: true,
-            businessName: true,
           },
         },
       },
@@ -122,11 +122,11 @@ export async function PATCH(
 
     if (lineItems) {
       const subtotal = lineItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
-      const taxAmount = tax !== undefined ? tax : existingInvoice.tax;
+      const taxAmountVal = tax !== undefined ? tax : existingInvoice.taxAmount;
       updateData.lineItems = lineItems;
       updateData.subtotal = subtotal;
-      updateData.tax = taxAmount;
-      updateData.total = subtotal + taxAmount;
+      updateData.taxAmount = taxAmountVal;
+      updateData.total = subtotal + taxAmountVal;
     }
 
     if (status !== undefined) updateData.status = status;
@@ -158,7 +158,8 @@ export async function PATCH(
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },
@@ -193,11 +194,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Verify ownership
     const invoice = await prisma.invoice.findFirst({
       where: {
         id: params.id,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 

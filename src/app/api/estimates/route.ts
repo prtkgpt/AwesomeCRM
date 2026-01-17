@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions, generateBookingNumber } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
       const client = await prisma.client.create({
         data: {
           companyId: user.companyId,
-          userId: user.id,
-          name: `${newCustomer.firstName} ${newCustomer.lastName}`,
+          firstName: newCustomer.firstName || '',
+          lastName: newCustomer.lastName || '',
           email: newCustomer.email,
           phone: newCustomer.phone,
         },
@@ -118,18 +118,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create booking with estimate details
+    const priceRounded = Math.round(price * 100) / 100;
     const booking = await prisma.booking.create({
       data: {
         companyId: user.companyId,
-        userId: user.id,
+        createdById: user.id,
         clientId: finalClientId,
         addressId,
+        bookingNumber: generateBookingNumber(),
         scheduledDate: scheduledDate ? new Date(scheduledDate) : new Date(),
         duration: Math.round(duration),
         serviceType: serviceTypeEnum,
-        status: 'SCHEDULED',
-        price: Math.round(price * 100) / 100,
-        notes: customerNotes || null,
+        status: 'PENDING',
+        basePrice: priceRounded,
+        subtotal: priceRounded,
+        finalPrice: priceRounded,
+        customerNotes: customerNotes || null,
         internalNotes: JSON.stringify({
           internal: internalNotes,
           provider: providerNotes,

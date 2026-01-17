@@ -66,7 +66,8 @@ export async function GET(request: NextRequest) {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
@@ -83,15 +84,18 @@ export async function GET(request: NextRequest) {
     completedJobs.forEach((job) => {
       const clientId = job.client.id;
       const existing = clientStats.get(clientId);
+      const clientName = job.client
+        ? `${job.client.firstName || ''} ${job.client.lastName || ''}`.trim() || 'Unknown Client'
+        : 'Unknown Client';
 
       if (existing) {
-        existing.totalRevenue += job.price;
+        existing.totalRevenue += job.finalPrice;
         existing.jobCount += 1;
       } else {
         clientStats.set(clientId, {
           id: job.client.id,
-          name: job.client.name || 'Unknown Client',
-          totalRevenue: job.price,
+          name: clientName,
+          totalRevenue: job.finalPrice,
           jobCount: 1,
         });
       }

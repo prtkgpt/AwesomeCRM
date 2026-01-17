@@ -46,7 +46,8 @@ export async function POST(
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },
@@ -73,6 +74,7 @@ export async function POST(
     // Generate invoice URL
     const invoiceUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/invoices/${invoice.id}`;
     const companyName = user.company?.name || 'Your Cleaning Service';
+    const clientName = `${invoice.client.firstName || ''} ${invoice.client.lastName || ''}`.trim() || 'Customer';
 
     // Create email HTML
     const emailHtml = `
@@ -89,7 +91,7 @@ export async function POST(
           </div>
 
           <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; margin-bottom: 20px;">Hi ${invoice.client.name},</p>
+            <p style="font-size: 16px; margin-bottom: 20px;">Hi ${clientName},</p>
 
             <p style="font-size: 16px; margin-bottom: 20px;">
               Your invoice <strong>${invoice.invoiceNumber}</strong> is ready.

@@ -43,32 +43,32 @@ export async function GET(request: NextRequest) {
         twilioAuthToken: true,
         twilioPhoneNumber: true,
         resendApiKey: true,
-        enableCustomerReminders: true,
-        enableCleanerReminders: true,
+        customerReminderEnabled: true,
+        cleanerReminderEnabled: true,
         customerReminderHours: true,
         cleanerReminderHours: true,
-        enableMorningOfReminder: true,
-        morningOfReminderTime: true,
+        morningReminderEnabled: true,
+        morningReminderTime: true,
       },
     });
 
     for (const company of companies) {
       // 1. Send Customer Reminders
-      if (company.enableCustomerReminders) {
+      if (company.customerReminderEnabled) {
         const customerResults = await sendCustomerReminders(company, now);
         results.customerReminders.sent += customerResults.sent;
         results.customerReminders.failed += customerResults.failed;
       }
 
       // 2. Send Cleaner Reminders
-      if (company.enableCleanerReminders) {
+      if (company.cleanerReminderEnabled) {
         const cleanerResults = await sendCleanerReminders(company, now);
         results.cleanerReminders.sent += cleanerResults.sent;
         results.cleanerReminders.failed += cleanerResults.failed;
       }
 
       // 3. Send Morning-of Reminders to Cleaners
-      if (company.enableMorningOfReminder) {
+      if (company.morningReminderEnabled) {
         const morningResults = await sendMorningOfReminders(company, now);
         results.morningOfReminders.sent += morningResults.sent;
         results.morningOfReminders.failed += morningResults.failed;
@@ -112,19 +112,31 @@ async function sendCustomerReminders(company: any, now: Date) {
   const bookings = await prisma.booking.findMany({
     where: {
       companyId: company.id,
-      status: 'SCHEDULED',
-      customerReminderSentAt: null,
+      status: 'CONFIRMED',
+      reminderSentAt: null,
       scheduledDate: {
         gte: targetTimeStart,
         lt: targetTimeEnd,
       },
     },
     include: {
-      client: true,
+      client: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
+      },
       address: true,
-      assignee: {
+      assignedCleaner: {
         include: {
-          user: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
         },
       },
     },
@@ -132,10 +144,13 @@ async function sendCustomerReminders(company: any, now: Date) {
 
   for (const booking of bookings) {
     try {
-      const customerName = booking.client.name.split(' ')[0]; // First name only
+      const customerName = booking.client.firstName || 'Customer'; // First name only
       const appointmentDate = formatDate(booking.scheduledDate, 'EEEE, MMMM d');
       const appointmentTime = formatTime(booking.scheduledDate);
-      const address = `${booking.address.street}, ${booking.address.city}`;
+      const address = `${booking.address?.street || ''}, ${booking.address?.city || ''}`;
+      const cleanerName = booking.assignedCleaner
+        ? `${booking.assignedCleaner.user.firstName || ''} ${booking.assignedCleaner.user.lastName || ''}`.trim()
+        : null;
 
       // Create message content
       const smsMessage = `Hi ${customerName}! Reminder: Your cleaning is scheduled for ${appointmentDate} at ${appointmentTime}. Address: ${address}. See you soon! - ${company.name}`;
@@ -151,9 +166,9 @@ async function sendCustomerReminders(company: any, now: Date) {
           <li><strong>Time:</strong> ${appointmentTime}</li>
           <li><strong>Duration:</strong> ${booking.duration} minutes</li>
           <li><strong>Address:</strong> ${address}</li>
-          ${booking.assignee ? `<li><strong>Cleaner:</strong> ${booking.assignee.user.name}</li>` : ''}
+          ${cleanerName ? `<li><strong>Cleaner:</strong> ${cleanerName}</li>` : ''}
         </ul>
-        ${booking.notes ? `<p><strong>Special instructions:</strong> ${booking.notes}</p>` : ''}
+        ${booking.customerNotes ? `<p><strong>Special instructions:</strong> ${booking.customerNotes}</p>` : ''}
         <p>We look forward to seeing you!</p>
         <p>Best regards,<br/>${company.name}</p>
       `;
@@ -176,14 +191,15 @@ async function sendCustomerReminders(company: any, now: Date) {
           await prisma.message.create({
             data: {
               companyId: company.id,
-              userId: booking.userId,
+              userId: booking.createdById,
               bookingId: booking.id,
               to: normalizedPhone,
-              from: company.twilioPhoneNumber,
+              from: company.twilioPhoneNumber || '',
               body: smsMessage,
+              channel: 'SMS',
               type: 'REMINDER',
               status: 'SENT',
-              twilioSid: smsResult.sid,
+              providerId: smsResult.sid,
             },
           });
         } else {
@@ -191,11 +207,12 @@ async function sendCustomerReminders(company: any, now: Date) {
           await prisma.message.create({
             data: {
               companyId: company.id,
-              userId: booking.userId,
+              userId: booking.createdById,
               bookingId: booking.id,
               to: normalizedPhone,
-              from: company.twilioPhoneNumber,
+              from: company.twilioPhoneNumber || '',
               body: smsMessage,
+              channel: 'SMS',
               type: 'REMINDER',
               status: 'FAILED',
               errorMessage: smsResult.error,
@@ -213,7 +230,6 @@ async function sendCustomerReminders(company: any, now: Date) {
           from: company.emailDomain
             ? `reminders@${company.emailDomain}`
             : 'reminders@resend.dev',
-          replyTo: company.email || undefined,
           apiKey: company.resendApiKey,
         });
 
@@ -227,8 +243,7 @@ async function sendCustomerReminders(company: any, now: Date) {
         await prisma.booking.update({
           where: { id: booking.id },
           data: {
-            customerReminderSentAt: now,
-            reminderSent: true,
+            reminderSentAt: now,
           },
         });
         sent++;
@@ -259,36 +274,50 @@ async function sendCleanerReminders(company: any, now: Date) {
   const bookings = await prisma.booking.findMany({
     where: {
       companyId: company.id,
-      status: 'SCHEDULED',
+      status: 'CONFIRMED',
       cleanerReminderSentAt: null,
-      assignedTo: { not: null },
+      assignedCleanerId: { not: null },
       scheduledDate: {
         gte: targetTimeStart,
         lt: targetTimeEnd,
       },
     },
     include: {
-      client: true,
+      client: {
+        select: {
+          firstName: true,
+          lastName: true,
+          phone: true,
+        },
+      },
       address: true,
-      assignee: {
+      assignedCleaner: {
         include: {
-          user: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
         },
       },
     },
   });
 
   for (const booking of bookings) {
-    if (!booking.assignee) continue;
+    if (!booking.assignedCleaner) continue;
 
     try {
-      const cleanerName = booking.assignee.user.name?.split(' ')[0] || 'Cleaner';
+      const cleanerName = booking.assignedCleaner.user.firstName || 'Cleaner';
+      const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
       const appointmentDate = formatDate(booking.scheduledDate, 'EEEE, MMMM d');
       const appointmentTime = formatTime(booking.scheduledDate);
-      const address = `${booking.address.street}, ${booking.address.city}`;
+      const address = `${booking.address?.street || ''}, ${booking.address?.city || ''}`;
 
       // Create message content
-      const smsMessage = `Hi ${cleanerName}! Reminder: You have a cleaning scheduled for ${appointmentDate} at ${appointmentTime}. Client: ${booking.client.name}. Address: ${address}. - ${company.name}`;
+      const smsMessage = `Hi ${cleanerName}! Reminder: You have a cleaning scheduled for ${appointmentDate} at ${appointmentTime}. Client: ${clientName}. Address: ${address}. - ${company.name}`;
 
       const emailSubject = `Reminder: Cleaning assignment ${appointmentDate}`;
       const emailBody = `
@@ -300,13 +329,13 @@ async function sendCleanerReminders(company: any, now: Date) {
           <li><strong>Date:</strong> ${appointmentDate}</li>
           <li><strong>Time:</strong> ${appointmentTime}</li>
           <li><strong>Duration:</strong> ${booking.duration} minutes</li>
-          <li><strong>Client:</strong> ${booking.client.name}</li>
+          <li><strong>Client:</strong> ${clientName}</li>
           ${booking.client.phone ? `<li><strong>Client Phone:</strong> ${booking.client.phone}</li>` : ''}
           <li><strong>Address:</strong> ${address}</li>
         </ul>
-        ${booking.address.gateCode ? `<p><strong>Gate Code:</strong> ${booking.address.gateCode}</p>` : ''}
-        ${booking.address.parkingInfo ? `<p><strong>Parking:</strong> ${booking.address.parkingInfo}</p>` : ''}
-        ${booking.address.petInfo ? `<p><strong>Pet Info:</strong> ${booking.address.petInfo}</p>` : ''}
+        ${booking.address?.gateCode ? `<p><strong>Gate Code:</strong> ${booking.address.gateCode}</p>` : ''}
+        ${booking.address?.parkingInfo ? `<p><strong>Parking:</strong> ${booking.address.parkingInfo}</p>` : ''}
+        ${booking.address?.petDetails ? `<p><strong>Pet Info:</strong> ${booking.address.petDetails}</p>` : ''}
         ${booking.internalNotes ? `<p><strong>Internal Notes:</strong> ${booking.internalNotes}</p>` : ''}
         <p>Good luck!</p>
         <p>- ${company.name}</p>
@@ -316,8 +345,8 @@ async function sendCleanerReminders(company: any, now: Date) {
       let emailSuccess = false;
 
       // Send SMS if phone number available
-      if (booking.assignee.user.phone && company.twilioAccountSid) {
-        const normalizedPhone = normalizePhoneNumber(booking.assignee.user.phone);
+      if (booking.assignedCleaner.user.phone && company.twilioAccountSid) {
+        const normalizedPhone = normalizePhoneNumber(booking.assignedCleaner.user.phone);
         const smsResult = await sendSMS(normalizedPhone, smsMessage, {
           accountSid: company.twilioAccountSid,
           authToken: company.twilioAuthToken,
@@ -330,29 +359,29 @@ async function sendCleanerReminders(company: any, now: Date) {
           await prisma.message.create({
             data: {
               companyId: company.id,
-              userId: booking.userId,
+              userId: booking.createdById,
               bookingId: booking.id,
               to: normalizedPhone,
-              from: company.twilioPhoneNumber,
+              from: company.twilioPhoneNumber || '',
               body: smsMessage,
+              channel: 'SMS',
               type: 'REMINDER',
               status: 'SENT',
-              twilioSid: smsResult.sid,
+              providerId: smsResult.sid,
             },
           });
         }
       }
 
       // Send email
-      if (booking.assignee.user.email && company.resendApiKey) {
+      if (booking.assignedCleaner.user.email && company.resendApiKey) {
         const emailResult = await sendEmail({
-          to: booking.assignee.user.email,
+          to: booking.assignedCleaner.user.email,
           subject: emailSubject,
           html: emailBody,
           from: company.emailDomain
             ? `reminders@${company.emailDomain}`
             : 'reminders@resend.dev',
-          replyTo: company.email || undefined,
           apiKey: company.resendApiKey,
         });
 
@@ -390,11 +419,10 @@ async function sendMorningOfReminders(company: any, now: Date) {
   let failed = 0;
 
   // Parse reminder time (e.g., "08:00")
-  const [hours, minutes] = company.morningOfReminderTime.split(':').map(Number);
+  const [hours, minutes] = company.morningReminderTime?.split(':').map(Number) || [8, 0];
 
   // Check if current time is within 1 hour of the reminder time
   const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
 
   if (Math.abs(currentHour - hours) > 1) {
     return { sent, failed }; // Not time to send morning reminders yet
@@ -406,41 +434,55 @@ async function sendMorningOfReminders(company: any, now: Date) {
   const todayEnd = new Date(now);
   todayEnd.setHours(23, 59, 59, 999);
 
-  // Find bookings scheduled for today that haven't received morning reminder
+  // Find bookings scheduled for today
+  // Note: Morning reminders are tracked via cleanerReminderSentAt
   const bookings = await prisma.booking.findMany({
     where: {
       companyId: company.id,
-      status: 'SCHEDULED',
-      morningOfReminderSentAt: null,
-      assignedTo: { not: null },
+      status: 'CONFIRMED',
+      assignedCleanerId: { not: null },
       scheduledDate: {
         gte: todayStart,
         lte: todayEnd,
       },
     },
     include: {
-      client: true,
+      client: {
+        select: {
+          firstName: true,
+          lastName: true,
+          phone: true,
+        },
+      },
       address: true,
-      assignee: {
+      assignedCleaner: {
         include: {
-          user: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
         },
       },
     },
   });
 
   for (const booking of bookings) {
-    if (!booking.assignee) continue;
+    if (!booking.assignedCleaner) continue;
 
     try {
-      const cleanerName = booking.assignee.user.name?.split(' ')[0] || 'Cleaner';
+      const cleanerName = booking.assignedCleaner.user.firstName || 'Cleaner';
+      const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
       const appointmentTime = formatTime(booking.scheduledDate);
-      const address = `${booking.address.street}, ${booking.address.city}`;
+      const address = `${booking.address?.street || ''}, ${booking.address?.city || ''}`;
 
       // Create message content
-      const smsMessage = `Good morning ${cleanerName}! Don't forget: You have a cleaning TODAY at ${appointmentTime}. Client: ${booking.client.name}. Address: ${address}. Have a great day! - ${company.name}`;
+      const smsMessage = `Good morning ${cleanerName}! Don't forget: You have a cleaning TODAY at ${appointmentTime}. Client: ${clientName}. Address: ${address}. Have a great day! - ${company.name}`;
 
-      const emailSubject = `Today's Cleaning: ${appointmentTime} - ${booking.client.name}`;
+      const emailSubject = `Today's Cleaning: ${appointmentTime} - ${clientName}`;
       const emailBody = `
         <h2>Today's Assignment</h2>
         <p>Good morning ${cleanerName},</p>
@@ -448,13 +490,13 @@ async function sendMorningOfReminders(company: any, now: Date) {
         <h3>Today's Job:</h3>
         <ul>
           <li><strong>Time:</strong> ${appointmentTime}</li>
-          <li><strong>Client:</strong> ${booking.client.name}</li>
+          <li><strong>Client:</strong> ${clientName}</li>
           ${booking.client.phone ? `<li><strong>Client Phone:</strong> ${booking.client.phone}</li>` : ''}
           <li><strong>Address:</strong> ${address}</li>
           <li><strong>Duration:</strong> ${booking.duration} minutes</li>
         </ul>
-        ${booking.address.gateCode ? `<p><strong>Gate Code:</strong> ${booking.address.gateCode}</p>` : ''}
-        ${booking.address.parkingInfo ? `<p><strong>Parking:</strong> ${booking.address.parkingInfo}</p>` : ''}
+        ${booking.address?.gateCode ? `<p><strong>Gate Code:</strong> ${booking.address.gateCode}</p>` : ''}
+        ${booking.address?.parkingInfo ? `<p><strong>Parking:</strong> ${booking.address.parkingInfo}</p>` : ''}
         <p>Have a great day!</p>
         <p>- ${company.name}</p>
       `;
@@ -463,8 +505,8 @@ async function sendMorningOfReminders(company: any, now: Date) {
       let emailSuccess = false;
 
       // Send SMS if phone number available
-      if (booking.assignee.user.phone && company.twilioAccountSid) {
-        const normalizedPhone = normalizePhoneNumber(booking.assignee.user.phone);
+      if (booking.assignedCleaner.user.phone && company.twilioAccountSid) {
+        const normalizedPhone = normalizePhoneNumber(booking.assignedCleaner.user.phone);
         const smsResult = await sendSMS(normalizedPhone, smsMessage, {
           accountSid: company.twilioAccountSid,
           authToken: company.twilioAuthToken,
@@ -477,29 +519,29 @@ async function sendMorningOfReminders(company: any, now: Date) {
           await prisma.message.create({
             data: {
               companyId: company.id,
-              userId: booking.userId,
+              userId: booking.createdById,
               bookingId: booking.id,
               to: normalizedPhone,
-              from: company.twilioPhoneNumber,
+              from: company.twilioPhoneNumber || '',
               body: smsMessage,
+              channel: 'SMS',
               type: 'REMINDER',
               status: 'SENT',
-              twilioSid: smsResult.sid,
+              providerId: smsResult.sid,
             },
           });
         }
       }
 
       // Send email
-      if (booking.assignee.user.email && company.resendApiKey) {
+      if (booking.assignedCleaner.user.email && company.resendApiKey) {
         const emailResult = await sendEmail({
-          to: booking.assignee.user.email,
+          to: booking.assignedCleaner.user.email,
           subject: emailSubject,
           html: emailBody,
           from: company.emailDomain
             ? `reminders@${company.emailDomain}`
             : 'reminders@resend.dev',
-          replyTo: company.email || undefined,
           apiKey: company.resendApiKey,
         });
 
@@ -510,12 +552,8 @@ async function sendMorningOfReminders(company: any, now: Date) {
 
       // Update booking if at least one reminder was sent
       if (smsSuccess || emailSuccess) {
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: {
-            morningOfReminderSentAt: now,
-          },
-        });
+        // Note: Morning reminders don't have a separate tracking field
+        // The cleanerReminderSentAt is used for regular cleaner reminders
         sent++;
       } else {
         failed++;

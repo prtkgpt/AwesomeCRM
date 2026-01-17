@@ -10,7 +10,7 @@ import { z } from 'zod';
 
 const validateSchema = z.object({
   code: z.string().min(1),
-  serviceId: z.string().cuid().optional(),
+  serviceType: z.string().optional(),
   orderValue: z.number().positive(),
   clientId: z.string().cuid().optional(),
 });
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { code, serviceId, orderValue, clientId } = validation.data;
+    const { code, serviceType, orderValue, clientId } = validation.data;
     const now = new Date();
 
     // Find promotion
@@ -50,9 +50,6 @@ export async function POST(request: NextRequest) {
       where: {
         companyId: user.companyId,
         code: code.toUpperCase(),
-      },
-      include: {
-        _count: { select: { usages: true } },
       },
     });
 
@@ -74,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check date validity
-    if (promotion.validFrom > now) {
+    if (promotion.startsAt > now) {
       return NextResponse.json({
         success: false,
         valid: false,
@@ -82,7 +79,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (promotion.validTo < now) {
+    if (promotion.expiresAt && promotion.expiresAt < now) {
       return NextResponse.json({
         success: false,
         valid: false,
@@ -91,16 +88,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check minimum order value
-    if (orderValue < promotion.minOrderValue) {
+    if (promotion.minOrderAmount && orderValue < promotion.minOrderAmount) {
       return NextResponse.json({
         success: false,
         valid: false,
-        error: `Minimum order value is $${promotion.minOrderValue.toFixed(2)}`,
+        error: `Minimum order value is $${promotion.minOrderAmount.toFixed(2)}`,
       });
     }
 
     // Check usage limit
-    if (promotion.usageLimit && promotion._count.usages >= promotion.usageLimit) {
+    if (promotion.maxUsageCount && promotion.currentUsage >= promotion.maxUsageCount) {
       return NextResponse.json({
         success: false,
         valid: false,
@@ -108,26 +105,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check per-user usage limit
-    if (clientId) {
-      const userUsages = await prisma.promotionUsage.count({
-        where: {
-          promotionId: promotion.id,
-          clientId,
-        },
-      });
-
-      if (userUsages >= promotion.usageLimitPerUser) {
-        return NextResponse.json({
-          success: false,
-          valid: false,
-          error: 'You have already used this promotion',
-        });
-      }
-    }
-
     // Check first-time customer restriction
-    if (promotion.isFirstTimeOnly && clientId) {
+    if ((promotion.firstBookingOnly || promotion.newCustomersOnly) && clientId) {
       const previousBookings = await prisma.booking.count({
         where: {
           clientId,
@@ -145,8 +124,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check applicable services
-    if (serviceId && promotion.applicableServices && promotion.applicableServices.length > 0) {
-      if (!promotion.applicableServices.includes(serviceId)) {
+    if (serviceType && promotion.serviceTypes && promotion.serviceTypes.length > 0) {
+      if (!promotion.serviceTypes.includes(serviceType)) {
         return NextResponse.json({
           success: false,
           valid: false,
@@ -155,39 +134,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check client tier
-    if (clientId && promotion.applicableClientTiers && promotion.applicableClientTiers.length > 0) {
-      const client = await prisma.client.findUnique({
-        where: { id: clientId },
-        select: { loyaltyTier: true },
-      });
-
-      if (client && !promotion.applicableClientTiers.includes(client.loyaltyTier)) {
-        return NextResponse.json({
-          success: false,
-          valid: false,
-          error: 'This promotion is not available for your loyalty tier',
-        });
-      }
-    }
-
     // Calculate discount
     let discountAmount = 0;
 
-    switch (promotion.type) {
-      case 'PERCENTAGE':
-        discountAmount = orderValue * (promotion.value / 100);
+    switch (promotion.discountType) {
+      case 'PERCENT':
+        discountAmount = orderValue * (promotion.discountValue / 100);
         break;
-      case 'FIXED_AMOUNT':
-        discountAmount = promotion.value;
+      case 'FIXED':
+        discountAmount = promotion.discountValue;
         break;
-      case 'FREE_SERVICE':
-        // Value is the free service price
-        discountAmount = promotion.value;
-        break;
-      case 'BUY_ONE_GET_ONE':
-        // Assume value is the percentage off the second item
-        discountAmount = orderValue * 0.5 * (promotion.value / 100);
+      case 'FREE_ADDON':
+        discountAmount = promotion.discountValue;
         break;
     }
 
@@ -206,8 +164,8 @@ export async function POST(request: NextRequest) {
         id: promotion.id,
         code: promotion.code,
         name: promotion.name,
-        type: promotion.type,
-        value: promotion.value,
+        discountType: promotion.discountType,
+        discountValue: promotion.discountValue,
       },
       discountAmount: Math.round(discountAmount * 100) / 100,
       finalPrice: Math.round((orderValue - discountAmount) * 100) / 100,

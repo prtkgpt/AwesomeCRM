@@ -9,11 +9,11 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { token, name, password, phone } = body;
+    const { token, firstName, lastName, password, phone } = body;
 
-    if (!token || !name || !password) {
+    if (!token || !firstName || !password) {
       return NextResponse.json(
-        { error: 'Token, name, and password are required' },
+        { error: 'Token, first name, and password are required' },
         { status: 400 }
       );
     }
@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
         data: {
           email: invitation.email,
           passwordHash,
-          name,
+          firstName,
+          lastName,
           phone,
           companyId: invitation.companyId,
           role: invitation.role,
@@ -76,7 +77,8 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           email: true,
-          name: true,
+          firstName: true,
+          lastName: true,
           phone: true,
           companyId: true,
           role: true,

@@ -13,19 +13,19 @@ export const dynamic = 'force-dynamic';
 const createServiceSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(1000).optional(),
-  category: z.enum(['STANDARD', 'DEEP', 'MOVE_IN_OUT', 'POST_CONSTRUCTION', 'OFFICE', 'AIRBNB', 'CUSTOM']),
+  type: z.enum(['STANDARD', 'DEEP', 'MOVE_OUT']),
   basePrice: z.number().positive(),
-  duration: z.number().min(30).max(480), // minutes
+  baseDuration: z.number().min(30).max(480), // minutes
+  priceType: z.enum(['FLAT', 'HOURLY', 'SQFT']).default('FLAT'),
   isActive: z.boolean().default(true),
-  isPopular: z.boolean().default(false),
+  isPublic: z.boolean().default(true),
   icon: z.string().optional(),
   color: z.string().optional(),
-  features: z.array(z.string()).default([]),
-  addOns: z.array(z.object({
-    name: z.string(),
-    price: z.number().positive(),
-    duration: z.number().min(0),
-  })).optional(),
+  includedTasks: z.array(z.string()).optional(),
+  excludedTasks: z.array(z.string()).optional(),
+  weeklyDiscount: z.number().default(0),
+  biweeklyDiscount: z.number().default(0),
+  monthlyDiscount: z.number().default(0),
 });
 
 // GET /api/services - List services
@@ -46,11 +46,11 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
+    const type = searchParams.get('type');
     const activeOnly = searchParams.get('activeOnly') === 'true';
 
     const where: any = { companyId: user.companyId };
-    if (category) where.category = category;
+    if (type) where.type = type;
     if (activeOnly) where.isActive = true;
 
     const services = await prisma.service.findMany({
@@ -58,14 +58,10 @@ export async function GET(request: NextRequest) {
       include: {
         pricingRules: {
           where: { isActive: true },
-          orderBy: { priority: 'asc' },
-        },
-        _count: {
-          select: { bookings: true },
+          orderBy: { sortOrder: 'asc' },
         },
       },
       orderBy: [
-        { isPopular: 'desc' },
         { sortOrder: 'asc' },
         { name: 'asc' },
       ],
@@ -84,7 +80,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/services - Create a service
+// POST /api/services - Create service
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -111,7 +107,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { addOns, ...serviceData } = validation.data;
+    const serviceData = validation.data;
 
     // Get max sort order
     const maxOrder = await prisma.service.aggregate({
@@ -124,7 +120,6 @@ export async function POST(request: NextRequest) {
         ...serviceData,
         companyId: user.companyId,
         sortOrder: (maxOrder._max.sortOrder || 0) + 1,
-        addOns: addOns || [],
       },
       include: {
         pricingRules: true,

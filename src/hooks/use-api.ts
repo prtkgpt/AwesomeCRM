@@ -73,24 +73,24 @@ export function useFetch<T>(url: string, options?: UseApiOptions<T>) {
 
 export function usePost<T, P>(url: string, options?: UseApiOptions<T>) {
   return useApi<T, P>(
-    (body: P) =>
+    ((body: P) =>
       fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }),
+      })) as P extends void ? () => Promise<Response> : (params: P) => Promise<Response>,
     options
   );
 }
 
 export function usePatch<T, P>(url: string, options?: UseApiOptions<T>) {
   return useApi<T, P>(
-    (body: P) =>
+    ((body: P) =>
       fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }),
+      })) as P extends void ? () => Promise<Response> : (params: P) => Promise<Response>,
     options
   );
 }

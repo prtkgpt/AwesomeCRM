@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
             where: { id: bookingId },
             data: {
               isPaid: true,
-              paymentMethod: 'card',
+              paymentMethod: 'CARD',
               paidAt: new Date(),
             },
           });
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
             where: { id: bookingId },
             data: {
               isPaid: true,
-              paymentMethod: 'card',
+              paymentMethod: 'CARD',
               paidAt: new Date(),
             },
           });

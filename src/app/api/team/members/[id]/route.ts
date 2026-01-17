@@ -38,7 +38,8 @@ export async function GET(
         user: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             phone: true,
             role: true,
@@ -131,7 +132,8 @@ export async function PATCH(
             user: {
               select: {
                 id: true,
-                name: true,
+                firstName: true,
+                lastName: true,
                 email: true,
                 phone: true,
                 role: true,
@@ -149,11 +151,12 @@ export async function PATCH(
     // Regular update without password change
     const result = await prisma.$transaction(async (tx) => {
       // Update user fields if provided
-      if (body.name !== undefined || body.email !== undefined || body.phone !== undefined) {
+      if (body.firstName !== undefined || body.lastName !== undefined || body.email !== undefined || body.phone !== undefined) {
         await tx.user.update({
           where: { id: teamMember.userId },
           data: {
-            ...(body.name !== undefined && { name: body.name }),
+            ...(body.firstName !== undefined && { firstName: body.firstName }),
+            ...(body.lastName !== undefined && { lastName: body.lastName }),
             ...(body.email !== undefined && { email: body.email }),
             ...(body.phone !== undefined && { phone: body.phone }),
           },
@@ -167,8 +170,8 @@ export async function PATCH(
           ...(body.isActive !== undefined && { isActive: body.isActive }),
           ...(body.hourlyRate !== undefined && { hourlyRate: body.hourlyRate }),
           ...(body.employeeId !== undefined && { employeeId: body.employeeId }),
-          ...(body.emergencyContact !== undefined && { emergencyContact: body.emergencyContact }),
-          ...(body.emergencyPhone !== undefined && { emergencyPhone: body.emergencyPhone }),
+          ...(body.emergencyContactName !== undefined && { emergencyContactName: body.emergencyContactName }),
+          ...(body.emergencyContactPhone !== undefined && { emergencyContactPhone: body.emergencyContactPhone }),
           ...(body.specialties !== undefined && { specialties: body.specialties }),
           // Address fields
           ...(body.street !== undefined && { street: body.street }),
@@ -176,7 +179,7 @@ export async function PATCH(
           ...(body.state !== undefined && { state: body.state }),
           ...(body.zip !== undefined && { zip: body.zip }),
           // Work details
-          ...(body.experience !== undefined && { experience: body.experience }),
+          ...(body.yearsExperience !== undefined && { yearsExperience: body.yearsExperience }),
           ...(body.speed !== undefined && { speed: body.speed }),
           ...(body.serviceAreas !== undefined && { serviceAreas: body.serviceAreas }),
         },
@@ -184,7 +187,8 @@ export async function PATCH(
           user: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
               email: true,
               phone: true,
               role: true,

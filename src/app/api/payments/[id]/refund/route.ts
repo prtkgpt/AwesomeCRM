@@ -55,13 +55,13 @@ export async function POST(
     const payment = await prisma.payment.findFirst({
       where: {
         id: params.id,
-        booking: { companyId: user.companyId },
+        companyId: user.companyId,
       },
       include: {
         booking: {
           include: { client: true },
         },
-        refunds: true,
+        client: true,
       },
     });
 
@@ -69,7 +69,7 @@ export async function POST(
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
-    if (payment.status !== 'COMPLETED') {
+    if (payment.status !== 'PAID') {
       return NextResponse.json(
         { error: 'Only completed payments can be refunded' },
         { status: 400 }
@@ -77,7 +77,7 @@ export async function POST(
     }
 
     // Calculate already refunded amount
-    const alreadyRefunded = payment.refunds.reduce((sum, r) => sum + r.amount, 0);
+    const alreadyRefunded = payment.refundAmount || 0;
     const availableForRefund = payment.amount - alreadyRefunded;
 
     if (availableForRefund <= 0) {
@@ -109,59 +109,60 @@ export async function POST(
       }
     }
 
-    // Create refund record
-    const refund = await prisma.refund.create({
+    // Update payment with refund info
+    const totalRefunded = alreadyRefunded + refundAmount;
+    const updatedPayment = await prisma.payment.update({
+      where: { id: payment.id },
       data: {
-        paymentId: payment.id,
-        amount: refundAmount,
-        reason,
-        status: 'COMPLETED',
+        refundAmount: totalRefunded,
+        refundReason: reason,
         stripeRefundId,
-        processedById: session.user.id,
-        processedAt: new Date(),
-        refundMethod: refundToCredits ? 'CREDIT' : payment.method,
+        refundedAt: new Date(),
+        status: totalRefunded >= payment.amount ? 'REFUNDED' : 'PAID',
       },
     });
 
     // If refunding to credits, add to client's credit balance
-    if (refundToCredits && payment.booking.clientId) {
+    if (refundToCredits && payment.clientId) {
+      // Get current credit balance
+      const client = await prisma.client.findUnique({
+        where: { id: payment.clientId },
+        select: { creditBalance: true },
+      });
+
+      const newBalance = (client?.creditBalance || 0) + refundAmount;
+
       await prisma.client.update({
-        where: { id: payment.booking.clientId },
-        data: { creditBalance: { increment: refundAmount } },
+        where: { id: payment.clientId },
+        data: { creditBalance: newBalance },
       });
 
       await prisma.creditTransaction.create({
         data: {
-          clientId: payment.booking.clientId,
+          clientId: payment.clientId,
           amount: refundAmount,
-          type: 'REFUND',
-          description: `Refund for booking ${payment.booking.bookingNumber}`,
-          bookingId: payment.booking.id,
+          balance: newBalance,
+          type: 'COMPENSATION',
+          description: `Refund for payment ${payment.id}`,
+          referenceType: 'BOOKING',
+          referenceId: payment.bookingId || undefined,
         },
       });
     }
 
-    // Update payment status if fully refunded
-    const totalRefunded = alreadyRefunded + refundAmount;
-    if (totalRefunded >= payment.amount) {
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: 'REFUNDED' },
+    // Update booking paid amount if linked
+    if (payment.bookingId) {
+      await prisma.booking.update({
+        where: { id: payment.bookingId },
+        data: {
+          isPaid: false,
+        },
       });
     }
 
-    // Update booking paid amount
-    await prisma.booking.update({
-      where: { id: payment.bookingId },
-      data: {
-        paidAmount: { decrement: refundAmount },
-        isPaid: false,
-      },
-    });
-
     return NextResponse.json({
       success: true,
-      data: refund,
+      data: updatedPayment,
       message: refundToCredits
         ? `$${refundAmount.toFixed(2)} refunded as store credit`
         : `$${refundAmount.toFixed(2)} refunded to original payment method`,

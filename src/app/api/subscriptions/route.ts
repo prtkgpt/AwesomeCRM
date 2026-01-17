@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             phone: true,
           },
@@ -56,11 +57,12 @@ export async function GET(request: NextRequest) {
             zip: true,
           },
         },
-        assignee: {
+        assignedCleaner: {
           include: {
             user: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
                 email: true,
               },
             },
@@ -97,7 +99,7 @@ export async function GET(request: NextRequest) {
         // Get upcoming bookings (scheduled or in progress)
         const now = new Date();
         const upcomingBookings = childBookings.filter(
-          (b) => new Date(b.scheduledDate) >= now && b.status === 'SCHEDULED'
+          (b) => new Date(b.scheduledDate) >= now && b.status === 'CONFIRMED'
         );
 
         // Get completed bookings
@@ -125,10 +127,10 @@ export async function GET(request: NextRequest) {
         const nextBooking = upcomingBookings.length > 0 ? upcomingBookings[0] : null;
 
         // Calculate total revenue
-        const totalRevenue = subscription.price * totalBookings;
+        const totalRevenue = subscription.finalPrice * totalBookings;
         const paidRevenue = (
           [subscription, ...childBookings].filter((b) => b.isPaid).length *
-          subscription.price
+          subscription.finalPrice
         );
 
         return {

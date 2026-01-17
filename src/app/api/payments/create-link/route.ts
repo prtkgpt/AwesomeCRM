@@ -72,11 +72,13 @@ export async function POST(request: NextRequest) {
       apiVersion: '2023-10-16',
     });
 
+    const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
+
     // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(booking.price * 100), // Convert to cents
+      amount: Math.round(booking.finalPrice * 100), // Convert to cents
       currency: 'usd',
-      description: `Cleaning service - ${booking.client.name}`,
+      description: `Cleaning service - ${clientName}`,
       metadata: {
         bookingId: booking.id,
         clientId: booking.client.id,
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
               name: `${booking.company.name} - Cleaning Service`,
               description: `${booking.serviceType.replace('_', ' ')} • ${booking.address.street}, ${booking.address.city}`,
             },
-            unit_amount: Math.round(booking.price * 100),
+            unit_amount: Math.round(booking.finalPrice * 100),
           },
           quantity: 1,
         },

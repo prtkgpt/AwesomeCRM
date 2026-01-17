@@ -75,8 +75,9 @@ export async function POST(request: NextRequest) {
         from: twilioPhoneNumber!,
         body: validatedData.body,
         type: validatedData.type,
+        channel: 'SMS',
         status: 'SENT',
-        twilioSid: result.sid,
+        providerId: result.sid,
       },
     });
 

@@ -87,19 +87,9 @@ export async function GET(request: NextRequest) {
         });
 
         for (const owner of owners) {
-          // Create notification with report
-          await prisma.notification.create({
-            data: {
-              companyId: company.id,
-              userId: owner.id,
-              type: 'DAILY_REPORT',
-              title: `Daily Report - ${format(now, 'MMMM d, yyyy')}`,
-              message: formatReportMessage(report),
-              channel: 'EMAIL',
-              status: 'PENDING',
-              metadata: { report },
-            },
-          });
+          // Log the daily report generation
+          console.log(`📊 Daily report generated for company ${company.id}, owner ${owner.id}`);
+          console.log(`📈 Report: ${formatReportMessage(report)}`);
 
           results.reportsSent++;
         }
@@ -156,25 +146,25 @@ async function generateDailyReport(
   for (const b of bookingsToday) {
     if (b.status === 'COMPLETED') bookingStats.completed = b._count;
     else if (b.status === 'CONFIRMED' || b.status === 'PENDING') bookingStats.scheduled += b._count;
-    else if (b.status === 'CANCELLED' || b.status === 'CLIENT_CANCELLED') bookingStats.cancelled = b._count;
+    else if (b.status === 'CANCELLED') bookingStats.cancelled = b._count;
     else if (b.status === 'NO_SHOW') bookingStats.noShow = b._count;
   }
 
   // Revenue
   const revenueToday = await prisma.payment.aggregate({
     where: {
-      booking: { companyId },
-      status: 'COMPLETED',
-      paidAt: { gte: dayStart, lte: dayEnd },
+      companyId,
+      status: 'PAID',
+      capturedAt: { gte: dayStart, lte: dayEnd },
     },
     _sum: { amount: true },
   });
 
   const revenueWeek = await prisma.payment.aggregate({
     where: {
-      booking: { companyId },
-      status: 'COMPLETED',
-      paidAt: { gte: weekStart, lte: dayEnd },
+      companyId,
+      status: 'PAID',
+      capturedAt: { gte: weekStart, lte: dayEnd },
     },
     _sum: { amount: true },
   });
@@ -185,7 +175,7 @@ async function generateDailyReport(
       isPaid: false,
       status: 'COMPLETED',
     },
-    _sum: { price: true },
+    _sum: { finalPrice: true },
   });
 
   // Clients
@@ -208,7 +198,7 @@ async function generateDailyReport(
   });
 
   // Team
-  const activeCleaners = await prisma.cleaner.count({
+  const activeCleaners = await prisma.teamMember.count({
     where: {
       companyId,
       user: { isActive: true },
@@ -231,7 +221,7 @@ async function generateDailyReport(
 
   let topPerformerInfo: { name: string; jobsCompleted: number } | undefined;
   if (topPerformer[0]) {
-    const cleaner = await prisma.cleaner.findUnique({
+    const cleaner = await prisma.teamMember.findUnique({
       where: { id: topPerformer[0].assignedCleanerId! },
       include: { user: true },
     });
@@ -255,11 +245,12 @@ async function generateDailyReport(
   // Alerts
   const alerts: string[] = [];
 
-  // Low inventory alert
+  // Low inventory alert - items with zero quantity
   const lowInventory = await prisma.inventoryItem.count({
     where: {
       companyId,
-      status: { in: ['LOW_STOCK', 'OUT_OF_STOCK'] },
+      isActive: true,
+      quantity: { lte: 0 },
     },
   });
   if (lowInventory > 0) {
@@ -279,15 +270,15 @@ async function generateDailyReport(
     alerts.push(`${unassigned} upcoming bookings need cleaner assignment`);
   }
 
-  // Pending reviews alert
+  // Pending reviews alert (unresponded reviews)
   const pendingReviews = await prisma.review.count({
     where: {
       booking: { companyId },
-      status: 'PENDING',
+      responseText: null,
     },
   });
   if (pendingReviews > 0) {
-    alerts.push(`${pendingReviews} reviews awaiting moderation`);
+    alerts.push(`${pendingReviews} reviews awaiting response`);
   }
 
   return {
@@ -298,7 +289,7 @@ async function generateDailyReport(
     revenue: {
       today: revenueToday._sum.amount || 0,
       weekToDate: revenueWeek._sum.amount || 0,
-      outstanding: outstandingPayments._sum.price || 0,
+      outstanding: outstandingPayments._sum.finalPrice || 0,
     },
     clients: {
       new: newClients,

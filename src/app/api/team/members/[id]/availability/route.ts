@@ -36,7 +36,8 @@ export async function GET(
         availability: true,
         user: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },
@@ -75,7 +76,7 @@ export async function GET(
       data: {
         teamMember: {
           id: teamMember.id,
-          name: teamMember.user.name,
+          name: `${teamMember.user.firstName || ''} ${teamMember.user.lastName || ''}`.trim() || 'Unknown',
           email: teamMember.user.email,
         },
         availability,

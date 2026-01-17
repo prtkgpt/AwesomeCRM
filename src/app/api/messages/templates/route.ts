@@ -73,22 +73,24 @@ export async function PUT(request: NextRequest) {
     }
 
     const updateData = updateMessageTemplateSchema.parse(validatedData);
+    const channel = validatedData.channel || 'SMS';
 
     // Update or create template
     const template = await prisma.messageTemplate.upsert({
       where: {
-        companyId_type: {
+        companyId_type_channel: {
           companyId: user.companyId,
           type,
+          channel,
         },
       },
       update: updateData,
       create: {
         companyId: user.companyId,
-        userId: session.user.id,
         type,
+        channel,
         name: updateData.name || type,
-        template: updateData.template || '',
+        body: updateData.body || '',
         isActive: updateData.isActive ?? true,
       },
     });

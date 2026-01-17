@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const now = new Date();
 
     // Count expired credits
-    const count = await prisma.referralCreditTransaction.count({
+    const count = await prisma.creditTransaction.count({
       where: {
         status: 'ACTIVE',
         expiresAt: {
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Sum expired amount
-    const sum = await prisma.referralCreditTransaction.aggregate({
+    const sum = await prisma.creditTransaction.aggregate({
       where: {
         status: 'ACTIVE',
         expiresAt: {

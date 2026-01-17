@@ -86,10 +86,14 @@ function parseCSV(csvText: string): Array<Record<string, string>> {
 }
 
 function extractClientData(row: Record<string, string>) {
-  // Extract name
-  let name = row.fullName || '';
-  if (!name && (row.firstName || row.lastName)) {
-    name = `${row.firstName || ''} ${row.lastName || ''}`.trim();
+  // Extract name - split fullName into firstName and lastName if needed
+  let firstName = row.firstName || '';
+  let lastName = row.lastName || '';
+
+  if (!firstName && row.fullName) {
+    const nameParts = row.fullName.trim().split(' ');
+    firstName = nameParts[0] || '';
+    lastName = nameParts.slice(1).join(' ') || '';
   }
 
   // Extract tags
@@ -128,7 +132,8 @@ function extractClientData(row: Record<string, string>) {
   }
 
   return {
-    name,
+    firstName,
+    lastName,
     email: row.email || undefined,
     phone: phone || undefined,
     tags,
@@ -198,11 +203,11 @@ export async function POST(request: NextRequest) {
         const clientData = extractClientData(row);
 
         // Validate required fields
-        if (!clientData.name || !clientData.name.trim()) {
+        if (!clientData.firstName || !clientData.firstName.trim()) {
           result.failed++;
           result.errors.push({
             row: rowNum,
-            error: 'Name is required',
+            error: 'First name is required',
             data: row,
           });
           continue;
@@ -215,8 +220,8 @@ export async function POST(request: NextRequest) {
         await prisma.client.create({
           data: {
             companyId: user.companyId,
-            userId: session.user.id,
-            name: clientData.name,
+            firstName: clientData.firstName,
+            lastName: clientData.lastName || null,
             email: clientData.email || null,
             phone: clientData.phone,
             tags: clientData.tags,

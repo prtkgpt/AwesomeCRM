@@ -24,7 +24,8 @@ export async function POST(
       include: {
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             stripeCustomerId: true,
           },
@@ -44,8 +45,8 @@ export async function POST(
       );
     }
 
-    // Check if copay is already paid
-    if (booking.copayPaid) {
+    // Check if already paid
+    if (booking.isPaid) {
       return NextResponse.json(
         { success: false, error: 'Copay already paid' },
         { status: 400 }
@@ -53,7 +54,7 @@ export async function POST(
     }
 
     // Get copay amount
-    const copayAmount = booking.finalCopayAmount || booking.copayAmount;
+    const copayAmount = booking.copayAmount;
 
     if (!copayAmount || copayAmount <= 0) {
       return NextResponse.json(
@@ -65,17 +66,18 @@ export async function POST(
     // Create Stripe payment intent
     // Amount in cents (Stripe requires smallest currency unit)
     const amountInCents = Math.round(copayAmount * 100);
+    const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Customer';
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'usd',
       metadata: {
         bookingId: booking.id,
-        clientName: booking.client.name,
+        clientName,
         type: 'COPAY',
         feedbackToken: params.token,
       },
-      description: `Copay payment for ${booking.company.name} - ${booking.client.name}`,
+      description: `Copay payment for ${booking.company.name} - ${clientName}`,
       receipt_email: booking.client.email || undefined,
     });
 
@@ -83,7 +85,7 @@ export async function POST(
     await prisma.booking.update({
       where: { id: booking.id },
       data: {
-        copayStripePaymentIntentId: paymentIntent.id,
+        stripePaymentIntentId: paymentIntent.id,
       },
     });
 

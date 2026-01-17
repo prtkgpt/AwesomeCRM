@@ -31,11 +31,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get user's company
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Get client
     const client = await prisma.client.findFirst({
       where: {
         id: clientId,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 
@@ -62,7 +72,7 @@ export async function POST(request: NextRequest) {
     await prisma.client.update({
       where: { id: client.id },
       data: {
-        stripePaymentMethodId: paymentMethodId,
+        defaultPaymentMethodId: paymentMethodId,
         autoChargeEnabled: true, // Enable auto-charging when card is saved
       },
     });
