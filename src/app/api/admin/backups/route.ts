@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         createdBy: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },
@@ -97,13 +98,13 @@ export async function POST(request: NextRequest) {
     console.log(`Creating backup for company ${companyId}...`);
 
     // Fetch all data in parallel
-    const [clients, bookings, invoices, teamMembers, addresses, messages, messageTemplates, pricingRules, cleaningReviews] = await Promise.all([
+    const [clients, bookings, invoices, teamMembers, addresses, messages, messageTemplates, pricingRules, reviews] = await Promise.all([
       prisma.client.findMany({
         where: { companyId },
         include: {
           addresses: true,
           preferences: true,
-          referralCreditTransactions: true,
+          creditTransactions: true,
         },
       }),
       prisma.booking.findMany({
@@ -134,8 +135,8 @@ export async function POST(request: NextRequest) {
       prisma.pricingRule.findMany({
         where: { companyId },
       }),
-      prisma.cleaningReview.findMany({
-        where: { companyId },
+      prisma.review.findMany({
+        where: { booking: { companyId } },
       }),
     ]);
 
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
       messages,
       messageTemplates,
       pricingRules,
-      cleaningReviews,
+      reviews,
       exportedAt: new Date().toISOString(),
     };
 

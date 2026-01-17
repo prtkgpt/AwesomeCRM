@@ -24,7 +24,7 @@ export async function POST(
     // Get user with companyId and role
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true, role: true, name: true },
+      select: { companyId: true, role: true, firstName: true, lastName: true },
     });
 
     if (!user) {
@@ -40,7 +40,7 @@ export async function POST(
       include: {
         client: true,
         address: true,
-        assignee: {
+        assignedCleaner: {
           include: {
             user: true,
           },
@@ -58,7 +58,7 @@ export async function POST(
 
     // Verify cleaner is assigned to this booking (or is OWNER/ADMIN)
     if (user.role === 'CLEANER') {
-      if (!booking.assignee || booking.assignee.userId !== session.user.id) {
+      if (!booking.assignedCleaner || booking.assignedCleaner.userId !== session.user.id) {
         return NextResponse.json(
           { error: 'You are not assigned to this booking' },
           { status: 403 }
@@ -73,16 +73,18 @@ export async function POST(
 
     switch (action) {
       case 'on_my_way':
-        if (booking.onMyWaySentAt) {
+        if (booking.onMyWayAt) {
           return NextResponse.json(
             { error: 'On my way already sent' },
             { status: 400 }
           );
         }
 
-        updateData = { onMyWaySentAt: now };
-        messageText = `${booking.company.name}: ${user.name || 'Your cleaner'} is on the way to your cleaning appointment at ${booking.address.street}. They should arrive shortly!`;
-        activityMessage = `${user.name || 'Cleaner'} is on the way to ${booking.client.name}'s cleaning`;
+        updateData = { onMyWayAt: now };
+        const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Your cleaner';
+        const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim();
+        messageText = `${booking.company.name}: ${userName} is on the way to your cleaning appointment at ${booking.address.street}. They should arrive shortly!`;
+        activityMessage = `${userName} is on the way to ${clientName}'s cleaning`;
 
         // Send SMS to customer
         if (booking.client.phone) {
@@ -109,6 +111,7 @@ export async function POST(
                 userId: session.user.id,
                 bookingId: booking.id,
                 type: 'ON_MY_WAY',
+                channel: 'SMS',
                 to: booking.client.phone,
                 from: twilioOptions?.from || process.env.TWILIO_PHONE_NUMBER || '',
                 body: messageText,
@@ -131,7 +134,9 @@ export async function POST(
         }
 
         updateData = { clockedInAt: now };
-        activityMessage = `${user.name || 'Cleaner'} started cleaning at ${booking.client.name}'s property`;
+        const clockInUserName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Cleaner';
+        const clockInClientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim();
+        activityMessage = `${clockInUserName} started cleaning at ${clockInClientName}'s property`;
         break;
 
       case 'clock_out':
@@ -152,12 +157,14 @@ export async function POST(
         // Generate unique feedback token if not exists
         const feedbackToken = booking.feedbackToken || `fb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+        const clockOutUserName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Cleaner';
+        const clockOutClientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim();
         updateData = {
           clockedOutAt: now,
           status: 'COMPLETED', // Auto-mark as completed when clocking out
           feedbackToken, // Add feedback token for customer review/tip
         };
-        activityMessage = `${user.name || 'Cleaner'} finished cleaning at ${booking.client.name}'s property`;
+        activityMessage = `${clockOutUserName} finished cleaning at ${clockOutClientName}'s property`;
 
         // Send completion SMS to customer with links
         if (booking.client.phone) {
@@ -170,8 +177,8 @@ export async function POST(
             let completionMessage = `${booking.company.name}: Thank you! Your cleaning is complete.\n\n`;
             completionMessage += `⭐ Rate & Tip: ${feedbackUrl}\n`;
 
-            // Add copay link if client has copay
-            if (booking.copayAmount && booking.copayAmount > 0 && !booking.copayPaid) {
+            // Add copay link if client has copay and booking not fully paid
+            if (booking.copayAmount && booking.copayAmount > 0 && !booking.isPaid) {
               const copayUrl = `${baseUrl}/pay-copay/${feedbackToken}`;
               completionMessage += `💳 Pay Copay ($${booking.copayAmount}): ${copayUrl}\n`;
             }
@@ -203,6 +210,7 @@ export async function POST(
                 userId: session.user.id,
                 bookingId: booking.id,
                 type: 'THANK_YOU',
+                channel: 'SMS',
                 to: booking.client.phone,
                 from: twilioOptions?.from || process.env.TWILIO_PHONE_NUMBER || '',
                 body: completionMessage,
@@ -230,7 +238,7 @@ export async function POST(
       include: {
         client: true,
         address: true,
-        assignee: {
+        assignedCleaner: {
           include: {
             user: true,
           },
@@ -244,6 +252,7 @@ export async function POST(
         companyId: booking.companyId,
         userId: session.user.id,
         bookingId: booking.id,
+        channel: 'IN_APP',
         type: 'CUSTOM',
         to: 'INTERNAL',
         from: 'SYSTEM',

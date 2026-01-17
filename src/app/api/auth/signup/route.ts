@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate company slug from business name or email
-    const companyName = validatedData.businessName || validatedData.email.split('@')[0];
+    const companyName = validatedData.companyName || validatedData.email.split('@')[0];
     let slug = generateSlug(companyName);
 
     // Check if slug exists, if so append random string
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(validatedData.password, 10);
 
     // Determine feature flags based on business type and other factors
-    const businessType = validatedData.businessType || ['RESIDENTIAL'];
+    const businessTypes = validatedData.businessTypes || ['RESIDENTIAL'];
     const enabledFeatures = getDefaultFeatures();
 
     // Create company and user in a transaction
@@ -63,8 +63,7 @@ export async function POST(request: NextRequest) {
           slug,
           email: validatedData.email,
           phone: validatedData.phone,
-          businessType,
-          enabledFeatures,
+          businessTypes,
         },
       });
 
@@ -73,18 +72,18 @@ export async function POST(request: NextRequest) {
         data: {
           email: validatedData.email,
           passwordHash,
-          name: validatedData.name,
+          firstName: validatedData.firstName,
+          lastName: validatedData.lastName || null,
           phone: validatedData.phone,
-          businessName: validatedData.businessName,
           companyId: company.id,
           role: 'OWNER',
         },
         select: {
           id: true,
           email: true,
-          name: true,
+          firstName: true,
+          lastName: true,
           phone: true,
-          businessName: true,
           companyId: true,
           role: true,
           createdAt: true,
@@ -96,47 +95,42 @@ export async function POST(request: NextRequest) {
         data: [
           {
             companyId: company.id,
-            userId: user.id,
             type: 'CONFIRMATION',
+            channel: 'SMS',
             name: 'Booking Confirmation',
-            template:
-              'Hi {{clientName}}! Your cleaning is confirmed for {{date}} at {{time}}. See you then! - {{businessName}}',
+            body: 'Hi {{clientName}}! Your cleaning is confirmed for {{date}} at {{time}}. See you then! - {{businessName}}',
             isActive: true,
           },
           {
             companyId: company.id,
-            userId: user.id,
             type: 'REMINDER',
+            channel: 'SMS',
             name: '24hr Reminder',
-            template:
-              'Hi {{clientName}}! Reminder: Your cleaning is tomorrow at {{time}}. Looking forward to it! - {{businessName}}',
+            body: 'Hi {{clientName}}! Reminder: Your cleaning is tomorrow at {{time}}. Looking forward to it! - {{businessName}}',
             isActive: true,
           },
           {
             companyId: company.id,
-            userId: user.id,
             type: 'ON_MY_WAY',
+            channel: 'SMS',
             name: 'On My Way',
-            template:
-              "Hi {{clientName}}! I'm on my way to {{address}}. See you in about 15 minutes! - {{businessName}}",
+            body: "Hi {{clientName}}! I'm on my way to {{address}}. See you in about 15 minutes! - {{businessName}}",
             isActive: true,
           },
           {
             companyId: company.id,
-            userId: user.id,
             type: 'THANK_YOU',
+            channel: 'SMS',
             name: 'Thank You',
-            template:
-              'Thank you {{clientName}}! Your home is all clean. Hope you love it! If you have a moment, I would greatly appreciate a review. - {{businessName}}',
+            body: 'Thank you {{clientName}}! Your home is all clean. Hope you love it! If you have a moment, I would greatly appreciate a review. - {{businessName}}',
             isActive: true,
           },
           {
             companyId: company.id,
-            userId: user.id,
             type: 'PAYMENT_REQUEST',
+            channel: 'SMS',
             name: 'Payment Request',
-            template:
-              'Hi {{clientName}}! Your cleaning is complete. The total is {{price}}. You can pay using this link: {{paymentLink}} - {{businessName}}',
+            body: 'Hi {{clientName}}! Your cleaning is complete. The total is {{price}}. You can pay using this link: {{paymentLink}} - {{businessName}}',
             isActive: true,
           },
         ],

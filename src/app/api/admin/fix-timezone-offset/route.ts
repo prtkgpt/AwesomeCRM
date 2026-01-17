@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         scheduledDate: true,
-        client: { select: { name: true } },
+        client: { select: { firstName: true, lastName: true } },
         status: true,
       },
       orderBy: { scheduledDate: 'asc' },
@@ -56,10 +56,11 @@ export async function GET(request: NextRequest) {
     const preview = bookings.map(booking => {
       const current = booking.scheduledDate;
       const adjusted = new Date(current.getTime() + hoursOffset * 60 * 60 * 1000);
+      const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim();
 
       return {
         id: booking.id,
-        client: booking.client.name,
+        client: clientName,
         status: booking.status,
         currentUTC: current.toISOString(),
         currentDisplay: current.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),

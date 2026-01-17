@@ -64,19 +64,19 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         referralCode: true,
-        referralCreditsEarned: true,
-        referralCreditsBalance: true,
         referralTier: true,
-        referralTierBonusEarned: true,
+        creditBalance: true,
+        loyaltyPoints: true,
         _count: {
           select: { referrals: true },
         },
       },
       orderBy: {
-        referralCreditsEarned: 'desc',
+        loyaltyPoints: 'desc',
       },
       take: 10,
     });
@@ -89,19 +89,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const totalCreditsIssued = await prisma.client.aggregate({
-      where: { companyId: user.companyId },
-      _sum: { referralCreditsEarned: true },
-    });
-
-    const totalCreditsRedeemed = await prisma.client.aggregate({
-      where: { companyId: user.companyId },
-      _sum: { referralCreditsUsed: true },
-    });
-
     const totalCreditsOutstanding = await prisma.client.aggregate({
       where: { companyId: user.companyId },
-      _sum: { referralCreditsBalance: true },
+      _sum: { creditBalance: true },
+    });
+
+    const totalLoyaltyPoints = await prisma.client.aggregate({
+      where: { companyId: user.companyId },
+      _sum: { loyaltyPoints: true },
     });
 
     // Get recent referrals (last 30 days)
@@ -116,13 +111,15 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         createdAt: true,
         referredBy: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
@@ -144,12 +141,6 @@ export async function GET(request: NextRequest) {
       GOLD: tierDistribution.find(t => t.referralTier === 'GOLD')?._count.referralTier || 0,
     };
 
-    // Calculate total tier bonuses awarded
-    const totalTierBonuses = await prisma.client.aggregate({
-      where: { companyId: user.companyId },
-      _sum: { referralTierBonusEarned: true },
-    });
-
     return NextResponse.json({
       success: true,
       data: {
@@ -157,28 +148,28 @@ export async function GET(request: NextRequest) {
         referrerReward: company.referralReferrerReward || 0,
         refereeReward: company.referralRefereeReward || 0,
         totalReferrals,
-        creditsIssued: totalCreditsIssued._sum.referralCreditsEarned || 0,
-        creditsRedeemed: totalCreditsRedeemed._sum.referralCreditsUsed || 0,
-        creditsOutstanding: totalCreditsOutstanding._sum.referralCreditsBalance || 0,
-        tierBonusesAwarded: totalTierBonuses._sum.referralTierBonusEarned || 0,
+        creditsOutstanding: totalCreditsOutstanding._sum.creditBalance || 0,
+        totalLoyaltyPoints: totalLoyaltyPoints._sum.loyaltyPoints || 0,
         tierDistribution: tierStats,
         topReferrers: topReferrers.map((client) => ({
           id: client.id,
-          name: client.name,
+          name: `${client.firstName || ''} ${client.lastName || ''}`.trim(),
           email: client.email,
           referralCode: client.referralCode,
           referralCount: client._count.referrals,
-          creditsEarned: client.referralCreditsEarned,
-          creditsBalance: client.referralCreditsBalance,
+          creditBalance: client.creditBalance,
+          loyaltyPoints: client.loyaltyPoints,
           tier: client.referralTier,
-          tierBonusEarned: client.referralTierBonusEarned,
         })),
         recentReferrals: recentReferrals.map((client) => ({
           id: client.id,
-          name: client.name,
+          name: `${client.firstName || ''} ${client.lastName || ''}`.trim(),
           email: client.email,
           createdAt: client.createdAt,
-          referredBy: client.referredBy,
+          referredBy: client.referredBy ? {
+            id: client.referredBy.id,
+            name: `${client.referredBy.firstName || ''} ${client.referredBy.lastName || ''}`.trim(),
+          } : null,
         })),
       },
     });

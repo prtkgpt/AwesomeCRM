@@ -126,18 +126,23 @@ export async function POST(
 
           if (existingById) {
             if (mode === 'replace') {
-              // Update existing client
+              // Update existing client - handle both old 'name' and new firstName/lastName formats
+              const nameParts = client.name?.split(' ') || [];
+              const firstName = client.firstName || nameParts[0] || '';
+              const lastName = client.lastName || nameParts.slice(1).join(' ') || '';
+
               await prisma.client.update({
                 where: { id: client.id },
                 data: {
-                  name: client.name,
+                  firstName,
+                  lastName,
                   email: client.email,
                   phone: client.phone,
                   notes: client.notes,
                   tags: client.tags || [],
                   hasInsurance: client.hasInsurance,
                   insuranceProvider: client.insuranceProvider,
-                  referralCreditsBalance: client.referralCreditsBalance,
+                  loyaltyPoints: client.referralCreditsBalance || client.loyaltyPoints || 0,
                 },
               });
               results.clients.restored++;
@@ -163,21 +168,26 @@ export async function POST(
             continue;
           }
 
-          // Create client
+          // Create client - handle both old 'name' and new firstName/lastName formats
+          const nameParts = client.name?.split(' ') || [];
+          const firstName = client.firstName || nameParts[0] || '';
+          const lastName = client.lastName || nameParts.slice(1).join(' ') || '';
+
           await prisma.client.create({
             data: {
               id: client.id,
               companyId,
               userId: user.id,
-              name: client.name,
+              firstName,
+              lastName,
               email: client.email || null,
               phone: client.phone || null,
               notes: client.notes || null,
               tags: client.tags || [],
               hasInsurance: client.hasInsurance || false,
               insuranceProvider: client.insuranceProvider || null,
-              helperBeesReferralId: client.helperBeesReferralId || null,
-              referralCreditsBalance: client.referralCreditsBalance || 0,
+              referralCode: client.referralCode || client.helperBeesReferralId || null,
+              loyaltyPoints: client.referralCreditsBalance || client.loyaltyPoints || 0,
               createdAt: new Date(client.createdAt),
               updatedAt: new Date(client.updatedAt),
             },
@@ -208,8 +218,8 @@ export async function POST(
                   zip: address.zip,
                   parkingInfo: address.parkingInfo || null,
                   gateCode: address.gateCode || null,
-                  petInfo: address.petInfo || null,
-                  preferences: address.preferences || null,
+                  petDetails: address.petInfo || address.petDetails || null,
+                  specialInstructions: address.preferences || address.specialInstructions || null,
                   googlePlaceId: address.googlePlaceId || null,
                   lat: address.lat || null,
                   lng: address.lng || null,
@@ -226,7 +236,8 @@ export async function POST(
             }
           }
         } catch (clientError: any) {
-          results.clients.errors.push(`${client.name}: ${clientError.message}`);
+          const clientName = client.name || `${client.firstName} ${client.lastName}`.trim();
+          results.clients.errors.push(`${clientName}: ${clientError.message}`);
         }
       }
 
@@ -247,10 +258,12 @@ export async function POST(
                   duration: booking.duration,
                   serviceType: booking.serviceType,
                   status: booking.status,
-                  price: booking.price,
+                  finalPrice: booking.price || booking.finalPrice || 0,
+                  basePrice: booking.basePrice || booking.price || booking.finalPrice || 0,
+                  subtotal: booking.subtotal || booking.price || booking.finalPrice || 0,
                   isPaid: booking.isPaid,
                   paymentMethod: booking.paymentMethod,
-                  notes: booking.notes,
+                  customerNotes: booking.notes || booking.customerNotes || null,
                   internalNotes: booking.internalNotes,
                 },
               });
@@ -274,21 +287,28 @@ export async function POST(
             continue;
           }
 
+          // Generate booking number if not present
+          const bookingNumber = booking.bookingNumber || `BK-${Date.now().toString(36).toUpperCase()}`;
+          const priceValue = booking.price || booking.finalPrice || 0;
+
           await prisma.booking.create({
             data: {
               id: booking.id,
               companyId,
-              userId: user.id,
+              createdById: user.id,
               clientId: booking.clientId,
               addressId: booking.addressId,
+              bookingNumber,
               scheduledDate: new Date(booking.scheduledDate),
               duration: booking.duration,
               serviceType: booking.serviceType,
               status: booking.status,
-              price: booking.price,
+              basePrice: booking.basePrice || priceValue,
+              subtotal: booking.subtotal || priceValue,
+              finalPrice: priceValue,
               isPaid: booking.isPaid || false,
               paymentMethod: booking.paymentMethod || null,
-              notes: booking.notes || null,
+              customerNotes: booking.notes || booking.customerNotes || null,
               internalNotes: booking.internalNotes || null,
               isRecurring: booking.isRecurring || false,
               recurrenceFrequency: booking.recurrenceFrequency || 'NONE',
@@ -329,17 +349,18 @@ export async function POST(
             data: {
               id: invoice.id,
               companyId,
-              userId: user.id,
               clientId: invoice.clientId,
               bookingId: invoice.bookingId || null,
               invoiceNumber: invoice.invoiceNumber,
               issueDate: new Date(invoice.issueDate),
               dueDate: new Date(invoice.dueDate),
               status: invoice.status,
-              lineItems: invoice.lineItems,
+              lineItems: invoice.lineItems || [],
               subtotal: invoice.subtotal,
-              tax: invoice.tax || 0,
+              taxAmount: invoice.tax || invoice.taxAmount || 0,
               total: invoice.total,
+              amountPaid: invoice.amountPaid || 0,
+              amountDue: invoice.amountDue ?? invoice.total,
               notes: invoice.notes || null,
               terms: invoice.terms || null,
             },

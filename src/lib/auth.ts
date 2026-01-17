@@ -111,6 +111,10 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.firstName = token.firstName as string | null;
         session.user.lastName = token.lastName as string | null;
+        // Backward compatible name field
+        const first = token.firstName as string | null;
+        const last = token.lastName as string | null;
+        session.user.name = first && last ? `${first} ${last}` : first || last || null;
         session.user.role = token.role as 'OWNER' | 'ADMIN' | 'CLEANER' | 'CLIENT';
         session.user.companyId = token.companyId as string;
         session.user.avatar = token.avatar as string | null;

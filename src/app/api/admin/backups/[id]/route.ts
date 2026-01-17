@@ -48,7 +48,8 @@ export async function GET(
         createdAt: true,
         createdBy: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },

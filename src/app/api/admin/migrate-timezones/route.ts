@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         scheduledDate: true,
-        client: { select: { name: true } },
+        client: { select: { firstName: true, lastName: true } },
         status: true,
       },
       orderBy: { scheduledDate: 'asc' },
@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
     // Analyze each booking
     const analysis = bookings.map(booking => {
       const currentDate = booking.scheduledDate;
+      const clientName = `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim();
 
       // Extract the date/time components as they appear in the DB
       // These might be stored as UTC but were intended to be PST
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
 
       return {
         id: booking.id,
-        client: booking.client.name,
+        client: clientName,
         status: booking.status,
         currentUTC: currentDate.toISOString(),
         currentPSTDisplay: intendedPSTString,

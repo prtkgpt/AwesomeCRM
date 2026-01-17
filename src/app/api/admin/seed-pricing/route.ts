@@ -33,21 +33,11 @@ export async function POST(request: NextRequest) {
       where: { companyId: user.companyId },
     });
 
-    // Update company with hourly rate and service type multipliers
+    // Update company with base hourly rate
     await prisma.company.update({
       where: { id: user.companyId },
       data: {
-        hourlyRate: 50.00,
-        serviceTypeMultipliers: {
-          STANDARD: 1.0,           // Initial Standard - 100%
-          DEEP: 1.2,              // Initial Deep cleaning - 120%
-          MOVE_OUT: 1.2,          // Move in/Move out - 120%
-          WEEKLY: 0.75,           // Recurring weekly - 75%
-          BIWEEKLY: 0.85,         // Recurring Bi-weekly - 85%
-          MONTHLY: 0.9,           // Recurring monthly - 90%
-          POST_CONSTRUCTION: 1.3, // Post Construction - 130%
-          POST_PARTY: 1.1,        // Deep Cleaning/Post Party - 110%
-        },
+        baseHourlyRate: 50.00,
       },
     });
 

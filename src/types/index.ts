@@ -78,6 +78,7 @@ export interface SessionUser {
   email: string;
   firstName?: string | null;
   lastName?: string | null;
+  name?: string | null; // Backward compatible - computed from firstName + lastName
   role: 'OWNER' | 'ADMIN' | 'CLEANER' | 'CLIENT';
   companyId: string;
   avatar?: string | null;
@@ -197,9 +198,22 @@ export interface RevenueChartData {
 // ============================================
 
 export interface BookingWithRelations extends PrismaBooking {
+  // Backward compatible aliases
+  price?: number; // Alias for finalPrice
+  notes?: string; // Alias for customerNotes
+  assignee?: any; // Alias for assignedCleaner
+  onMyWaySentAt?: Date | null; // Alias for onMyWayAt
+  feedbackLinkSentAt?: Date | null; // Alias for feedbackSentAt
+  hasInsuranceCoverage?: boolean; // Alias for hasInsurance
+  copayPaid?: boolean; // Computed from payment status
+  finalCopayAmount?: number; // Alias for copayAmount
+  tipPaidVia?: string | null; // Payment method info
+
   client: PrismaClient & {
     addresses?: PrismaAddress[];
     preferences?: ClientPreference | null;
+    name?: string; // Computed from firstName + lastName
+    stripePaymentMethodId?: string | null; // Alias for defaultPaymentMethodId
   };
   address: PrismaAddress;
   assignedCleaner?: (PrismaTeamMember & {
@@ -267,6 +281,13 @@ export interface ClientWithRelations extends PrismaClient {
 
 export type ClientWithAddresses = PrismaClient & {
   addresses: PrismaAddress[];
+  // Backward compatible aliases
+  name?: string; // Computed from firstName + lastName
+  helperBeesReferralId?: string | null; // Alias for referredById
+  standardCopayAmount?: number | null; // Alias for standardCopay
+  hasDiscountedCopay?: boolean; // Computed from discountedCopay
+  copayDiscountAmount?: number | null; // Alias for discountedCopay
+  stripePaymentMethodId?: string | null; // Alias for defaultPaymentMethodId
 };
 
 export interface ClientPreference {

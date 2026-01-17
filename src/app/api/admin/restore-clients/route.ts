@@ -87,13 +87,17 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Restore client
+        // Restore client - split name into firstName/lastName
+        const nameParts = clientData.name.split(' ');
+        const firstName = nameParts[0] || 'Unknown';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
         await prisma.client.create({
           data: {
             id: clientData.id,
             companyId: user.companyId,
-            userId: user.id,
-            name: clientData.name,
+            firstName,
+            lastName,
             email: clientData.email || null,
             phone: clientData.phone || null,
             createdAt: clientData.createdAt,

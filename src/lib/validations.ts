@@ -435,6 +435,10 @@ export const messageTemplateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+export const updateMessageTemplateSchema = messageTemplateSchema.partial().extend({
+  id: z.string().cuid().optional(),
+});
+
 // ============================================
 // SERVICE & PRICING VALIDATIONS
 // ============================================

@@ -146,14 +146,15 @@ function parseDate(dateStr: string): Date | null {
 }
 
 // Map booking status from backup format
-function mapBookingStatus(status: string): 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'CLEANER_COMPLETED' | 'NO_SHOW' {
+function mapBookingStatus(status: string): 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'CLEANER_COMPLETED' | 'NO_SHOW' {
   const statusUpper = (status || '').toUpperCase();
 
   if (statusUpper.includes('CANCEL')) return 'CANCELLED';
   if (statusUpper.includes('COMPLETE') || statusUpper.includes('DONE')) return 'COMPLETED';
   if (statusUpper.includes('NO SHOW') || statusUpper.includes('NO_SHOW')) return 'NO_SHOW';
+  if (statusUpper.includes('CONFIRM')) return 'CONFIRMED';
 
-  return 'SCHEDULED';
+  return 'CONFIRMED'; // Default to confirmed for scheduled bookings
 }
 
 // Map frequency to service type
@@ -287,13 +288,17 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Create client with original ID
+        // Create client with original ID - split name into firstName/lastName
+        const nameParts = clientData.name.split(' ');
+        const firstName = nameParts[0] || 'Unknown';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
         await prisma.client.create({
           data: {
             id: clientData.id,
             companyId,
-            userId,
-            name: clientData.name,
+            firstName,
+            lastName,
             email: clientData.email || null,
             phone: clientData.phone || null,
             createdAt: clientData.createdAt,
@@ -455,23 +460,35 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Create booking
+        // Create booking with schema-compatible fields
+        const bookingNumber = `BK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+        // Map payment method to enum or null
+        const mappedPaymentMethod = paymentMethod ?
+          (['CARD', 'CASH', 'CHECK', 'ZELLE', 'VENMO', 'CASHAPP', 'BANK_TRANSFER', 'GIFT_CARD', 'CREDITS', 'INSURANCE'].includes(paymentMethod.toUpperCase())
+            ? paymentMethod.toUpperCase() as 'CARD' | 'CASH' | 'CHECK' | 'ZELLE' | 'VENMO' | 'CASHAPP' | 'BANK_TRANSFER' | 'GIFT_CARD' | 'CREDITS' | 'INSURANCE'
+            : null)
+          : null;
+
         await prisma.booking.create({
           data: {
             companyId,
-            userId,
+            createdById: userId,
             clientId,
             addressId,
+            bookingNumber,
             scheduledDate,
             duration,
             serviceType,
             status,
-            price,
+            basePrice: price,
+            subtotal: price,
+            finalPrice: price,
             isPaid,
-            paymentMethod,
+            paymentMethod: mappedPaymentMethod,
             isRecurring,
             recurrenceFrequency,
-            notes: notes || null,
+            customerNotes: notes || null,
             internalNotes: internalNotes || null,
           },
         });

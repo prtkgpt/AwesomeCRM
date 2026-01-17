@@ -23,10 +23,14 @@ export default async function CompanyLandingPage({ params }: CompanyLandingPageP
       slug: true,
       email: true,
       phone: true,
-      address: true,
+      street: true,
+      city: true,
+      state: true,
+      zip: true,
       logo: true,
       primaryColor: true,
-      businessType: true,
+      accentColor: true,
+      businessTypes: true,
       timezone: true,
       onlineBookingEnabled: true,
       googleReviewUrl: true,
@@ -39,7 +43,8 @@ export default async function CompanyLandingPage({ params }: CompanyLandingPageP
   }
 
   const primaryColor = company.primaryColor || '#3B82F6';
-  const businessTypes = company.businessType || ['RESIDENTIAL'];
+  const businessTypes = company.businessTypes || ['RESIDENTIAL'];
+  const companyAddress = company.street ? `${company.street}, ${company.city}, ${company.state} ${company.zip}` : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -162,12 +167,12 @@ export default async function CompanyLandingPage({ params }: CompanyLandingPageP
                   </div>
                 </div>
               )}
-              {company.address && (
+              {companyAddress && (
                 <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 mt-1 text-gray-600 dark:text-gray-400" />
                   <div>
                     <h3 className="font-semibold mb-1">Location</h3>
-                    <p className="text-gray-600 dark:text-gray-400">{company.address}</p>
+                    <p className="text-gray-600 dark:text-gray-400">{companyAddress}</p>
                   </div>
                 </div>
               )}
@@ -245,7 +250,7 @@ export async function generateMetadata({ params }: CompanyLandingPageProps) {
     where: { slug },
     select: {
       name: true,
-      businessType: true,
+      businessTypes: true,
     },
   });
 
@@ -255,7 +260,7 @@ export async function generateMetadata({ params }: CompanyLandingPageProps) {
     };
   }
 
-  const businessTypes = company.businessType || ['RESIDENTIAL'];
+  const businessTypes = company.businessTypes || ['RESIDENTIAL'];
   const serviceType = businessTypes.includes('COMMERCIAL')
     ? 'Commercial & Residential'
     : 'Residential';

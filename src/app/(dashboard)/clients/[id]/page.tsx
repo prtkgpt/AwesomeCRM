@@ -183,10 +183,10 @@ export default function ClientDetailPage() {
   const completedJobs = bookings.filter(b => b.status === 'COMPLETED').length;
   const totalRevenue = bookings
     .filter(b => b.status === 'COMPLETED' && b.isPaid)
-    .reduce((sum, b) => sum + b.price, 0);
+    .reduce((sum, b) => sum + (b.price ?? b.finalPrice ?? 0), 0);
   const unpaidRevenue = bookings
     .filter(b => b.status === 'COMPLETED' && !b.isPaid)
-    .reduce((sum, b) => sum + b.price, 0);
+    .reduce((sum, b) => sum + (b.price ?? b.finalPrice ?? 0), 0);
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
@@ -600,7 +600,7 @@ export default function ClientDetailPage() {
                   </div>
                   <div className="text-right">
                     <div className="font-semibold">
-                      {formatCurrency(booking.price)}
+                      {formatCurrency(booking.price ?? booking.finalPrice ?? 0)}
                     </div>
                     {!booking.isPaid && booking.status === 'COMPLETED' && (
                       <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">

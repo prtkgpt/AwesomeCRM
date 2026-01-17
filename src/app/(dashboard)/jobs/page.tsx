@@ -71,9 +71,10 @@ export default function JobsPage() {
 
         // Client-side filters
         if (clientSearch) {
-          filtered = filtered.filter((booking: BookingWithRelations) =>
-            booking.client.name.toLowerCase().includes(clientSearch.toLowerCase())
-          );
+          filtered = filtered.filter((booking: BookingWithRelations) => {
+            const clientName = booking.client.name ?? `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim();
+            return clientName.toLowerCase().includes(clientSearch.toLowerCase());
+          });
         }
 
         if (paymentFilter === 'paid') {
@@ -395,7 +396,7 @@ export default function JobsPage() {
                       </div>
                       <Link href={`/jobs/${booking.id}`}>
                         <h3 className="font-semibold text-lg mb-1 hover:text-blue-600 dark:hover:text-blue-400">
-                          {booking.client.name}
+                          {booking.client.name ?? `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim()}
                         </h3>
                       </Link>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -421,7 +422,7 @@ export default function JobsPage() {
 
                   <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
                     <div className="font-semibold text-lg">
-                      {formatCurrency(booking.price)}
+                      {formatCurrency(booking.price ?? booking.finalPrice ?? 0)}
                     </div>
                     <div className="flex gap-1">
                       {!booking.isPaid && booking.status === 'COMPLETED' && (

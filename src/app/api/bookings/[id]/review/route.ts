@@ -39,17 +39,17 @@ export async function GET(
     }
 
     // Fetch reviews for this booking
-    const reviews = await prisma.cleaningReview.findMany({
+    const reviews = await prisma.review.findMany({
       where: {
         bookingId: params.id,
       },
       include: {
-        reviewer: {
+        client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
-            role: true,
           },
         },
       },
@@ -135,25 +135,38 @@ export async function POST(
       );
     }
 
-    // Create review
-    const review = await prisma.cleaningReview.create({
+    // Get client ID from booking
+    const bookingData = await prisma.booking.findUnique({
+      where: { id: params.id },
+      select: { clientId: true, assignedCleanerId: true },
+    });
+
+    if (!bookingData) {
+      return NextResponse.json(
+        { success: false, error: 'Booking not found' },
+        { status: 404 }
+      );
+    }
+
+    // Create review - map old fields to new schema
+    const review = await prisma.review.create({
       data: {
-        companyId: user.companyId,
         bookingId: params.id,
-        reviewerId: user.id,
-        houseConditionRating,
-        customerRating,
-        tipRating,
-        overallRating,
-        notes,
+        clientId: bookingData.clientId,
+        cleanerId: bookingData.assignedCleanerId,
+        overallRating: overallRating ?? Math.round((houseConditionRating + customerRating + tipRating) / 3),
+        qualityRating: houseConditionRating,
+        valueRating: tipRating,
+        communicationRating: customerRating,
+        comment: notes,
       },
       include: {
-        reviewer: {
+        client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
-            role: true,
           },
         },
       },

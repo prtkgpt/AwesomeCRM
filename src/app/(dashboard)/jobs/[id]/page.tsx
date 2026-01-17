@@ -119,7 +119,25 @@ export default function JobDetailPage() {
         console.log('🔵 JOB DETAIL - Insurance documentation:', data.data.insuranceDocumentation);
         console.log('🔵 JOB DETAIL - Cleaning observations:', data.data.cleaningObservations);
 
-        setJob(data.data);
+        // Add backward-compatible fields
+        const jobData = {
+          ...data.data,
+          price: data.data.price ?? data.data.finalPrice ?? 0,
+          notes: data.data.notes ?? data.data.customerNotes ?? '',
+          assignee: data.data.assignee ?? data.data.assignedCleaner,
+          assignedTo: data.data.assignedTo ?? data.data.assignedCleanerId ?? '',
+          onMyWaySentAt: data.data.onMyWaySentAt ?? data.data.onMyWayAt,
+          feedbackLinkSentAt: data.data.feedbackLinkSentAt ?? data.data.feedbackSentAt,
+          hasInsuranceCoverage: data.data.hasInsuranceCoverage ?? data.data.hasInsurance,
+          finalCopayAmount: data.data.finalCopayAmount ?? data.data.copayAmount ?? 0,
+          client: {
+            ...data.data.client,
+            name: data.data.client?.name ?? `${data.data.client?.firstName || ''} ${data.data.client?.lastName || ''}`.trim(),
+            stripePaymentMethodId: data.data.client?.stripePaymentMethodId ?? data.data.client?.defaultPaymentMethodId,
+          },
+        };
+
+        setJob(jobData);
         setInsuranceDocumentation(data.data.insuranceDocumentation || '');
         setCleaningObservations(data.data.cleaningObservations || '');
 
@@ -138,9 +156,9 @@ export default function JobDetailPage() {
           scheduledDate: formattedDate,
           duration: data.data.duration.toString(),
           serviceType: data.data.serviceType,
-          price: data.data.price.toString(),
-          notes: data.data.notes || '',
-          assignedTo: data.data.assignedTo || '',
+          price: (jobData.price ?? 0).toString(),
+          notes: jobData.notes || '',
+          assignedTo: jobData.assignedTo || '',
         });
       } else {
         router.push('/jobs');
@@ -503,9 +521,9 @@ export default function JobDetailPage() {
       scheduledDate: formattedDate,
       duration: job.duration.toString(),
       serviceType: job.serviceType,
-      price: job.price.toString(),
-      notes: job.notes || '',
-      assignedTo: job.assignedTo || '',
+      price: (job.price ?? job.finalPrice ?? 0).toString(),
+      notes: job.notes ?? job.customerNotes ?? '',
+      assignedTo: (job as any).assignedTo ?? job.assignedCleanerId ?? '',
     });
     setIsEditing(false);
   };
@@ -635,11 +653,11 @@ export default function JobDetailPage() {
       addressId: job.addressId,
       serviceType: job.serviceType,
       duration: job.duration.toString(),
-      price: job.price.toString(),
-      notes: job.notes || '',
-      internalNotes: job.internalNotes || '',
-      assignedTo: job.assignedTo || '',
-      hasInsuranceCoverage: job.hasInsuranceCoverage?.toString() || 'false',
+      price: (job.price ?? job.finalPrice ?? 0).toString(),
+      notes: job.notes ?? job.customerNotes ?? '',
+      internalNotes: job.internalNotes ?? '',
+      assignedTo: (job as any).assignedTo ?? job.assignedCleanerId ?? '',
+      hasInsuranceCoverage: ((job as any).hasInsuranceCoverage ?? job.hasInsurance)?.toString() || 'false',
       insuranceAmount: job.insuranceAmount?.toString() || '0',
       copayAmount: job.copayAmount?.toString() || '0',
     });
@@ -923,7 +941,7 @@ export default function JobDetailPage() {
                 <DollarSign className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
                   <div className="text-sm font-medium text-gray-500">Price</div>
-                  <div className="text-lg font-bold">{formatCurrency(job.price)}</div>
+                  <div className="text-lg font-bold">{formatCurrency(job.price ?? 0)}</div>
                   {job.isPaid ? (
                     <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
                       Paid
@@ -948,7 +966,7 @@ export default function JobDetailPage() {
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Original Price:</span>
-                      <span className="font-semibold">{formatCurrency(job.price)}</span>
+                      <span className="font-semibold">{formatCurrency(job.price ?? 0)}</span>
                     </div>
                     <div className="flex justify-between text-green-600">
                       <span>Credits Applied:</span>
@@ -1000,7 +1018,7 @@ export default function JobDetailPage() {
             <div className="p-4 bg-white rounded-lg border border-green-200">
               <div className="text-sm font-medium text-gray-600 mb-1">Customer Pays</div>
               <div className="text-2xl font-bold text-green-700">
-                {formatCurrency(job.price)}
+                {formatCurrency(job.price ?? 0)}
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 Total job price
@@ -1061,8 +1079,8 @@ export default function JobDetailPage() {
 
           {/* Profit Analysis - Owner Only */}
           {(session?.user as any)?.role === 'OWNER' && (() => {
-            const cleanerWage = (job.assignee.hourlyRate * job.duration) / 60;
-            const grossProfit = job.price - cleanerWage;
+            const cleanerWage = ((job.assignee?.hourlyRate ?? 0) * job.duration) / 60;
+            const grossProfit = (job.price ?? 0) - cleanerWage;
 
             // Calculate total monthly operational expenses
             const totalMonthlyExpenses = operationalExpenses
@@ -1084,8 +1102,9 @@ export default function JobDetailPage() {
             const netProfit = grossProfit - allocatedCostPerJob;
 
             // Calculate profit margin percentage
-            const profitMarginPercent = job.price > 0
-              ? (netProfit / job.price) * 100
+            const jobPrice = job.price ?? 0;
+            const profitMarginPercent = jobPrice > 0
+              ? (netProfit / jobPrice) * 100
               : 0;
 
             return (
@@ -1504,10 +1523,10 @@ export default function JobDetailPage() {
           )}
 
           {/* Copay Payment Section for Insurance Clients */}
-          {job.client.hasInsurance && job.hasInsuranceCoverage && !job.copayPaid && job.finalCopayAmount > 0 && job.status === 'COMPLETED' && (
+          {job.client.hasInsurance && (job.hasInsuranceCoverage ?? job.hasInsurance) && !(job.copayPaid ?? false) && (job.finalCopayAmount ?? job.copayAmount ?? 0) > 0 && job.status === 'COMPLETED' && (
             <div className="space-y-2 border-2 border-purple-200 rounded-lg p-3 bg-purple-50">
               <label className="text-sm font-medium text-purple-900 mb-2 block">
-                💳 Copay Payment (${job.finalCopayAmount})
+                💳 Copay Payment (${job.finalCopayAmount ?? job.copayAmount ?? 0})
               </label>
 
               <div className="border-t border-purple-200 pt-2 mt-2">
@@ -1724,7 +1743,7 @@ export default function JobDetailPage() {
                     size="lg"
                   >
                     <CreditCard className="h-5 w-5 mr-2" />
-                    {creatingPaymentLink ? 'Charging...' : `Charge ${formatCurrency(job.price)} Now`}
+                    {creatingPaymentLink ? 'Charging...' : `Charge ${formatCurrency(job.price ?? 0)} Now`}
                   </Button>
                 </div>
               ) : (
@@ -1803,12 +1822,12 @@ export default function JobDetailPage() {
               </div>
 
               {/* Copay Collection */}
-              {job.client.hasInsurance && job.hasInsuranceCoverage && !job.copayPaid && job.finalCopayAmount > 0 && (
+              {job.client.hasInsurance && (job.hasInsuranceCoverage ?? job.hasInsurance) && !(job.copayPaid ?? false) && (job.finalCopayAmount ?? job.copayAmount ?? 0) > 0 && (
                 <div className="border-t pt-4">
                   <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
                     <h3 className="font-semibold text-purple-900 mb-2">💳 Collect Copay</h3>
                     <p className="text-sm text-purple-700 mb-3">
-                      Copay amount: ${job.finalCopayAmount}
+                      Copay amount: ${job.finalCopayAmount ?? job.copayAmount ?? 0}
                     </p>
                     <div className="space-y-2">
                       {['STRIPE', 'ZELLE', 'VENMO', 'CASHAPP', 'CHECK', 'CASH'].map((method) => (
@@ -1859,7 +1878,7 @@ export default function JobDetailPage() {
       {showReviewModal && job && (
         <ReviewModal
           bookingId={job.id}
-          clientName={job.client.name}
+          clientName={job.client.name ?? `${job.client.firstName || ''} ${job.client.lastName || ''}`.trim()}
           onClose={() => setShowReviewModal(false)}
           onSuccess={() => {
             fetchReviews();

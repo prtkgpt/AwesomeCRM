@@ -163,7 +163,7 @@ export default function QualityCheckPage() {
     }
   };
 
-  const categories = [...new Set(checklist.map(item => item.category))];
+  const categories = Array.from(new Set(checklist.map(item => item.category)));
   const completedCount = checklist.filter(item => item.completed).length;
   const totalCount = checklist.length;
   const requiredCount = checklist.filter(item => item.required).length;
