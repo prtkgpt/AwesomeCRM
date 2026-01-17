@@ -19,7 +19,8 @@ export default function NewClientPage() {
 
   const [formData, setFormData] = useState({
     // Basic info
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     tags: '',
@@ -126,7 +127,8 @@ export default function NewClientPage() {
     try {
       const payload = {
         // Basic info
-        name: formData.name,
+        firstName: formData.firstName,
+        lastName: formData.lastName || undefined,
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()) : [],
@@ -228,16 +230,29 @@ export default function NewClientPage() {
         <Card className="p-6 md:p-8 space-y-6">
           <h2 className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100">Client Information</h2>
 
-          <div>
-            <Label htmlFor="name">Full Name *</Label>
-            <Input
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              placeholder="John Smith"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="firstName">First Name *</Label>
+              <Input
+                id="firstName"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                required
+                placeholder="John"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                placeholder="Smith"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

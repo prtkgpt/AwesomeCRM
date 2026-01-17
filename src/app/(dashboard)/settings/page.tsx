@@ -52,7 +52,9 @@ type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'i
 
 interface UserProfile {
   id: string;
-  name: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  name: string | null; // computed field for backward compatibility
   email: string;
   phone: string | null;
   role: string;
@@ -78,8 +80,8 @@ interface CompanySettings {
   stripeWebhookSecret: string | null;
   timezone: string;
   onlineBookingEnabled: boolean;
-  minimumLeadTimeHours: number;
-  maxDaysAhead: number;
+  minimumLeadTime: number;
+  maximumLeadTime: number;
   requireApproval: boolean;
 }
 
@@ -93,7 +95,8 @@ export default function SettingsPage() {
   // Profile state
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileForm, setProfileForm] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
   });
@@ -126,8 +129,8 @@ export default function SettingsPage() {
     stripeWebhookSecret: '',
     timezone: 'America/Los_Angeles',
     onlineBookingEnabled: true,
-    minimumLeadTimeHours: 2,
-    maxDaysAhead: 60,
+    minimumLeadTime: 2,
+    maximumLeadTime: 60,
     requireApproval: false,
   });
 
@@ -169,7 +172,8 @@ export default function SettingsPage() {
       if (data.success) {
         setProfile(data.data);
         setProfileForm({
-          name: data.data.name || '',
+          firstName: data.data.firstName || '',
+          lastName: data.data.lastName || '',
           email: data.data.email || '',
           phone: data.data.phone || '',
         });
@@ -202,8 +206,8 @@ export default function SettingsPage() {
           stripeWebhookSecret: data.data.stripeWebhookSecret || '',
           timezone: data.data.timezone || 'America/Los_Angeles',
           onlineBookingEnabled: data.data.onlineBookingEnabled ?? true,
-          minimumLeadTimeHours: data.data.minimumLeadTimeHours ?? 2,
-          maxDaysAhead: data.data.maxDaysAhead ?? 60,
+          minimumLeadTime: data.data.minimumLeadTime ?? 2,
+          maximumLeadTime: data.data.maximumLeadTime ?? 60,
           requireApproval: data.data.requireApproval ?? false,
         });
       }
@@ -475,18 +479,37 @@ export default function SettingsPage() {
                   {/* Name */}
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      Full Name
+                      First Name
                     </label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <Input
                         type="text"
-                        value={profileForm.name}
+                        value={profileForm.firstName}
                         onChange={(e) =>
-                          setProfileForm({ ...profileForm, name: e.target.value })
+                          setProfileForm({ ...profileForm, firstName: e.target.value })
                         }
                         className="pl-10"
-                        placeholder="Enter your name"
+                        placeholder="Enter your first name"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Last Name */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Last Name
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Input
+                        type="text"
+                        value={profileForm.lastName}
+                        onChange={(e) =>
+                          setProfileForm({ ...profileForm, lastName: e.target.value })
+                        }
+                        className="pl-10"
+                        placeholder="Enter your last name"
                       />
                     </div>
                   </div>
@@ -989,11 +1012,11 @@ export default function SettingsPage() {
                           type="number"
                           min="0"
                           max="168"
-                          value={companyForm.minimumLeadTimeHours}
+                          value={companyForm.minimumLeadTime}
                           onChange={(e) =>
                             setCompanyForm({
                               ...companyForm,
-                              minimumLeadTimeHours: parseInt(e.target.value) || 0,
+                              minimumLeadTime: parseInt(e.target.value) || 0,
                             })
                           }
                           placeholder="2"
@@ -1012,11 +1035,11 @@ export default function SettingsPage() {
                           type="number"
                           min="1"
                           max="365"
-                          value={companyForm.maxDaysAhead}
+                          value={companyForm.maximumLeadTime}
                           onChange={(e) =>
                             setCompanyForm({
                               ...companyForm,
-                              maxDaysAhead: parseInt(e.target.value) || 60,
+                              maximumLeadTime: parseInt(e.target.value) || 60,
                             })
                           }
                           placeholder="60"

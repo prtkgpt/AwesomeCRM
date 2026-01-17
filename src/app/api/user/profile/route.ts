@@ -53,9 +53,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Add computed name field for backward compatibility
+    const userWithName = {
+      ...user,
+      name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null,
+    };
+
     return NextResponse.json({
       success: true,
-      data: user,
+      data: userWithName,
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -119,9 +125,15 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
+    // Add computed name field for backward compatibility
+    const updatedUserWithName = {
+      ...updatedUser,
+      name: `${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim() || null,
+    };
+
     return NextResponse.json({
       success: true,
-      data: updatedUser,
+      data: updatedUserWithName,
       message: 'Profile updated successfully',
     });
   } catch (error) {

@@ -53,7 +53,13 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, data: client });
+    // Add computed name field
+    const clientWithName = {
+      ...client,
+      name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unnamed Client',
+    };
+
+    return NextResponse.json({ success: true, data: clientWithName });
   } catch (error) {
     console.error('GET /api/clients/[id] error:', error);
     return NextResponse.json(
@@ -165,9 +171,15 @@ export async function PUT(
       });
     });
 
+    // Add computed name field
+    const resultWithName = result ? {
+      ...result,
+      name: `${result.firstName || ''} ${result.lastName || ''}`.trim() || 'Unnamed Client',
+    } : null;
+
     return NextResponse.json({
       success: true,
-      data: result,
+      data: resultWithName,
       message: 'Client updated successfully',
     });
   } catch (error) {
@@ -243,9 +255,15 @@ export async function PATCH(
       },
     });
 
+    // Add computed name field
+    const clientWithName = {
+      ...client,
+      name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unnamed Client',
+    };
+
     return NextResponse.json({
       success: true,
-      data: client,
+      data: clientWithName,
       message: 'Client updated successfully',
     });
   } catch (error) {

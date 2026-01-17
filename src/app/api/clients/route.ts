@@ -58,7 +58,13 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, data: clients });
+    // Add computed name field for backward compatibility
+    const clientsWithName = clients.map((client) => ({
+      ...client,
+      name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unnamed Client',
+    }));
+
+    return NextResponse.json({ success: true, data: clientsWithName });
   } catch (error) {
     console.error('GET /api/clients error:', error);
     return NextResponse.json(
@@ -279,9 +285,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Add computed name field
+    const clientWithName = {
+      ...client,
+      name: `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unnamed Client',
+    };
+
     return NextResponse.json({
       success: true,
-      data: client,
+      data: clientWithName,
       message: 'Client created successfully',
     });
   } catch (error) {
