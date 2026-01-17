@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendBirthdayGreeting, sendAnniversaryGreeting } from '@/lib/notifications';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 /**
  * Cron job to send birthday and anniversary greetings
  * Runs daily at 9 AM to check for today's birthdays/anniversaries

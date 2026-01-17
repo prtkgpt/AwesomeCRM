@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 const updateCompanySettingsSchema = z.object({
   name: z.string().min(1, 'Company name is required').optional(),
   emailDomain: z.string().optional(),

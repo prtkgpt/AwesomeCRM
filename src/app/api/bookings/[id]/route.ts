@@ -6,6 +6,9 @@ import { updateBookingSchema } from '@/lib/validations';
 import { sendSMS } from '@/lib/twilio';
 import { sendEmail } from '@/lib/email';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/bookings/[id] - Get booking details
 export async function GET(
   request: NextRequest,

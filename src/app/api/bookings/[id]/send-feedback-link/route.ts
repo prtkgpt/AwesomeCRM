@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import { sendSMS } from '@/lib/twilio';
 import { sendEmail } from '@/lib/email';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/bookings/[id]/send-feedback-link - Manually send feedback link to customer
 export async function POST(
   request: NextRequest,

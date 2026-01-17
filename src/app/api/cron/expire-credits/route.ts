@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { expireOldCredits } from '@/lib/referral';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/cron/expire-credits
  * Expire referral credits that have passed their expiration date

@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { sendSMS } from '@/lib/twilio';
 import { sendEmail } from '@/lib/email';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/cron/send-feedback-requests - Automatically send feedback requests 24hrs after job completion
 export async function GET(request: NextRequest) {
   try {

@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendSMS } from '@/lib/twilio';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/bookings/[id]/cleaner-actions - Handle cleaner workflow actions
 export async function POST(
   request: NextRequest,

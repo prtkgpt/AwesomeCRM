@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import twilio from 'twilio';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/cleaner/jobs/[id]/on-my-way - Mark as "On My Way" and send SMS to client
 export async function POST(
   request: NextRequest,

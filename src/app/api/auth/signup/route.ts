@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma';
 import { signupSchema } from '@/lib/validations';
 import { getDefaultFeatures } from '@/lib/features';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // Helper to generate slug from company name
 function generateSlug(name: string): string {
   return name

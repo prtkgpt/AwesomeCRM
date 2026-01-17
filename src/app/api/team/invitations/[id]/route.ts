@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendEmail, getTeamInvitationEmailTemplate } from '@/lib/email';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // PATCH /api/team/invitations/[id] - Resend an invitation
 export async function PATCH(
   request: NextRequest,

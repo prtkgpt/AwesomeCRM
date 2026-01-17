@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { fromZonedTime } from 'date-fns-tz';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 const COMPANY_TIMEZONE = 'America/Los_Angeles'; // PST/PDT
 
 /**

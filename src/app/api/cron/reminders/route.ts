@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { sendSMS, fillTemplate, twilioPhoneNumber } from '@/lib/twilio';
 import { formatDate, formatTime, formatCurrency, normalizePhoneNumber } from '@/lib/utils';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/cron/reminders - Send 24hr reminders (called by Vercel Cron)
 export async function GET(request: NextRequest) {
   try {

@@ -112,6 +112,7 @@ model Company {
   cleaningReviews     CleaningReview[]
   payLogs             PayLog[]
   pricingRules        PricingRule[]
+  backups             CompanyBackup[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -161,6 +162,9 @@ model User {
 
   // Reviews authored
   cleaningReviews CleaningReview[]
+
+  // Backups created
+  createdBackups CompanyBackup[]
 
   // Password reset
   resetToken       String?
@@ -930,4 +934,53 @@ model JobChecklist {
   updatedAt       DateTime  @updatedAt
 
   @@index([bookingId])
+}
+
+// ============================================
+// COMPANY BACKUPS
+// ============================================
+
+model CompanyBackup {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Backup metadata
+  name            String    // User-friendly name, e.g., "Before migration" or auto-generated
+  description     String?   // Optional description
+  version         String    @default("1.0") // Schema version for compatibility
+
+  // Backup data (stored as JSON)
+  // Contains: clients, addresses, bookings, teamMembers, invoices, etc.
+  data            Json
+
+  // Statistics
+  clientsCount    Int       @default(0)
+  bookingsCount   Int       @default(0)
+  invoicesCount   Int       @default(0)
+  teamMembersCount Int      @default(0)
+
+  // Size in bytes (approximate)
+  sizeBytes       Int       @default(0)
+
+  // Who created it
+  createdById     String
+  createdBy       User      @relation(fields: [createdById], references: [id])
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+
+  // Status
+  status          BackupStatus @default(ACTIVE)
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([createdAt])
+}
+
+enum BackupStatus {
+  ACTIVE      // Available for restore
+  RESTORING   // Currently being restored
+  ARCHIVED    // Archived (not shown by default)
+  DELETED     // Soft deleted
 }

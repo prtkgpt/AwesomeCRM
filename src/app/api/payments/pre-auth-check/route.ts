@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/payments/pre-auth-check - Check card validity 24 hours before cleaning
 // This should be called by a cron job or scheduled task
 export async function POST(request: NextRequest) {
