@@ -14,6 +14,7 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadClient() {
@@ -27,10 +28,12 @@ export default function ClientDetailPage() {
           setClient(data.data);
         } else {
           setError(data.error || 'Failed to load client');
+          setErrorDetails(data.details || null);
         }
       } catch (err) {
         console.error('Error:', err);
         setError('Network error');
+        setErrorDetails(err instanceof Error ? err.message : 'Unknown network error');
       } finally {
         setLoading(false);
       }
@@ -53,8 +56,13 @@ export default function ClientDetailPage() {
     return (
       <div className="p-8">
         <Card className="p-6">
-          <h1 className="text-xl font-bold text-red-600 mb-4">Error</h1>
-          <p className="mb-4">{error}</p>
+          <h1 className="text-xl font-bold text-red-600 mb-4">Error Loading Client</h1>
+          <p className="mb-4 font-medium">{error}</p>
+          {errorDetails && (
+            <div className="mb-4 p-3 bg-red-50 rounded border border-red-200">
+              <p className="text-sm text-red-700 font-mono">{errorDetails}</p>
+            </div>
+          )}
           <p className="text-sm text-gray-500 mb-4">Client ID: {clientId}</p>
           <Link href="/clients">
             <Button>

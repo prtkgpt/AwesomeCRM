@@ -30,6 +30,7 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // First, try a simple query without includes to isolate issues
     const client = await prisma.client.findFirst({
       where: {
         id: clientId,
@@ -37,9 +38,20 @@ export async function GET(
       },
       include: {
         addresses: true,
+        preferences: true,
         bookings: {
+          take: 20,
           include: {
             address: true,
+            assignee: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: {
             scheduledDate: 'desc',
@@ -58,8 +70,15 @@ export async function GET(
     return NextResponse.json({ success: true, data: client });
   } catch (error) {
     console.error('GET /api/clients/[id] error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch client' },
+      {
+        success: false,
+        error: 'Failed to fetch client',
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
+      },
       { status: 500 }
     );
   }
