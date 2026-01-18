@@ -10,27 +10,34 @@ export const dynamic = 'force-dynamic';
 // GET /api/clients/[id] - Get client details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Log to help debug
+    console.log('API /api/clients/[id] called with context:', JSON.stringify(context));
+
     const session = await getServerSession(authOptions);
+    console.log('Session:', session?.user?.id ? 'authenticated' : 'not authenticated');
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const clientId = params.id;
+    const clientId = context.params.id;
+    console.log('Client ID:', clientId);
 
     // Get user with companyId
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { companyId: true },
     });
+    console.log('User companyId:', user?.companyId);
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // First, try a simple query without includes to isolate issues
+    // Simple client query first
     const client = await prisma.client.findFirst({
       where: {
         id: clientId,
@@ -59,6 +66,7 @@ export async function GET(
         },
       },
     });
+    console.log('Client found:', !!client);
 
     if (!client) {
       return NextResponse.json(
@@ -77,7 +85,7 @@ export async function GET(
         success: false,
         error: 'Failed to fetch client',
         details: errorMessage,
-        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
+        stack: errorStack
       },
       { status: 500 }
     );
