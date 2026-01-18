@@ -899,24 +899,23 @@ export default function SettingsPage() {
                       </label>
                     </div>
 
-                    {/* Business URL */}
-                    {companySettings?.slug && (
-                      <div className="space-y-4">
+                    {/* Business URL and Booking Links */}
+                    {companySettings?.slug ? (
+                      <div className="space-y-4 mb-6">
                         <div>
                           <label className="block text-sm font-medium mb-2">
                             Your Business URL <span className="text-red-500">*</span>
                           </label>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
                             <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {typeof window !== 'undefined' ? window.location.origin : ''}/
+                              cleandaycrm.com/
                             </span>
-                            <Input
-                              type="text"
-                              value={companySettings.slug}
-                              disabled
-                              className="flex-1 bg-gray-100 dark:bg-gray-800"
-                              placeholder="your-business-name"
-                            />
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {companySettings.slug}
+                            </span>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              /book
+                            </span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
                             Only lowercase letters, numbers, and hyphens allowed
@@ -924,82 +923,88 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Landing Page URL */}
-                        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                          <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                            <Link className="h-4 w-4" />
+                        <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <label className="block text-xs text-gray-500 mb-1">
                             Landing Page
                           </label>
-                          <div className="flex items-center gap-2">
-                            <code className="flex-1 text-sm bg-white dark:bg-gray-800 p-3 rounded border border-blue-200 dark:border-blue-700 font-mono break-all">
-                              {typeof window !== 'undefined' ? window.location.origin : ''}/{companySettings.slug}
-                            </code>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                window.open(`/${companySettings.slug}`, '_blank');
-                              }}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  const url = `${window.location.origin}/${companySettings.slug}`;
-                                  await navigator.clipboard.writeText(url);
-                                  alert('Landing page URL copied!');
-                                } catch (error) {
-                                  console.error('Failed to copy:', error);
-                                }
-                              }}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">
+                              https://www.cleandaycrm.com/{companySettings.slug}
+                            </span>
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(`https://www.cleandaycrm.com/${companySettings.slug}`);
+                                    alert('Landing page URL copied!');
+                                  } catch (error) {
+                                    console.error('Failed to copy:', error);
+                                  }
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  window.open(`/${companySettings.slug}`, '_blank');
+                                }}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
 
                         {/* Booking Page URL */}
-                        <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                          <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                            <Link className="h-4 w-4" />
+                        <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <label className="block text-xs text-gray-500 mb-1">
                             Booking Page
                           </label>
-                          <div className="flex items-center gap-2">
-                            <code className="flex-1 text-sm bg-white dark:bg-gray-800 p-3 rounded border border-green-200 dark:border-green-700 font-mono break-all">
-                              {typeof window !== 'undefined' ? window.location.origin : ''}/{companySettings.slug}/book
-                            </code>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                window.open(`/${companySettings.slug}/book`, '_blank');
-                              }}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  const url = `${window.location.origin}/${companySettings.slug}/book`;
-                                  await navigator.clipboard.writeText(url);
-                                  alert('Booking page URL copied!');
-                                } catch (error) {
-                                  console.error('Failed to copy:', error);
-                                }
-                              }}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">
+                              https://www.cleandaycrm.com/{companySettings.slug}/book
+                            </span>
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(`https://www.cleandaycrm.com/${companySettings.slug}/book`);
+                                    alert('Booking page URL copied!');
+                                  } catch (error) {
+                                    console.error('Failed to copy:', error);
+                                  }
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  window.open(`/${companySettings.slug}/book`, '_blank');
+                                }}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                          Your business URL will appear here once your company settings are saved.
+                        </p>
                       </div>
                     )}
 
