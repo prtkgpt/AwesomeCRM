@@ -10,13 +10,15 @@ export const dynamic = 'force-dynamic';
 // GET /api/clients/[id] - Get client details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { id: clientId } = await params;
 
     // Get user with companyId
     const user = await prisma.user.findUnique({
@@ -30,7 +32,7 @@ export async function GET(
 
     const client = await prisma.client.findFirst({
       where: {
-        id: params.id,
+        id: clientId,
         companyId: user.companyId,
       },
       include: {
@@ -66,7 +68,7 @@ export async function GET(
 // PUT /api/clients/[id] - Update client
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -74,6 +76,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id: clientId } = await params;
     const body = await request.json();
     const validatedData = updateClientSchema.parse(body);
 
@@ -90,7 +93,7 @@ export async function PUT(
     // Verify ownership
     const existingClient = await prisma.client.findFirst({
       where: {
-        id: params.id,
+        id: clientId,
         companyId: user.companyId,
       },
     });
@@ -106,7 +109,7 @@ export async function PUT(
     const result = await prisma.$transaction(async (tx) => {
       // Update client
       const client = await tx.client.update({
-        where: { id: params.id },
+        where: { id: clientId },
         data: {
           name: validatedData.name,
           email: validatedData.email || null,
@@ -155,7 +158,7 @@ export async function PUT(
 
       // Fetch updated client with addresses
       return await tx.client.findUnique({
-        where: { id: params.id },
+        where: { id: clientId },
         include: { addresses: true },
       });
     });
@@ -185,7 +188,7 @@ export async function PUT(
 // PATCH /api/clients/[id] - Partial update client (e.g., notes only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -193,6 +196,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id: clientId } = await params;
     const body = await request.json();
 
     // Get user with companyId
@@ -208,7 +212,7 @@ export async function PATCH(
     // Verify ownership
     const existingClient = await prisma.client.findFirst({
       where: {
-        id: params.id,
+        id: clientId,
         companyId: user.companyId,
       },
     });
@@ -230,7 +234,7 @@ export async function PATCH(
 
     // Update client
     const client = await prisma.client.update({
-      where: { id: params.id },
+      where: { id: clientId },
       data: updateData,
       include: {
         addresses: true,
@@ -254,13 +258,15 @@ export async function PATCH(
 // DELETE /api/clients/[id] - Delete client
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { id: clientId } = await params;
 
     // Get user with companyId
     const user = await prisma.user.findUnique({
@@ -275,7 +281,7 @@ export async function DELETE(
     // Verify ownership - use companyId for multi-tenant isolation
     const existingClient = await prisma.client.findFirst({
       where: {
-        id: params.id,
+        id: clientId,
         companyId: user.companyId,
       },
     });
@@ -289,7 +295,7 @@ export async function DELETE(
 
     // Delete client (cascade will delete addresses and bookings)
     await prisma.client.delete({
-      where: { id: params.id },
+      where: { id: clientId },
     });
 
     return NextResponse.json({
