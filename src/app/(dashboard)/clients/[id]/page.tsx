@@ -53,6 +53,16 @@ export default function ClientDetailPage() {
   }
 
   if (error) {
+    const handleDebug = async () => {
+      try {
+        const res = await fetch(`/api/test-client/${clientId}`);
+        const data = await res.json();
+        alert(JSON.stringify(data, null, 2));
+      } catch (err) {
+        alert('Debug request failed: ' + (err instanceof Error ? err.message : 'Unknown'));
+      }
+    };
+
     return (
       <div className="p-8">
         <Card className="p-6">
@@ -64,12 +74,17 @@ export default function ClientDetailPage() {
             </div>
           )}
           <p className="text-sm text-gray-500 mb-4">Client ID: {clientId}</p>
-          <Link href="/clients">
-            <Button>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Clients
+          <div className="flex gap-2">
+            <Link href="/clients">
+              <Button>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Clients
+              </Button>
+            </Link>
+            <Button variant="outline" onClick={handleDebug}>
+              Run Debug
             </Button>
-          </Link>
+          </div>
         </Card>
       </div>
     );
