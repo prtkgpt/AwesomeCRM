@@ -44,6 +44,7 @@ export default function ClientDetailPage() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [bookingFilter, setBookingFilter] = useState<'all' | 'upcoming' | 'past' | 'cancelled'>('all');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchClient();
@@ -60,12 +61,14 @@ export default function ClientDetailPage() {
       if (data.success) {
         setClient(data.data);
         setNotes(data.data.notes || '');
+        setError(null);
       } else {
-        router.push('/clients');
+        console.error('Client API error:', data.error);
+        setError(data.error || 'Failed to load client');
       }
-    } catch (error) {
-      console.error('Failed to fetch client:', error);
-      router.push('/clients');
+    } catch (err) {
+      console.error('Failed to fetch client:', err);
+      setError('Failed to connect to server');
     } finally {
       setLoading(false);
     }
@@ -242,7 +245,26 @@ export default function ClientDetailPage() {
     );
   }
 
-  if (!client) return null;
+  if (error || !client) {
+    return (
+      <div className="p-8 max-w-xl mx-auto">
+        <Card className="p-6 text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">Failed to Load Client</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error || 'Client not found'}</p>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Go Back
+            </Button>
+            <Button onClick={() => fetchClient()}>
+              Try Again
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   const referralTierConfig = REFERRAL_TIERS[(client as any).referralTier as keyof typeof REFERRAL_TIERS] || REFERRAL_TIERS.NONE;
 
