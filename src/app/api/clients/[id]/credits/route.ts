@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/clients/[id]/credits - Get credit transactions for a client
+// GET /api/clients/[id]/credits - Get referral credit transactions for a client
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -45,8 +45,8 @@ export async function GET(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    // Fetch credit transactions
-    const transactions = await prisma.creditTransaction.findMany({
+    // Fetch referral credit transactions
+    const transactions = await prisma.referralCreditTransaction.findMany({
       where: { clientId },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -65,7 +65,7 @@ export async function GET(
   }
 }
 
-// POST /api/clients/[id]/credits - Add a credit transaction
+// POST /api/clients/[id]/credits - Add a referral credit transaction
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -103,30 +103,46 @@ export async function POST(
         id: clientId,
         companyId: user.companyId,
       },
-      select: { id: true, creditBalance: true },
+      select: {
+        id: true,
+        referralCreditsBalance: true,
+        referralCreditsEarned: true,
+        referralCreditsUsed: true,
+      },
     });
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    const newBalance = (client.creditBalance || 0) + amount;
+    // Calculate new balances
+    const newBalance = (client.referralCreditsBalance || 0) + amount;
+    const newEarned = amount > 0
+      ? (client.referralCreditsEarned || 0) + amount
+      : client.referralCreditsEarned || 0;
+    const newUsed = amount < 0
+      ? (client.referralCreditsUsed || 0) + Math.abs(amount)
+      : client.referralCreditsUsed || 0;
 
     // Create the transaction and update balance in a transaction
     const [transaction] = await prisma.$transaction([
-      prisma.creditTransaction.create({
+      prisma.referralCreditTransaction.create({
         data: {
           clientId,
+          companyId: user.companyId,
           type,
           amount,
-          balance: newBalance,
           description,
           expiresAt: expiresAt ? new Date(expiresAt) : null,
         },
       }),
       prisma.client.update({
         where: { id: clientId },
-        data: { creditBalance: newBalance },
+        data: {
+          referralCreditsBalance: newBalance,
+          referralCreditsEarned: newEarned,
+          referralCreditsUsed: newUsed,
+        },
       }),
     ]);
 
