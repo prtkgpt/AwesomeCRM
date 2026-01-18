@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // POST /api/feedback/[token]/create-tip-payment - Create Stripe payment intent for tip
 export async function POST(

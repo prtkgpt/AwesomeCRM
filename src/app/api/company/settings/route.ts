@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 const updateCompanySettingsSchema = z.object({
   name: z.string().min(1, 'Company name is required').optional(),

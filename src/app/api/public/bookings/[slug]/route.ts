@@ -5,6 +5,7 @@ import { parseDateInCompanyTZ } from '@/lib/utils';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // Map frontend service types to database enum values
 const serviceTypeMap: Record<string, 'STANDARD' | 'DEEP' | 'MOVE_OUT'> = {

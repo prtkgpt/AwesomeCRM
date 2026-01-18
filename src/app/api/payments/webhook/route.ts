@@ -6,6 +6,7 @@ import Stripe from 'stripe';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // POST /api/payments/webhook - Stripe webhook handler
 export async function POST(request: NextRequest) {
