@@ -189,8 +189,10 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/company/settings');
       const data = await response.json();
+      console.log('Company settings response:', data);
 
       if (data.success) {
+        console.log('Setting companySettings with id:', data.data?.id, 'slug:', data.data?.slug);
         setCompanySettings(data.data);
         setCompanyForm({
           name: data.data.name || '',
