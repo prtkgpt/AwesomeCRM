@@ -224,7 +224,11 @@ export default function DashboardPage() {
   };
 
   const userRole = (session?.user as any)?.role as string | undefined;
-  const userName = (session?.user as any)?.name || (session?.user as any)?.email || 'User';
+  const firstName = (session?.user as any)?.firstName;
+  const lastName = (session?.user as any)?.lastName;
+  const userName = firstName
+    ? `${firstName}${lastName ? ' ' + lastName : ''}`
+    : (session?.user as any)?.name || (session?.user as any)?.email || 'User';
 
   if (loading) {
     return (
