@@ -192,44 +192,46 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Build update data - only include non-empty values for API keys
+    // IMPORTANT: Don't overwrite existing values with empty strings
     const updateData: any = {};
 
-    if (validatedData.name !== undefined) {
+    if (validatedData.name !== undefined && validatedData.name.trim()) {
       updateData.name = validatedData.name;
     }
-    if (validatedData.emailDomain !== undefined) {
-      updateData.emailDomain = validatedData.emailDomain || null;
+    // Only update text fields if they have a non-empty value (don't overwrite with null)
+    if (validatedData.emailDomain !== undefined && validatedData.emailDomain.trim()) {
+      updateData.emailDomain = validatedData.emailDomain;
     }
     if (validatedData.baseHourlyRate !== undefined) {
       updateData.baseHourlyRate = validatedData.baseHourlyRate;
     }
-    if (validatedData.googleReviewUrl !== undefined) {
-      updateData.googleReviewUrl = validatedData.googleReviewUrl || null;
+    if (validatedData.googleReviewUrl !== undefined && validatedData.googleReviewUrl.trim()) {
+      updateData.googleReviewUrl = validatedData.googleReviewUrl;
     }
-    if (validatedData.yelpReviewUrl !== undefined) {
-      updateData.yelpReviewUrl = validatedData.yelpReviewUrl || null;
+    if (validatedData.yelpReviewUrl !== undefined && validatedData.yelpReviewUrl.trim()) {
+      updateData.yelpReviewUrl = validatedData.yelpReviewUrl;
     }
 
-    // Only update API credentials if they're not masked values
-    if (validatedData.twilioAccountSid && !validatedData.twilioAccountSid.startsWith('••')) {
+    // Only update API credentials if they're not masked values and not empty
+    if (validatedData.twilioAccountSid && validatedData.twilioAccountSid.trim() && !validatedData.twilioAccountSid.startsWith('••')) {
       updateData.twilioAccountSid = validatedData.twilioAccountSid;
     }
-    if (validatedData.twilioAuthToken && !validatedData.twilioAuthToken.startsWith('••')) {
+    if (validatedData.twilioAuthToken && validatedData.twilioAuthToken.trim() && !validatedData.twilioAuthToken.startsWith('••')) {
       updateData.twilioAuthToken = validatedData.twilioAuthToken;
     }
-    if (validatedData.twilioPhoneNumber !== undefined) {
-      updateData.twilioPhoneNumber = validatedData.twilioPhoneNumber || null;
+    if (validatedData.twilioPhoneNumber !== undefined && validatedData.twilioPhoneNumber.trim()) {
+      updateData.twilioPhoneNumber = validatedData.twilioPhoneNumber;
     }
-    if (validatedData.resendApiKey && !validatedData.resendApiKey.startsWith('••')) {
+    if (validatedData.resendApiKey && validatedData.resendApiKey.trim() && !validatedData.resendApiKey.startsWith('••')) {
       updateData.resendApiKey = validatedData.resendApiKey;
     }
-    if (validatedData.stripeSecretKey && !validatedData.stripeSecretKey.startsWith('••')) {
+    if (validatedData.stripeSecretKey && validatedData.stripeSecretKey.trim() && !validatedData.stripeSecretKey.startsWith('••')) {
       updateData.stripeSecretKey = validatedData.stripeSecretKey;
     }
-    if (validatedData.stripePublishableKey !== undefined) {
-      updateData.stripePublishableKey = validatedData.stripePublishableKey || null;
+    if (validatedData.stripePublishableKey !== undefined && validatedData.stripePublishableKey.trim()) {
+      updateData.stripePublishableKey = validatedData.stripePublishableKey;
     }
-    if (validatedData.stripeWebhookSecret && !validatedData.stripeWebhookSecret.startsWith('••')) {
+    if (validatedData.stripeWebhookSecret && validatedData.stripeWebhookSecret.trim() && !validatedData.stripeWebhookSecret.startsWith('••')) {
       updateData.stripeWebhookSecret = validatedData.stripeWebhookSecret;
     }
 
