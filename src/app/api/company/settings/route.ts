@@ -99,11 +99,9 @@ export async function GET(request: NextRequest) {
         minimumLeadTime: true,
         maximumLeadTime: true,
         requireApproval: true,
-        businessTypes: true,
-        features: true,
         timezone: true,
         createdAt: true,
-        // Don't send auth tokens for security
+        // Don't include features/businessTypes - can cause Json parsing issues with legacy data
       },
     });
 
