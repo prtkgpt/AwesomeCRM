@@ -1,15 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote, TrendingUp, DollarSign, Calendar, FileText, Download, Eye } from 'lucide-react';
+import {
+  ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote,
+  TrendingUp, DollarSign, Calendar, FileText, Download, Eye, Star, Gift,
+  Users, Crown, Shield, Clock, MessageSquare, CreditCard, Award,
+  Copy, ExternalLink, ChevronRight, Home, Building, Sparkles, Heart,
+  PawPrint, Leaf, Ban, CheckCircle2, AlertCircle, Send, Receipt
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Progress, CircularProgress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { formatDateTime, formatCurrency, formatDuration } from '@/lib/utils';
 import type { ClientWithAddresses, BookingWithRelations } from '@/types';
 import { PreferenceForm } from '@/components/client/preference-form';
+
+// Loyalty tier configuration
+const LOYALTY_TIERS = {
+  BASIC: { name: 'Basic', color: 'gray', icon: '🌱', nextTier: 'SILVER', bookingsNeeded: 10, spentNeeded: 500 },
+  SILVER: { name: 'Silver', color: 'slate', icon: '🥈', nextTier: 'GOLD', bookingsNeeded: 25, spentNeeded: 1500 },
+  GOLD: { name: 'Gold', color: 'yellow', icon: '🥇', nextTier: 'PLATINUM', bookingsNeeded: 50, spentNeeded: 3000 },
+  PLATINUM: { name: 'Platinum', color: 'purple', icon: '💎', nextTier: 'DIAMOND', bookingsNeeded: 100, spentNeeded: 6000 },
+  DIAMOND: { name: 'Diamond', color: 'blue', icon: '👑', nextTier: null, bookingsNeeded: null, spentNeeded: null },
+};
+
+const REFERRAL_TIERS = {
+  NONE: { name: 'None', referrals: 0, reward: 0 },
+  BRONZE: { name: 'Bronze', referrals: 1, reward: 25 },
+  SILVER: { name: 'Silver', referrals: 5, reward: 30 },
+  GOLD: { name: 'Gold', referrals: 10, reward: 40 },
+  PLATINUM: { name: 'Platinum', referrals: 20, reward: 50 },
+};
 
 export default function ClientDetailPage() {
   const router = useRouter();
@@ -19,16 +45,20 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<ClientWithAddresses | null>(null);
   const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [creditTransactions, setCreditTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [bookingFilter, setBookingFilter] = useState<'all' | 'upcoming' | 'past' | 'cancelled'>('all');
 
   useEffect(() => {
     fetchClient();
     fetchBookings();
     fetchInvoices();
+    fetchCreditTransactions();
   }, [clientId]);
 
   const fetchClient = async () => {
@@ -37,9 +67,6 @@ export default function ClientDetailPage() {
       const data = await response.json();
 
       if (data.success) {
-        console.log('🔵 CLIENT PROFILE - Full client data:', data.data);
-        console.log('🔵 CLIENT PROFILE - hasInsurance value:', data.data.hasInsurance);
-        console.log('🔵 CLIENT PROFILE - Insurance provider:', data.data.insuranceProvider);
         setClient(data.data);
         setNotes(data.data.notes || '');
       } else {
@@ -57,7 +84,6 @@ export default function ClientDetailPage() {
     try {
       const response = await fetch(`/api/bookings?clientId=${clientId}`);
       const data = await response.json();
-
       if (data.success) {
         setBookings(data.data);
       }
@@ -70,12 +96,23 @@ export default function ClientDetailPage() {
     try {
       const response = await fetch(`/api/invoices?clientId=${clientId}`);
       const data = await response.json();
-
       if (data.success) {
         setInvoices(data.data);
       }
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
+    }
+  };
+
+  const fetchCreditTransactions = async () => {
+    try {
+      const response = await fetch(`/api/clients/${clientId}/credits`);
+      const data = await response.json();
+      if (data.success) {
+        setCreditTransactions(data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch credit transactions:', error);
     }
   };
 
@@ -105,9 +142,7 @@ export default function ClientDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes }),
       });
-
       const data = await response.json();
-
       if (data.success) {
         setClient(data.data);
         setEditingNotes(false);
@@ -127,22 +162,13 @@ export default function ClientDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (
-      !confirm(
-        'Are you sure you want to delete this client? All associated bookings will also be deleted.'
-      )
-    ) {
+    if (!confirm('Are you sure you want to delete this client? All associated bookings will also be deleted.')) {
       return;
     }
-
     setDeleting(true);
     try {
-      const response = await fetch(`/api/clients/${clientId}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
       const data = await response.json();
-
       if (data.success) {
         router.push('/clients');
       } else {
@@ -155,470 +181,739 @@ export default function ClientDetailPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'SCHEDULED':
-        return 'bg-blue-100 text-blue-700';
-      case 'COMPLETED':
-        return 'bg-green-100 text-green-700';
-      case 'CANCELLED':
-        return 'bg-gray-100 text-gray-700';
-      case 'NO_SHOW':
-        return 'bg-red-100 text-red-700';
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  // Computed values
+  const clientStats = useMemo(() => {
+    const now = new Date();
+    const totalJobs = bookings.length;
+    const completedJobs = bookings.filter(b => b.status === 'COMPLETED').length;
+    const cancelledJobs = bookings.filter(b => b.status === 'CANCELLED').length;
+    const upcomingJobs = bookings.filter(b => new Date(b.scheduledDate) > now && b.status !== 'CANCELLED').length;
+    const totalRevenue = bookings
+      .filter(b => b.status === 'COMPLETED' && b.isPaid)
+      .reduce((sum, b) => sum + (b.finalPrice ?? 0), 0);
+    const unpaidRevenue = bookings
+      .filter(b => b.status === 'COMPLETED' && !b.isPaid)
+      .reduce((sum, b) => sum + (b.finalPrice ?? 0), 0);
+    const averageRating = bookings
+      .filter(b => b.customerRating)
+      .reduce((sum, b, _, arr) => sum + (b.customerRating || 0) / arr.length, 0);
+    const totalRatings = bookings.filter(b => b.customerRating).length;
+
+    return { totalJobs, completedJobs, cancelledJobs, upcomingJobs, totalRevenue, unpaidRevenue, averageRating, totalRatings };
+  }, [bookings]);
+
+  const filteredBookings = useMemo(() => {
+    const now = new Date();
+    switch (bookingFilter) {
+      case 'upcoming':
+        return bookings.filter(b => new Date(b.scheduledDate) > now && b.status !== 'CANCELLED');
+      case 'past':
+        return bookings.filter(b => new Date(b.scheduledDate) <= now && b.status !== 'CANCELLED');
+      case 'cancelled':
+        return bookings.filter(b => b.status === 'CANCELLED');
       default:
-        return 'bg-gray-100 text-gray-700';
+        return bookings;
     }
+  }, [bookings, bookingFilter]);
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      PENDING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+      CONFIRMED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      IN_PROGRESS: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+      COMPLETED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      CANCELLED: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+      NO_SHOW: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    };
+    return colors[status] || colors.PENDING;
+  };
+
+  const getInitials = (firstName: string, lastName?: string | null) => {
+    const first = firstName?.charAt(0)?.toUpperCase() || '';
+    const last = lastName?.charAt(0)?.toUpperCase() || '';
+    return first + last || '?';
+  };
+
+  const getLoyaltyProgress = () => {
+    if (!client) return { progress: 0, nextTier: null };
+    const tier = LOYALTY_TIERS[client.loyaltyTier as keyof typeof LOYALTY_TIERS] || LOYALTY_TIERS.BASIC;
+    if (!tier.nextTier) return { progress: 100, nextTier: null };
+    const nextTierInfo = LOYALTY_TIERS[tier.nextTier as keyof typeof LOYALTY_TIERS];
+    const bookingsProgress = ((client.totalBookings || 0) / (nextTierInfo?.bookingsNeeded || 1)) * 100;
+    const spentProgress = ((client.totalSpent || 0) / (nextTierInfo?.spentNeeded || 1)) * 100;
+    return { progress: Math.min(100, Math.max(bookingsProgress, spentProgress)), nextTier: tier.nextTier };
   };
 
   if (loading) {
-    return <div className="p-4 text-center">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
-  if (!client) {
-    return null;
-  }
+  if (!client) return null;
 
-  // Calculate job stats
-  const totalJobs = bookings.length;
-  const completedJobs = bookings.filter(b => b.status === 'COMPLETED').length;
-  const totalRevenue = bookings
-    .filter(b => b.status === 'COMPLETED' && b.isPaid)
-    .reduce((sum, b) => sum + b.price, 0);
-  const unpaidRevenue = bookings
-    .filter(b => b.status === 'COMPLETED' && !b.isPaid)
-    .reduce((sum, b) => sum + b.price, 0);
+  const loyaltyInfo = getLoyaltyProgress();
+  const tierConfig = LOYALTY_TIERS[client.loyaltyTier as keyof typeof LOYALTY_TIERS] || LOYALTY_TIERS.BASIC;
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
-      {/* Insurance Banner */}
-      {client.hasInsurance && (
-        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30">
-              <span className="text-blue-600 dark:text-blue-400 text-lg">✓</span>
-            </div>
-            <div className="flex-1">
-              <h2 className="text-sm font-semibold text-blue-900 dark:text-blue-100">Insurance Coverage</h2>
-              <p className="text-xs text-blue-700 dark:text-blue-300">This client has active insurance coverage</p>
-            </div>
-            <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+        {/* Back button - mobile */}
+        <div className="lg:hidden">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
           </Button>
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-3xl md:text-4xl font-bold">{client.name}</h1>
-              {client.hasInsurance && (
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium border border-blue-200 dark:border-blue-800">
-                  <span className="text-xs">✓</span> Insurance
-                </span>
+        </div>
+
+        {/* Client Avatar & Info */}
+        <div className="flex-1">
+          <div className="flex items-start gap-4 md:gap-6">
+            {/* Back button - desktop */}
+            <Button variant="outline" size="sm" onClick={() => router.back()} className="hidden lg:flex">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+
+            {/* Avatar */}
+            <div className="relative">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl md:text-3xl font-bold shadow-lg">
+                {getInitials(client.firstName, client.lastName)}
+              </div>
+              {client.isVip && (
+                <div className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-md">
+                  <Crown className="w-5 h-5 text-yellow-800" />
+                </div>
               )}
             </div>
-            {client.tags.length > 0 && (
-              <div className="flex gap-1 mt-2">
-                {client.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full"
-                  >
-                    {tag}
+
+            {/* Name & Badges */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white truncate">
+                  {client.firstName} {client.lastName}
+                </h1>
+                {client.isVip && (
+                  <Badge variant="warning" className="gap-1">
+                    <Crown className="w-3 h-3" />
+                    VIP
+                  </Badge>
+                )}
+                {client.hasInsurance && (
+                  <Badge variant="info" className="gap-1">
+                    <Shield className="w-3 h-3" />
+                    Insured
+                  </Badge>
+                )}
+                <Badge variant="default" className="gap-1">
+                  {tierConfig.icon} {tierConfig.name}
+                </Badge>
+              </div>
+
+              {/* Quick contact */}
+              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+                {client.email && (
+                  <a href={`mailto:${client.email}`} className="flex items-center gap-1 hover:text-blue-600">
+                    <Mail className="w-4 h-4" />
+                    <span className="hidden sm:inline">{client.email}</span>
+                  </a>
+                )}
+                {client.phone && (
+                  <a href={`tel:${client.phone}`} className="flex items-center gap-1 hover:text-blue-600">
+                    <Phone className="w-4 h-4" />
+                    <span className="hidden sm:inline">{client.phone}</span>
+                  </a>
+                )}
+                {client.source && (
+                  <span className="flex items-center gap-1">
+                    <TrendingUp className="w-4 h-4" />
+                    via {client.source}
                   </span>
+                )}
+              </div>
+
+              {/* Tags */}
+              {client.tags && client.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {client.tags.map((tag) => (
+                    <span key={tag} className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/jobs/new?clientId=${clientId}`}>
+            <Button size="sm" className="gap-1">
+              <Plus className="h-4 w-4" />
+              New Job
+            </Button>
+          </Link>
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => client.phone && window.open(`sms:${client.phone}`)}>
+            <MessageSquare className="h-4 w-4" />
+            Text
+          </Button>
+          <Link href={`/clients/${clientId}/edit`}>
+            <Button variant="outline" size="sm" className="gap-1">
+              <Edit className="h-4 w-4" />
+              Edit
+            </Button>
+          </Link>
+          <Button variant="outline" size="sm" onClick={handleDelete} disabled={deleting} className="text-red-600 hover:text-red-700 dark:text-red-400 gap-1">
+            <Trash2 className="h-4 w-4" />
+            {deleting ? '...' : 'Delete'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+        <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500 rounded-lg">
+              <Calendar className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-blue-700 dark:text-blue-400">Total Jobs</p>
+              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{clientStats.totalJobs}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-200 dark:border-green-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-500 rounded-lg">
+              <CheckCircle2 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-green-700 dark:text-green-400">Completed</p>
+              <p className="text-2xl font-bold text-green-900 dark:text-green-100">{clientStats.completedJobs}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200 dark:border-purple-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-500 rounded-lg">
+              <DollarSign className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-purple-700 dark:text-purple-400">Revenue</p>
+              <p className="text-xl font-bold text-purple-900 dark:text-purple-100">{formatCurrency(clientStats.totalRevenue)}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border-yellow-200 dark:border-yellow-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-yellow-500 rounded-lg">
+              <Gift className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-yellow-700 dark:text-yellow-400">Credits</p>
+              <p className="text-xl font-bold text-yellow-900 dark:text-yellow-100">{formatCurrency(client.creditBalance || 0)}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20 border-pink-200 dark:border-pink-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-pink-500 rounded-lg">
+              <Award className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-pink-700 dark:text-pink-400">Loyalty Points</p>
+              <p className="text-2xl font-bold text-pink-900 dark:text-pink-100">{client.loyaltyPoints || 0}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-200 dark:border-orange-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-500 rounded-lg">
+              <Star className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-orange-700 dark:text-orange-400">Avg Rating</p>
+              <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+                {clientStats.averageRating > 0 ? clientStats.averageRating.toFixed(1) : '-'}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Insurance Banner */}
+      {client.hasInsurance && (
+        <Card className="p-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500 rounded-lg">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100">Insurance Coverage Active</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  {client.insuranceProvider || 'Insurance Provider'}
+                  {client.insurancePaymentAmount && ` • ${formatCurrency(client.insurancePaymentAmount)} covered`}
+                </p>
+              </div>
+            </div>
+            {(client.standardCopay || client.discountedCopay) && (
+              <div className="text-right">
+                <p className="text-xs text-blue-600 dark:text-blue-400">Copay Amount</p>
+                <p className="font-semibold text-blue-900 dark:text-blue-100">
+                  {formatCurrency(client.discountedCopay || client.standardCopay || 0)}
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full overflow-x-auto flex-nowrap">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="bookings">Bookings</TabsTrigger>
+          <TabsTrigger value="financial">Financial</TabsTrigger>
+          <TabsTrigger value="loyalty">Loyalty & Referrals</TabsTrigger>
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview">
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Contact Information */}
+            <Card className="p-5">
+              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                <Phone className="h-5 w-5 text-gray-400" />
+                Contact Information
+              </h3>
+              <div className="space-y-3">
+                {client.email && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">Email</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a href={`mailto:${client.email}`} className="text-sm text-blue-600 hover:underline">{client.email}</a>
+                      <button onClick={() => copyToClipboard(client.email!)} className="text-gray-400 hover:text-gray-600">
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {client.phone && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">Phone</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a href={`tel:${client.phone}`} className="text-sm text-blue-600 hover:underline">{client.phone}</a>
+                      <button onClick={() => copyToClipboard(client.phone!)} className="text-gray-400 hover:text-gray-600">
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {client.alternatePhone && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">Alt. Phone</span>
+                    </div>
+                    <span className="text-sm">{client.alternatePhone}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm">Preferred Contact</span>
+                  </div>
+                  <Badge variant="outline">{client.preferredContactMethod || 'EMAIL'}</Badge>
+                </div>
+              </div>
+            </Card>
+
+            {/* Addresses */}
+            <Card className="p-5">
+              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-gray-400" />
+                Addresses
+              </h3>
+              {client.addresses.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">No addresses on file</p>
+              ) : (
+                <div className="space-y-3">
+                  {client.addresses.map((address) => (
+                    <div key={address.id} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {address.propertyType === 'HOUSE' && <Home className="h-4 w-4 text-gray-400" />}
+                          {address.propertyType === 'CONDO' && <Building className="h-4 w-4 text-gray-400" />}
+                          {address.propertyType === 'APARTMENT' && <Building className="h-4 w-4 text-gray-400" />}
+                          {!address.propertyType && <MapPin className="h-4 w-4 text-gray-400" />}
+                          <span className="text-sm font-medium">{address.label || 'Address'}</span>
+                          {address.isPrimary && <Badge variant="info" size="sm">Primary</Badge>}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{address.street}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{address.city}, {address.state} {address.zip}</p>
+                      {(address.bedrooms || address.bathrooms || address.squareFootage) && (
+                        <div className="flex gap-3 mt-2 text-xs text-gray-500">
+                          {address.bedrooms && <span>{address.bedrooms} bed</span>}
+                          {address.bathrooms && <span>{address.bathrooms} bath</span>}
+                          {address.squareFootage && <span>{address.squareFootage} sqft</span>}
+                        </div>
+                      )}
+                      {address.hasPets && (
+                        <div className="flex items-center gap-1 mt-2 text-xs text-amber-600">
+                          <PawPrint className="h-3 w-3" />
+                          {address.petDetails || 'Has pets'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Notes */}
+            <Card className="p-5 md:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <StickyNote className="h-5 w-5 text-gray-400" />
+                  Notes
+                </h3>
+                {!editingNotes && (
+                  <Button variant="outline" size="sm" onClick={() => setEditingNotes(true)}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
+              </div>
+              {editingNotes ? (
+                <div className="space-y-3">
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add notes about this client..."
+                    rows={6}
+                    className="w-full"
+                  />
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveNotes} disabled={savingNotes} size="sm">
+                      <Save className="h-4 w-4 mr-1" />
+                      {savingNotes ? 'Saving...' : 'Save'}
+                    </Button>
+                    <Button variant="outline" onClick={handleCancelNotes} disabled={savingNotes} size="sm">
+                      <X className="h-4 w-4 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {client.notes ? (
+                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{client.notes}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No notes yet. Click Edit to add notes about this client.</p>
+                  )}
+                </div>
+              )}
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Bookings Tab */}
+        <TabsContent value="bookings">
+          <Card className="p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <h3 className="font-semibold text-lg">Booking History</h3>
+              <div className="flex gap-2">
+                <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                  {(['all', 'upcoming', 'past', 'cancelled'] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      onClick={() => setBookingFilter(filter)}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                        bookingFilter === filter
+                          ? 'bg-white dark:bg-gray-700 shadow-sm font-medium'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
+                      }`}
+                    >
+                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <Link href={`/jobs/new?clientId=${clientId}`}>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    New
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {filteredBookings.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No {bookingFilter !== 'all' ? bookingFilter : ''} bookings found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredBookings.map((booking) => (
+                  <Link key={booking.id} href={`/jobs/${booking.id}`}>
+                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(booking.status)}`}>
+                              {booking.status}
+                            </span>
+                            {booking.isRecurring && (
+                              <Badge variant="outline" size="sm">Recurring</Badge>
+                            )}
+                            {booking.hasInsurance && (
+                              <Badge variant="info" size="sm">Insurance</Badge>
+                            )}
+                          </div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {formatDateTime(booking.scheduledDate)}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                            {booking.address?.street}, {booking.address?.city}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {booking.serviceType} • {formatDuration(booking.duration)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-lg">{formatCurrency(booking.finalPrice ?? 0)}</p>
+                          {booking.isPaid ? (
+                            <Badge variant="success" size="sm">Paid</Badge>
+                          ) : booking.status === 'COMPLETED' && (
+                            <Badge variant="warning" size="sm">Unpaid</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
                 ))}
               </div>
             )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Link href={`/clients/${clientId}/edit`}>
-            <Button variant="outline" size="sm">
-              <Edit className="h-4 w-4 mr-1" />
-              Edit Profile
-            </Button>
-          </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="text-red-600 hover:text-red-700 dark:text-red-400"
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Job Stats */}
-      {totalJobs > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Jobs</p>
-                <p className="text-2xl font-bold">{totalJobs}</p>
-              </div>
-            </div>
           </Card>
+        </TabsContent>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
-                <p className="text-2xl font-bold">{completedJobs}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Revenue</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                <DollarSign className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Unpaid</p>
-                <p className="text-2xl font-bold">{formatCurrency(unpaidRevenue)}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      <Card className="p-4 space-y-3">
-        <h2 className="font-semibold text-lg">Contact Information</h2>
-
-        {client.email && (
-          <div className="flex items-center gap-2 text-gray-700">
-            <Mail className="h-4 w-4 text-gray-400" />
-            <a href={`mailto:${client.email}`} className="hover:underline">
-              {client.email}
-            </a>
-          </div>
-        )}
-
-        {client.phone && (
-          <div className="flex items-center gap-2 text-gray-700">
-            <Phone className="h-4 w-4 text-gray-400" />
-            <a href={`tel:${client.phone}`} className="hover:underline">
-              {client.phone}
-            </a>
-          </div>
-        )}
-
-        {client.addresses.length > 0 && (
-          <div className="space-y-2 pt-2">
-            <h3 className="font-medium flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-400" />
-              Addresses
-            </h3>
-            {client.addresses.map((address) => (
-              <div
-                key={address.id}
-                className="pl-6 text-sm text-gray-600 border-l-2 border-gray-200"
-              >
-                <div>{address.street}</div>
-                <div>
-                  {address.city}, {address.state} {address.zip}
-                </div>
-              
-              </div>
-            ))}
-          </div>
-        )}
-
-      </Card>
-
-      {/* Insurance Information */}
-      {client.hasInsurance && (
-        <Card className="p-4 md:p-6 space-y-3 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-          <h2 className="font-semibold text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            Insurance Coverage
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {client.insuranceProvider && (
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Provider</p>
-                <p className="font-medium">{client.insuranceProvider}</p>
-              </div>
-            )}
-            {client.helperBeesReferralId && (
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Helper Bee's Referral ID</p>
-                <p className="font-medium">{client.helperBeesReferralId}</p>
-              </div>
-            )}
-            {client.insurancePaymentAmount && (
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Insurance Payment Amount</p>
-                <p className="font-medium">{formatCurrency(client.insurancePaymentAmount)}</p>
-              </div>
-            )}
-            {client.standardCopayAmount && (
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Standard Copay Amount</p>
-                <p className="font-medium">{formatCurrency(client.standardCopayAmount)}</p>
-              </div>
-            )}
-            {client.hasDiscountedCopay && client.copayDiscountAmount && (
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Copay Discount</p>
-                <p className="font-medium">{formatCurrency(client.copayDiscountAmount)} off</p>
-              </div>
-            )}
-          </div>
-          {client.copayNotes && (
-            <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Copay Notes</p>
-              <p className="text-sm mt-1">{client.copayNotes}</p>
-            </div>
-          )}
-          <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              📋 Documentation fields will appear on each booking for insurance billing records
-            </p>
-          </div>
-        </Card>
-      )}
-
-      {/* Notes Section */}
-      <Card className="p-4 md:p-6 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-lg flex items-center gap-2">
-            <StickyNote className="h-5 w-5" />
-            Notes
-          </h2>
-          {!editingNotes && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingNotes(true)}
-            >
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
-
-        {editingNotes ? (
-          <div className="space-y-3">
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add notes about this client..."
-              rows={6}
-              className="w-full"
-            />
-            <div className="flex gap-2">
-              <Button
-                onClick={handleSaveNotes}
-                disabled={savingNotes}
-                size="sm"
-              >
-                <Save className="h-4 w-4 mr-1" />
-                {savingNotes ? 'Saving...' : 'Save'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleCancelNotes}
-                disabled={savingNotes}
-                size="sm"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            {client.notes ? (
-              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                {client.notes}
-              </p>
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                No notes yet. Click Edit to add notes about this client.
-              </p>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* Customer Preferences Section */}
-      <Card className="p-4 md:p-6 space-y-3">
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <StickyNote className="h-5 w-5" />
-          Customer Preferences
-        </h2>
-        <div className="pt-2">
-          <PreferenceForm clientId={clientId} />
-        </div>
-      </Card>
-
-      {/* Invoices Section */}
-      {invoices.length > 0 && (
-        <>
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Invoices
-            </h2>
-            <Link href="/invoices">
-              <Button variant="outline" size="sm">
-                View All
-              </Button>
-            </Link>
+        {/* Financial Tab */}
+        <TabsContent value="financial">
+          <div className="grid md:grid-cols-3 gap-4 mb-4">
+            <Card className="p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Spent</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(client.totalSpent || 0)}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Credit Balance</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrency(client.creditBalance || 0)}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
+              <p className="text-2xl font-bold text-yellow-600">{formatCurrency(clientStats.unpaidRevenue)}</p>
+            </Card>
           </div>
 
-          <div className="grid gap-3">
-            {invoices.map((invoice) => (
-              <Card key={invoice.id} className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {invoice.invoiceNumber}
-                      </h3>
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          invoice.status === 'PAID'
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : invoice.status === 'SENT'
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                            : invoice.status === 'OVERDUE'
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                            : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                        }`}
-                      >
-                        {invoice.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Due: {new Date(invoice.dueDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-lg mb-2">
-                      {formatCurrency(invoice.total)}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/invoices`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleDownloadPDF(invoice.id, invoice.invoiceNumber)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
-
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Jobs</h2>
-        <Link href={`/jobs/new?clientId=${clientId}`}>
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            New Job
-          </Button>
-        </Link>
-      </div>
-
-      {bookings.length === 0 ? (
-        <Card className="p-8 text-center text-gray-500">
-          <p className="mb-4">No jobs yet for this client</p>
-          <Link href={`/jobs/new?clientId=${clientId}`}>
-            <Button>
-              <Plus className="h-4 w-4 mr-1" />
-              Create First Job
-            </Button>
-          </Link>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {bookings.map((booking) => (
-            <Link key={booking.id} href={`/jobs/${booking.id}`}>
-              <Card className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                          booking.status
-                        )}`}
-                      >
-                        {booking.status}
-                      </span>
-                      {booking.isRecurring && (
-                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                          Recurring
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Invoices */}
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-gray-400" />
+                  Invoices
+                </h3>
+                <Link href="/invoices">
+                  <Button variant="outline" size="sm">View All</Button>
+                </Link>
+              </div>
+              {invoices.length === 0 ? (
+                <p className="text-sm text-gray-500 italic text-center py-4">No invoices yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {invoices.slice(0, 5).map((invoice) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">{invoice.invoiceNumber}</p>
+                        <p className="text-xs text-gray-500">Due: {new Date(invoice.dueDate).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          invoice.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                          invoice.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {invoice.status}
                         </span>
-                      )}
+                        <span className="font-medium">{formatCurrency(invoice.total)}</span>
+                      </div>
                     </div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {formatDateTime(booking.scheduledDate)}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {booking.address.street}, {booking.address.city}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {booking.serviceType} • {formatDuration(booking.duration)}
-                    </p>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Credit Transactions */}
+            <Card className="p-5">
+              <h3 className="font-semibold text-lg flex items-center gap-2 mb-4">
+                <CreditCard className="h-5 w-5 text-gray-400" />
+                Credit History
+              </h3>
+              {creditTransactions.length === 0 ? (
+                <p className="text-sm text-gray-500 italic text-center py-4">No credit transactions</p>
+              ) : (
+                <div className="space-y-2">
+                  {creditTransactions.slice(0, 5).map((tx: any) => (
+                    <div key={tx.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">{tx.description || tx.type}</p>
+                        <p className="text-xs text-gray-500">{new Date(tx.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <span className={`font-medium ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {tx.amount > 0 ? '+' : ''}{formatCurrency(tx.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Loyalty & Referrals Tab */}
+        <TabsContent value="loyalty">
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Loyalty Program */}
+            <Card className="p-5">
+              <h3 className="font-semibold text-lg flex items-center gap-2 mb-4">
+                <Award className="h-5 w-5 text-gray-400" />
+                Loyalty Program
+              </h3>
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 mb-3">
+                  <span className="text-4xl">{tierConfig.icon}</span>
+                </div>
+                <h4 className="text-xl font-bold">{tierConfig.name} Member</h4>
+                <p className="text-sm text-gray-500">{client.loyaltyPoints || 0} points available</p>
+              </div>
+
+              {loyaltyInfo.nextTier && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progress to {loyaltyInfo.nextTier}</span>
+                    <span className="font-medium">{Math.round(loyaltyInfo.progress)}%</span>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">
-                      {formatCurrency(booking.price)}
+                  <Progress value={loyaltyInfo.progress} variant="default" />
+                  <p className="text-xs text-gray-500 text-center">
+                    {client.totalBookings || 0} bookings • {formatCurrency(client.totalSpent || 0)} spent
+                  </p>
+                </div>
+              )}
+            </Card>
+
+            {/* Referral Program */}
+            <Card className="p-5">
+              <h3 className="font-semibold text-lg flex items-center gap-2 mb-4">
+                <Users className="h-5 w-5 text-gray-400" />
+                Referral Program
+              </h3>
+
+              {client.referralCode ? (
+                <div className="space-y-4">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Referral Code</p>
+                    <div className="flex items-center justify-between">
+                      <code className="font-mono text-lg font-bold">{client.referralCode}</code>
+                      <Button variant="outline" size="sm" onClick={() => copyToClipboard(client.referralCode!)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     </div>
-                    {!booking.isPaid && booking.status === 'COMPLETED' && (
-                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
-                        Unpaid
-                      </span>
-                    )}
-                    {booking.isPaid && (
-                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                        Paid
-                      </span>
-                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-600">0</p>
+                      <p className="text-xs text-gray-500">Referrals Made</p>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <p className="text-2xl font-bold text-green-600">$0</p>
+                      <p className="text-xs text-gray-500">Credits Earned</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span className="text-lg">{REFERRAL_TIERS[client.referralTier as keyof typeof REFERRAL_TIERS]?.name || 'None'}</span>
+                    <span>Tier</span>
                   </div>
                 </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No referral code assigned</p>
+                </div>
+              )}
+            </Card>
+
+            {/* Important Dates */}
+            <Card className="p-5 md:col-span-2">
+              <h3 className="font-semibold text-lg flex items-center gap-2 mb-4">
+                <Calendar className="h-5 w-5 text-gray-400" />
+                Important Dates
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Customer Since</p>
+                  <p className="font-medium">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'}</p>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">First Booking</p>
+                  <p className="font-medium">{client.firstBookingDate ? new Date(client.firstBookingDate).toLocaleDateString() : '-'}</p>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Last Booking</p>
+                  <p className="font-medium">{client.lastBookingDate ? new Date(client.lastBookingDate).toLocaleDateString() : '-'}</p>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Birthday</p>
+                  <p className="font-medium">{client.birthday ? new Date(client.birthday).toLocaleDateString() : '-'}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Preferences Tab */}
+        <TabsContent value="preferences">
+          <Card className="p-5">
+            <h3 className="font-semibold text-lg flex items-center gap-2 mb-4">
+              <Sparkles className="h-5 w-5 text-gray-400" />
+              Customer Preferences
+            </h3>
+            <PreferenceForm clientId={clientId} />
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
