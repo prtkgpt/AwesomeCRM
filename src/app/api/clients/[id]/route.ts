@@ -259,6 +259,14 @@ export async function PATCH(
     if (body.email !== undefined) updateData.email = body.email || null;
     if (body.phone !== undefined) updateData.phone = body.phone;
     if (body.tags !== undefined) updateData.tags = body.tags;
+    // Payment methods
+    if (body.stripeCustomerId !== undefined) updateData.stripeCustomerId = body.stripeCustomerId || null;
+    if (body.zelleId !== undefined) updateData.zelleId = body.zelleId || null;
+    if (body.venmoUsername !== undefined) updateData.venmoUsername = body.venmoUsername || null;
+    if (body.cashAppUsername !== undefined) updateData.cashAppUsername = body.cashAppUsername || null;
+    // Internal notes
+    if (body.internalNotes !== undefined) updateData.internalNotes = body.internalNotes || null;
+    if (body.cleaningTeamNotes !== undefined) updateData.cleaningTeamNotes = body.cleaningTeamNotes || null;
 
     // Update client
     const client = await prisma.client.update({
@@ -266,6 +274,7 @@ export async function PATCH(
       data: updateData,
       include: {
         addresses: true,
+        preferences: true,
       },
     });
 

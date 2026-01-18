@@ -20,7 +20,7 @@ function useTabs() {
 
 interface TabsProps {
   children: ReactNode;
-  defaultValue: string;
+  defaultValue?: string;
   value?: string;
   onValueChange?: (value: string) => void;
   className?: string;
@@ -28,7 +28,7 @@ interface TabsProps {
 
 export function Tabs({
   children,
-  defaultValue,
+  defaultValue = '',
   value: controlledValue,
   onValueChange,
   className,

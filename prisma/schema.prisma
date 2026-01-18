@@ -285,6 +285,15 @@ model Client {
   stripePaymentMethodId   String?   // Saved payment method for auto-charging
   autoChargeEnabled       Boolean   @default(false)  // Allow automatic charging after job completion
 
+  // Alternative Payment Methods
+  zelleId                 String?   // Zelle email or phone
+  venmoUsername           String?   // Venmo username (e.g., @username)
+  cashAppUsername         String?   // Cash App $cashtag
+
+  // Internal Notes
+  internalNotes           String?   // Private notes only visible to admin/staff
+  cleaningTeamNotes       String?   // Special notes for the cleaning team
+
   // Link to customer user account (if they sign up)
   customerUserId    String?   @unique
   customerUser      User?     @relation("CustomerAccount", fields: [customerUserId], references: [id])
