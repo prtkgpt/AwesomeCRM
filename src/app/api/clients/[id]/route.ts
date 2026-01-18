@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/clients/[id] - Get client details
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -18,7 +18,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
 
     // Get user with companyId
     const user = await prisma.user.findUnique({
@@ -68,7 +68,7 @@ export async function GET(
 // PUT /api/clients/[id] - Update client
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -76,7 +76,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
     const body = await request.json();
     const validatedData = updateClientSchema.parse(body);
 
@@ -188,7 +188,7 @@ export async function PUT(
 // PATCH /api/clients/[id] - Partial update client (e.g., notes only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -196,7 +196,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
     const body = await request.json();
 
     // Get user with companyId
@@ -258,7 +258,7 @@ export async function PATCH(
 // DELETE /api/clients/[id] - Delete client
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -266,7 +266,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
 
     // Get user with companyId
     const user = await prisma.user.findUnique({

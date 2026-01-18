@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/clients/[id]/credits - Get referral credit transactions for a client
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
 
     // Verify the user has access to this client
     const user = await prisma.user.findUnique({
@@ -68,7 +68,7 @@ export async function GET(
 // POST /api/clients/[id]/credits - Add a referral credit transaction
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -76,7 +76,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
     const body = await request.json();
     const { type, amount, description, expiresAt } = body;
 

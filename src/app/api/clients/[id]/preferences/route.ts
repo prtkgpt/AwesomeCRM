@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // GET - Fetch client preferences
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +21,7 @@ export async function GET(
       );
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
 
     // Get client with preferences
     const client = await prisma.client.findUnique({
@@ -62,7 +62,7 @@ export async function GET(
 // PUT - Update or create client preferences
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -74,7 +74,7 @@ export async function PUT(
       );
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
     const body = await req.json();
 
     // Verify client exists
@@ -168,7 +168,7 @@ export async function PUT(
 // DELETE - Remove client preferences
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -180,7 +180,7 @@ export async function DELETE(
       );
     }
 
-    const { id: clientId } = await params;
+    const clientId = params.id;
 
     // Check if preferences exist
     const existing = await prisma.clientPreference.findUnique({
