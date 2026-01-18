@@ -10,7 +10,6 @@ export const dynamic = 'force-dynamic';
 const updateCompanySettingsSchema = z.object({
   name: z.string().min(1, 'Company name is required').optional(),
   emailDomain: z.string().optional(),
-  baseHourlyRate: z.number().min(0, 'Hourly rate must be positive').optional(),
   googleReviewUrl: z.string().optional(),
   yelpReviewUrl: z.string().optional(),
   twilioAccountSid: z.string().optional(),
@@ -27,16 +26,19 @@ const updateCompanySettingsSchema = z.object({
   customerReminderHours: z.number().min(1).max(72).optional(),
   cleanerReminderHours: z.number().min(1).max(72).optional(),
   morningReminderEnabled: z.boolean().optional(),
-  morningReminderTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
+  morningReminderTime: z.string().optional(),
   // Online Booking settings
   onlineBookingEnabled: z.boolean().optional(),
-  minimumLeadTime: z.number().min(0).max(168).optional(), // Max 7 days
-  maximumLeadTime: z.number().min(1).max(365).optional(), // Max 1 year
-  // Backward compatibility field names
-  minimumLeadTimeHours: z.number().min(0).max(168).optional(),
-  maxDaysAhead: z.number().min(1).max(365).optional(),
+  minimumLeadTime: z.number().min(0).max(168).optional(),
+  maximumLeadTime: z.number().min(1).max(365).optional(),
   requireApproval: z.boolean().optional(),
 });
+
+// Helper to safely mask sensitive data
+const maskSensitive = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  return '••••••••' + value.slice(-4);
+};
 
 // GET /api/company/settings - Get company settings
 export async function GET(request: NextRequest) {
@@ -65,7 +67,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only OWNER and ADMIN can view company settings
     if (!['OWNER', 'ADMIN'].includes(user.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden' },
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Only select fields that definitely exist and are needed
     const company = await prisma.company.findUnique({
       where: { id: user.companyId },
       select: {
@@ -80,7 +82,6 @@ export async function GET(request: NextRequest) {
         name: true,
         slug: true,
         emailDomain: true,
-        baseHourlyRate: true,
         googleReviewUrl: true,
         yelpReviewUrl: true,
         twilioAccountSid: true,
@@ -101,7 +102,6 @@ export async function GET(request: NextRequest) {
         requireApproval: true,
         timezone: true,
         createdAt: true,
-        // Don't include features/businessTypes - can cause Json parsing issues with legacy data
       },
     });
 
@@ -112,15 +112,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Return data with defaults for any null values and masked sensitive fields
     return NextResponse.json({
       success: true,
       data: {
-        ...company,
-        // Mask sensitive data
-        twilioAccountSid: company.twilioAccountSid ? '••••••••' + company.twilioAccountSid.slice(-4) : null,
-        resendApiKey: company.resendApiKey ? '••••••••' + company.resendApiKey.slice(-4) : null,
-        stripeSecretKey: company.stripeSecretKey ? '••••••••' + company.stripeSecretKey.slice(-4) : null,
-        stripeWebhookSecret: company.stripeWebhookSecret ? '••••••••' + company.stripeWebhookSecret.slice(-4) : null,
+        id: company.id,
+        name: company.name || '',
+        slug: company.slug || '',
+        emailDomain: company.emailDomain || '',
+        googleReviewUrl: company.googleReviewUrl || '',
+        yelpReviewUrl: company.yelpReviewUrl || '',
+        twilioAccountSid: maskSensitive(company.twilioAccountSid),
+        twilioPhoneNumber: company.twilioPhoneNumber || '',
+        resendApiKey: maskSensitive(company.resendApiKey),
+        stripeSecretKey: maskSensitive(company.stripeSecretKey),
+        stripePublishableKey: company.stripePublishableKey || '',
+        stripeWebhookSecret: maskSensitive(company.stripeWebhookSecret),
+        customerReminderEnabled: company.customerReminderEnabled ?? true,
+        cleanerReminderEnabled: company.cleanerReminderEnabled ?? true,
+        customerReminderHours: company.customerReminderHours ?? 24,
+        cleanerReminderHours: company.cleanerReminderHours ?? 24,
+        morningReminderEnabled: company.morningReminderEnabled ?? true,
+        morningReminderTime: company.morningReminderTime || '08:00',
+        onlineBookingEnabled: company.onlineBookingEnabled ?? true,
+        minimumLeadTime: company.minimumLeadTime ?? 2,
+        maximumLeadTime: company.maximumLeadTime ?? 60,
+        requireApproval: company.requireApproval ?? false,
+        timezone: company.timezone || 'America/Los_Angeles',
+        createdAt: company.createdAt,
       },
     });
   } catch (error) {
@@ -160,7 +179,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Only OWNER can update company settings
     if (user.role !== 'OWNER') {
       return NextResponse.json(
         { success: false, error: 'Only company owner can update settings' },
@@ -172,13 +190,11 @@ export async function PATCH(request: NextRequest) {
     const validatedData = updateCompanySettingsSchema.parse(body);
 
     // Check if company name is being changed and if it's already in use
-    if (validatedData.name) {
+    if (validatedData.name && validatedData.name.trim()) {
       const existingCompany = await prisma.company.findFirst({
         where: {
           name: validatedData.name,
-          NOT: {
-            id: user.companyId,
-          },
+          NOT: { id: user.companyId },
         },
       });
 
@@ -190,95 +206,86 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Build update data - only include non-empty values for API keys
-    // IMPORTANT: Don't overwrite existing values with empty strings
-    const updateData: any = {};
+    // Build update data - only include fields that have real values
+    const updateData: Record<string, any> = {};
 
-    if (validatedData.name !== undefined && validatedData.name.trim()) {
-      updateData.name = validatedData.name;
+    // Text fields - only update if non-empty
+    if (validatedData.name && validatedData.name.trim()) {
+      updateData.name = validatedData.name.trim();
     }
-    // Only update text fields if they have a non-empty value (don't overwrite with null)
-    if (validatedData.emailDomain !== undefined && validatedData.emailDomain.trim()) {
-      updateData.emailDomain = validatedData.emailDomain;
+    if (validatedData.emailDomain && validatedData.emailDomain.trim()) {
+      updateData.emailDomain = validatedData.emailDomain.trim();
     }
-    if (validatedData.baseHourlyRate !== undefined) {
-      updateData.baseHourlyRate = validatedData.baseHourlyRate;
+    if (validatedData.googleReviewUrl && validatedData.googleReviewUrl.trim()) {
+      updateData.googleReviewUrl = validatedData.googleReviewUrl.trim();
     }
-    if (validatedData.googleReviewUrl !== undefined && validatedData.googleReviewUrl.trim()) {
-      updateData.googleReviewUrl = validatedData.googleReviewUrl;
+    if (validatedData.yelpReviewUrl && validatedData.yelpReviewUrl.trim()) {
+      updateData.yelpReviewUrl = validatedData.yelpReviewUrl.trim();
     }
-    if (validatedData.yelpReviewUrl !== undefined && validatedData.yelpReviewUrl.trim()) {
-      updateData.yelpReviewUrl = validatedData.yelpReviewUrl;
+    if (validatedData.twilioPhoneNumber && validatedData.twilioPhoneNumber.trim()) {
+      updateData.twilioPhoneNumber = validatedData.twilioPhoneNumber.trim();
     }
-
-    // Only update API credentials if they're not masked values and not empty
-    if (validatedData.twilioAccountSid && validatedData.twilioAccountSid.trim() && !validatedData.twilioAccountSid.startsWith('••')) {
-      updateData.twilioAccountSid = validatedData.twilioAccountSid;
+    if (validatedData.timezone && validatedData.timezone.trim()) {
+      updateData.timezone = validatedData.timezone.trim();
     }
-    if (validatedData.twilioAuthToken && validatedData.twilioAuthToken.trim() && !validatedData.twilioAuthToken.startsWith('••')) {
-      updateData.twilioAuthToken = validatedData.twilioAuthToken;
-    }
-    if (validatedData.twilioPhoneNumber !== undefined && validatedData.twilioPhoneNumber.trim()) {
-      updateData.twilioPhoneNumber = validatedData.twilioPhoneNumber;
-    }
-    if (validatedData.resendApiKey && validatedData.resendApiKey.trim() && !validatedData.resendApiKey.startsWith('••')) {
-      updateData.resendApiKey = validatedData.resendApiKey;
-    }
-    if (validatedData.stripeSecretKey && validatedData.stripeSecretKey.trim() && !validatedData.stripeSecretKey.startsWith('••')) {
-      updateData.stripeSecretKey = validatedData.stripeSecretKey;
-    }
-    if (validatedData.stripePublishableKey !== undefined && validatedData.stripePublishableKey.trim()) {
-      updateData.stripePublishableKey = validatedData.stripePublishableKey;
-    }
-    if (validatedData.stripeWebhookSecret && validatedData.stripeWebhookSecret.trim() && !validatedData.stripeWebhookSecret.startsWith('••')) {
-      updateData.stripeWebhookSecret = validatedData.stripeWebhookSecret;
+    if (validatedData.morningReminderTime && validatedData.morningReminderTime.trim()) {
+      updateData.morningReminderTime = validatedData.morningReminderTime.trim();
     }
 
-    // Timezone
-    if (validatedData.timezone !== undefined) {
-      updateData.timezone = validatedData.timezone;
+    // Sensitive fields - only update if non-empty AND not masked
+    const isMasked = (val: string) => val.startsWith('••');
+
+    if (validatedData.twilioAccountSid && validatedData.twilioAccountSid.trim() && !isMasked(validatedData.twilioAccountSid)) {
+      updateData.twilioAccountSid = validatedData.twilioAccountSid.trim();
+    }
+    if (validatedData.twilioAuthToken && validatedData.twilioAuthToken.trim() && !isMasked(validatedData.twilioAuthToken)) {
+      updateData.twilioAuthToken = validatedData.twilioAuthToken.trim();
+    }
+    if (validatedData.resendApiKey && validatedData.resendApiKey.trim() && !isMasked(validatedData.resendApiKey)) {
+      updateData.resendApiKey = validatedData.resendApiKey.trim();
+    }
+    if (validatedData.stripeSecretKey && validatedData.stripeSecretKey.trim() && !isMasked(validatedData.stripeSecretKey)) {
+      updateData.stripeSecretKey = validatedData.stripeSecretKey.trim();
+    }
+    if (validatedData.stripePublishableKey && validatedData.stripePublishableKey.trim()) {
+      updateData.stripePublishableKey = validatedData.stripePublishableKey.trim();
+    }
+    if (validatedData.stripeWebhookSecret && validatedData.stripeWebhookSecret.trim() && !isMasked(validatedData.stripeWebhookSecret)) {
+      updateData.stripeWebhookSecret = validatedData.stripeWebhookSecret.trim();
     }
 
-    // Reminder settings
+    // Boolean fields - always update if provided
     if (validatedData.customerReminderEnabled !== undefined) {
       updateData.customerReminderEnabled = validatedData.customerReminderEnabled;
     }
     if (validatedData.cleanerReminderEnabled !== undefined) {
       updateData.cleanerReminderEnabled = validatedData.cleanerReminderEnabled;
     }
+    if (validatedData.morningReminderEnabled !== undefined) {
+      updateData.morningReminderEnabled = validatedData.morningReminderEnabled;
+    }
+    if (validatedData.onlineBookingEnabled !== undefined) {
+      updateData.onlineBookingEnabled = validatedData.onlineBookingEnabled;
+    }
+    if (validatedData.requireApproval !== undefined) {
+      updateData.requireApproval = validatedData.requireApproval;
+    }
+
+    // Number fields - always update if provided
     if (validatedData.customerReminderHours !== undefined) {
       updateData.customerReminderHours = validatedData.customerReminderHours;
     }
     if (validatedData.cleanerReminderHours !== undefined) {
       updateData.cleanerReminderHours = validatedData.cleanerReminderHours;
     }
-    if (validatedData.morningReminderEnabled !== undefined) {
-      updateData.morningReminderEnabled = validatedData.morningReminderEnabled;
-    }
-    if (validatedData.morningReminderTime !== undefined) {
-      updateData.morningReminderTime = validatedData.morningReminderTime;
-    }
-
-    // Online Booking settings
-    if (validatedData.onlineBookingEnabled !== undefined) {
-      updateData.onlineBookingEnabled = validatedData.onlineBookingEnabled;
-    }
-    // Handle both new and old field names for backward compatibility
     if (validatedData.minimumLeadTime !== undefined) {
       updateData.minimumLeadTime = validatedData.minimumLeadTime;
-    } else if (validatedData.minimumLeadTimeHours !== undefined) {
-      updateData.minimumLeadTime = validatedData.minimumLeadTimeHours;
     }
     if (validatedData.maximumLeadTime !== undefined) {
       updateData.maximumLeadTime = validatedData.maximumLeadTime;
-    } else if (validatedData.maxDaysAhead !== undefined) {
-      updateData.maximumLeadTime = validatedData.maxDaysAhead;
-    }
-    if (validatedData.requireApproval !== undefined) {
-      updateData.requireApproval = validatedData.requireApproval;
     }
 
-    // Update company settings
+    // Update company
     const updatedCompany = await prisma.company.update({
       where: { id: user.companyId },
       data: updateData,
@@ -287,7 +294,6 @@ export async function PATCH(request: NextRequest) {
         name: true,
         slug: true,
         emailDomain: true,
-        baseHourlyRate: true,
         googleReviewUrl: true,
         yelpReviewUrl: true,
         twilioAccountSid: true,
@@ -306,18 +312,36 @@ export async function PATCH(request: NextRequest) {
         minimumLeadTime: true,
         maximumLeadTime: true,
         requireApproval: true,
+        timezone: true,
       },
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        ...updatedCompany,
-        // Mask sensitive data in response
-        twilioAccountSid: updatedCompany.twilioAccountSid ? '••••••••' + updatedCompany.twilioAccountSid.slice(-4) : null,
-        resendApiKey: updatedCompany.resendApiKey ? '••••••••' + updatedCompany.resendApiKey.slice(-4) : null,
-        stripeSecretKey: updatedCompany.stripeSecretKey ? '••••••••' + updatedCompany.stripeSecretKey.slice(-4) : null,
-        stripeWebhookSecret: updatedCompany.stripeWebhookSecret ? '••••••••' + updatedCompany.stripeWebhookSecret.slice(-4) : null,
+        id: updatedCompany.id,
+        name: updatedCompany.name || '',
+        slug: updatedCompany.slug || '',
+        emailDomain: updatedCompany.emailDomain || '',
+        googleReviewUrl: updatedCompany.googleReviewUrl || '',
+        yelpReviewUrl: updatedCompany.yelpReviewUrl || '',
+        twilioAccountSid: maskSensitive(updatedCompany.twilioAccountSid),
+        twilioPhoneNumber: updatedCompany.twilioPhoneNumber || '',
+        resendApiKey: maskSensitive(updatedCompany.resendApiKey),
+        stripeSecretKey: maskSensitive(updatedCompany.stripeSecretKey),
+        stripePublishableKey: updatedCompany.stripePublishableKey || '',
+        stripeWebhookSecret: maskSensitive(updatedCompany.stripeWebhookSecret),
+        customerReminderEnabled: updatedCompany.customerReminderEnabled ?? true,
+        cleanerReminderEnabled: updatedCompany.cleanerReminderEnabled ?? true,
+        customerReminderHours: updatedCompany.customerReminderHours ?? 24,
+        cleanerReminderHours: updatedCompany.cleanerReminderHours ?? 24,
+        morningReminderEnabled: updatedCompany.morningReminderEnabled ?? true,
+        morningReminderTime: updatedCompany.morningReminderTime || '08:00',
+        onlineBookingEnabled: updatedCompany.onlineBookingEnabled ?? true,
+        minimumLeadTime: updatedCompany.minimumLeadTime ?? 2,
+        maximumLeadTime: updatedCompany.maximumLeadTime ?? 60,
+        requireApproval: updatedCompany.requireApproval ?? false,
+        timezone: updatedCompany.timezone || 'America/Los_Angeles',
       },
       message: 'Company settings updated successfully',
     });
@@ -331,7 +355,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Return more specific error message for debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: `Failed to update company settings: ${errorMessage}` },
