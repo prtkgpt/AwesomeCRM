@@ -127,8 +127,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Get company settings error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch company settings' },
+      { success: false, error: `Failed to fetch company settings: ${errorMessage}` },
       { status: 500 }
     );
   }
