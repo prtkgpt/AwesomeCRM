@@ -4,8 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { updateClientSchema } from '@/lib/validations';
 
-// Force dynamic rendering for this route
+// Force dynamic rendering and Node.js runtime for Prisma
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // GET /api/clients/[id] - Get client details
 export async function GET(

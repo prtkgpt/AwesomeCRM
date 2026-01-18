@@ -7,8 +7,9 @@ import { generateRecurringDates } from '@/lib/utils';
 import { applyReferralCredits } from '@/lib/referral';
 import { sendBookingConfirmation } from '@/lib/notifications';
 
-// Force dynamic rendering for this route
+// Force dynamic rendering and Node.js runtime for Prisma
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // GET /api/bookings - List bookings
 export async function GET(request: NextRequest) {
