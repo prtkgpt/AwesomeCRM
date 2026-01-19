@@ -413,17 +413,129 @@ export default function ClientDetailPage() {
             )}
           </Card>
 
-          {/* Insurance */}
-          {client.hasInsurance && (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3 flex items-center gap-2"><Shield className="h-4 w-4" />Insurance</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Provider:</span><span>{client.insuranceProvider || 'Not specified'}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Insurance Pays:</span><span className="font-medium">${client.insurancePaymentAmount || 0}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Copay:</span><span>${client.standardCopayAmount || 0}</span></div>
+          {/* Insurance Client */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold flex items-center gap-2"><Shield className="h-4 w-4" />Insurance Client</h3>
+              {editingSection !== 'insurance' ? (
+                <Button variant="ghost" size="sm" onClick={() => startEditing('insurance', {
+                  hasInsurance: client.hasInsurance,
+                  insuranceProvider: client.insuranceProvider || '',
+                  insurancePaymentAmount: client.insurancePaymentAmount?.toString() || '125',
+                  standardCopayAmount: client.standardCopayAmount?.toString() || '50',
+                  hasDiscountedCopay: client.hasDiscountedCopay,
+                  copayDiscountAmount: client.copayDiscountAmount?.toString() || '',
+                  copayNotes: client.copayNotes || ''
+                })}><Edit2 className="h-4 w-4" /></Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={saving} onClick={() => saveChanges({
+                    hasInsurance: editForm.hasInsurance,
+                    insuranceProvider: editForm.insuranceProvider || null,
+                    insurancePaymentAmount: editForm.insurancePaymentAmount ? parseFloat(editForm.insurancePaymentAmount) : null,
+                    standardCopayAmount: editForm.standardCopayAmount ? parseFloat(editForm.standardCopayAmount) : null,
+                    hasDiscountedCopay: editForm.hasDiscountedCopay || false,
+                    copayDiscountAmount: editForm.copayDiscountAmount ? parseFloat(editForm.copayDiscountAmount) : null,
+                    copayNotes: editForm.copayNotes || null
+                  })}><Save className="h-4 w-4 mr-1" />{saving ? 'Saving...' : 'Save'}</Button>
+                  <Button variant="ghost" size="sm" onClick={cancelEditing}><X className="h-4 w-4" /></Button>
+                </div>
+              )}
+            </div>
+            {editingSection === 'insurance' ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="hasInsurance"
+                    checked={editForm.hasInsurance || false}
+                    onChange={(e) => setEditForm({ ...editForm, hasInsurance: e.target.checked })}
+                    className="h-5 w-5"
+                  />
+                  <label htmlFor="hasInsurance" className="font-medium">Insurance Client</label>
+                </div>
+                {editForm.hasInsurance && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium">Insurance Provider</label>
+                      <input type="text" placeholder="e.g., Helper Bee's" className="w-full mt-1 px-3 py-2 border rounded-md" value={editForm.insuranceProvider || ''} onChange={(e) => setEditForm({ ...editForm, insuranceProvider: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Insurance Share ($)</label>
+                        <input type="number" step="0.01" placeholder="125" className="w-full mt-1 px-3 py-2 border rounded-md" value={editForm.insurancePaymentAmount || ''} onChange={(e) => setEditForm({ ...editForm, insurancePaymentAmount: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Client Copay ($)</label>
+                        <input type="number" step="0.01" placeholder="50" className="w-full mt-1 px-3 py-2 border rounded-md" value={editForm.standardCopayAmount || ''} onChange={(e) => setEditForm({ ...editForm, standardCopayAmount: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="hasDiscountedCopay" checked={editForm.hasDiscountedCopay || false} onChange={(e) => setEditForm({ ...editForm, hasDiscountedCopay: e.target.checked })} />
+                      <label htmlFor="hasDiscountedCopay" className="text-sm">Apply Discounted Copay</label>
+                    </div>
+                    {editForm.hasDiscountedCopay && (
+                      <div>
+                        <label className="text-sm font-medium">Copay Discount ($)</label>
+                        <input type="number" step="0.01" placeholder="10" className="w-full mt-1 px-3 py-2 border rounded-md" value={editForm.copayDiscountAmount || ''} onChange={(e) => setEditForm({ ...editForm, copayDiscountAmount: e.target.value })} />
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-sm font-medium">Copay Notes</label>
+                      <textarea rows={2} placeholder="e.g., Elderly client on fixed income" className="w-full mt-1 px-3 py-2 border rounded-md text-sm" value={editForm.copayNotes || ''} onChange={(e) => setEditForm({ ...editForm, copayNotes: e.target.value })} />
+                    </div>
+                    {/* Total Calculation */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <h4 className="font-medium text-blue-800 text-sm mb-2">Total Cleaning Cost</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between"><span className="text-gray-600">Insurance Share:</span><span>${parseFloat(editForm.insurancePaymentAmount || '0').toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Client Copay:</span><span>${parseFloat(editForm.standardCopayAmount || '0').toFixed(2)}</span></div>
+                        {editForm.hasDiscountedCopay && editForm.copayDiscountAmount && (
+                          <div className="flex justify-between text-green-600"><span>Discount:</span><span>-${parseFloat(editForm.copayDiscountAmount || '0').toFixed(2)}</span></div>
+                        )}
+                        <hr className="my-1 border-blue-200" />
+                        <div className="flex justify-between font-bold text-blue-900">
+                          <span>Total:</span>
+                          <span>${(parseFloat(editForm.insurancePaymentAmount || '0') + parseFloat(editForm.standardCopayAmount || '0') - (editForm.hasDiscountedCopay ? parseFloat(editForm.copayDiscountAmount || '0') : 0)).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            </Card>
-          )}
+            ) : (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Status:</span>
+                  <span className={client.hasInsurance ? 'text-green-600 font-medium' : 'text-gray-500'}>{client.hasInsurance ? 'Yes - Insurance Client' : 'No - Regular Client'}</span>
+                </div>
+                {client.hasInsurance && (
+                  <>
+                    <div className="flex justify-between"><span className="text-gray-500">Provider:</span><span>{client.insuranceProvider || 'Not specified'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Insurance Share:</span><span className="font-medium">${client.insurancePaymentAmount || 0}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Client Copay:</span><span>${client.standardCopayAmount || 0}</span></div>
+                    {client.hasDiscountedCopay && (
+                      <div className="flex justify-between text-green-600"><span>Copay Discount:</span><span>-${client.copayDiscountAmount || 0}</span></div>
+                    )}
+                    <hr className="my-2" />
+                    <div className="flex justify-between font-bold">
+                      <span>Total Cleaning Cost:</span>
+                      <span>${((client.insurancePaymentAmount || 0) + (client.standardCopayAmount || 0) - (client.hasDiscountedCopay ? (client.copayDiscountAmount || 0) : 0)).toFixed(2)}</span>
+                    </div>
+                    {client.hasDiscountedCopay && (
+                      <div className="flex justify-between text-sm text-gray-500">
+                        <span>Final Client Pays:</span>
+                        <span>${((client.standardCopayAmount || 0) - (client.copayDiscountAmount || 0)).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {client.copayNotes && (
+                      <div className="mt-2 p-2 bg-yellow-50 rounded text-yellow-800 text-xs">{client.copayNotes}</div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </Card>
 
           {/* Referrals */}
           <Card className="p-4">

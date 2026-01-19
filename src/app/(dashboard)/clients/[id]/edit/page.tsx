@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import AddressAutocomplete from '@/components/address/AddressAutocomplete';
-import { hasInsuranceBilling } from '@/lib/features';
 
 export default function EditClientPage() {
   const { data: session, status } = useSession();
@@ -22,7 +21,6 @@ export default function EditClientPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [companyHasInsurance, setCompanyHasInsurance] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -74,33 +72,6 @@ export default function EditClientPage() {
     }
   }, [status, clientId, router]);
 
-  // Fetch company settings to check if insurance billing is enabled
-  useEffect(() => {
-    const fetchCompanySettings = async () => {
-      try {
-        const response = await fetch('/api/company/settings', {
-          cache: 'no-store', // Prevent caching
-          headers: {
-            'Cache-Control': 'no-cache',
-          },
-        });
-        const data = await response.json();
-        console.log('🔍 Company settings:', data.data);
-        console.log('🔍 enabledFeatures:', data.data?.enabledFeatures);
-        if (data.success && data.data) {
-          const hasInsurance = hasInsuranceBilling(data.data.enabledFeatures);
-          console.log('🔍 hasInsuranceBilling result:', hasInsurance);
-          setCompanyHasInsurance(hasInsurance);
-        }
-      } catch (err) {
-        console.error('Failed to fetch company settings:', err);
-        // Default to false if fetch fails
-        setCompanyHasInsurance(false);
-      }
-    };
-
-    fetchCompanySettings();
-  }, []);
 
   const fetchClient = async () => {
     try {
@@ -349,8 +320,7 @@ export default function EditClientPage() {
           </div>
         </Card>
 
-        {/* Insurance - Only show if company has insurance billing enabled */}
-        {companyHasInsurance && (
+        {/* Insurance Client Section */}
         <Card className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-lg">Insurance Information</h2>
@@ -391,28 +361,77 @@ export default function EditClientPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="insurancePaymentAmount">Insurance Payment Amount</Label>
+                  <Label htmlFor="insurancePaymentAmount">Insurance Share ($)</Label>
                   <Input
                     id="insurancePaymentAmount"
                     name="insurancePaymentAmount"
                     type="number"
                     step="0.01"
+                    placeholder="125"
                     value={formData.insurancePaymentAmount}
                     onChange={handleChange}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Amount insurance pays (e.g., $125)</p>
                 </div>
                 <div>
-                  <Label htmlFor="standardCopayAmount">Standard Copay Amount</Label>
+                  <Label htmlFor="standardCopayAmount">Client Copay ($)</Label>
                   <Input
                     id="standardCopayAmount"
                     name="standardCopayAmount"
                     type="number"
                     step="0.01"
+                    placeholder="50"
                     value={formData.standardCopayAmount}
                     onChange={handleChange}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Amount client pays as copay (e.g., $50)</p>
                 </div>
               </div>
+
+              {/* Total Cost Calculation */}
+              {(formData.insurancePaymentAmount || formData.standardCopayAmount) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">Total Cleaning Cost</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Insurance Share:</span>
+                      <span className="font-medium">${parseFloat(formData.insurancePaymentAmount || '0').toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Client Copay:</span>
+                      <span className="font-medium">${parseFloat(formData.standardCopayAmount || '0').toFixed(2)}</span>
+                    </div>
+                    {formData.hasDiscountedCopay && formData.copayDiscountAmount && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Copay Discount:</span>
+                        <span>-${parseFloat(formData.copayDiscountAmount || '0').toFixed(2)}</span>
+                      </div>
+                    )}
+                    <hr className="my-2 border-blue-200" />
+                    <div className="flex justify-between font-bold text-blue-900">
+                      <span>Total:</span>
+                      <span>
+                        ${(
+                          parseFloat(formData.insurancePaymentAmount || '0') +
+                          parseFloat(formData.standardCopayAmount || '0') -
+                          (formData.hasDiscountedCopay ? parseFloat(formData.copayDiscountAmount || '0') : 0)
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                    {formData.hasDiscountedCopay && formData.copayDiscountAmount && (
+                      <div className="flex justify-between text-sm text-gray-500">
+                        <span>Final Client Pays:</span>
+                        <span>
+                          ${(
+                            parseFloat(formData.standardCopayAmount || '0') -
+                            parseFloat(formData.copayDiscountAmount || '0')
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="flex items-center gap-2">
@@ -423,21 +442,23 @@ export default function EditClientPage() {
                     onChange={handleChange}
                     className="h-4 w-4"
                   />
-                  <span>Apply Discounted Copay</span>
+                  <span>Apply Discounted Copay (for elderly clients who can't afford full copay)</span>
                 </label>
               </div>
 
               {formData.hasDiscountedCopay && (
                 <div>
-                  <Label htmlFor="copayDiscountAmount">Copay Discount Amount</Label>
+                  <Label htmlFor="copayDiscountAmount">Copay Discount Amount ($)</Label>
                   <Input
                     id="copayDiscountAmount"
                     name="copayDiscountAmount"
                     type="number"
                     step="0.01"
+                    placeholder="10"
                     value={formData.copayDiscountAmount}
                     onChange={handleChange}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Amount to discount from copay</p>
                 </div>
               )}
 
@@ -448,13 +469,13 @@ export default function EditClientPage() {
                   name="copayNotes"
                   value={formData.copayNotes}
                   onChange={handleChange}
+                  placeholder="e.g., Elderly client on fixed income, approved for $10 copay discount"
                   rows={2}
                 />
               </div>
             </div>
           )}
         </Card>
-        )}
 
         {/* Address */}
         <Card className="p-4 space-y-4">
