@@ -167,6 +167,14 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Ensure user has a valid companyId
+    if (!user.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'User is not associated with a company' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const validatedData = updateCompanySettingsSchema.parse(body);
 
@@ -321,6 +329,23 @@ export async function PATCH(request: NextRequest) {
         { success: false, error: error.errors[0].message },
         { status: 400 }
       );
+    }
+
+    // Handle Prisma errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as { code: string; message?: string };
+      if (prismaError.code === 'P2002') {
+        return NextResponse.json(
+          { success: false, error: 'A company with this name already exists' },
+          { status: 400 }
+        );
+      }
+      if (prismaError.code === 'P2025') {
+        return NextResponse.json(
+          { success: false, error: 'Company not found' },
+          { status: 404 }
+        );
+      }
     }
 
     return NextResponse.json(

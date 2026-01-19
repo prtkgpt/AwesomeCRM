@@ -273,6 +273,13 @@ export default function SettingsPage() {
 
   const handleCompanyUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Don't save if company settings haven't loaded yet
+    if (!companySettings?.id) {
+      alert('Please wait for settings to load before saving.');
+      return;
+    }
+
     setSaving(true);
 
     try {
