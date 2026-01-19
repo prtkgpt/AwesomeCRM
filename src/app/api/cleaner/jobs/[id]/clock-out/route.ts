@@ -94,13 +94,15 @@ export async function POST(
     // Generate feedback token if doesn't exist
     const feedbackToken = booking.feedbackToken || `fb_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
-    // Update booking with clock-out time and mark as completed
+    // Update booking with clock-out time and mark as cleaner completed (pending admin approval)
     const updatedBooking = await prisma.booking.update({
       where: { id: params.id },
       data: {
         clockedOutAt: clockOutTime,
-        status: 'COMPLETED', // Automatically mark as completed when clocking out
+        status: 'CLEANER_COMPLETED', // Stage 1: Pending admin approval
         feedbackToken: feedbackToken,
+        completedAt: clockOutTime,
+        completedBy: user.id,
       },
       include: {
         client: {

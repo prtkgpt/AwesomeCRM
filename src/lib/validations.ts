@@ -115,7 +115,7 @@ export const updateBookingSchema = z.object({
   scheduledDate: z.string().or(z.date()).transform((val) => new Date(val)).optional(),
   duration: z.number().min(15).optional(),
   serviceType: z.enum(['STANDARD', 'DEEP', 'MOVE_OUT']).optional(),
-  status: z.enum(['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
+  status: z.enum(['SCHEDULED', 'CLEANER_COMPLETED', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
   price: z.number().min(0).optional(),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),

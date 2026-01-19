@@ -154,8 +154,10 @@ export async function POST(
 
         updateData = {
           clockedOutAt: now,
-          status: 'COMPLETED', // Auto-mark as completed when clocking out
+          status: 'CLEANER_COMPLETED', // Stage 1: Pending admin approval
           feedbackToken, // Add feedback token for customer review/tip
+          completedAt: now,
+          completedBy: session.user.id,
         };
         activityMessage = `${user.name || 'Cleaner'} finished cleaning at ${booking.client.name}'s property`;
 
