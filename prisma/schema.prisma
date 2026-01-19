@@ -25,6 +25,7 @@ enum UserRole {
 
 enum BookingStatus {
   PENDING           // Awaiting confirmation
+  SCHEDULED         // Legacy - same as CONFIRMED
   CONFIRMED         // Confirmed, awaiting service
   CLEANER_EN_ROUTE  // Cleaner on the way
   IN_PROGRESS       // Cleaning in progress
