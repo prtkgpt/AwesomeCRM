@@ -889,28 +889,41 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Business URL */}
-                    {companySettings?.slug && (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-2">
-                            Your Business URL <span className="text-red-500">*</span>
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {typeof window !== 'undefined' ? window.location.origin : ''}/
-                            </span>
-                            <Input
-                              type="text"
-                              value={companySettings.slug}
-                              disabled
-                              className="flex-1 bg-gray-100 dark:bg-gray-800"
-                              placeholder="your-business-name"
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Only lowercase letters, numbers, and hyphens allowed
+                    <div className="space-y-4">
+                      {!companySettings ? (
+                        <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                          <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                            Loading company settings... If this persists, please refresh the page.
                           </p>
                         </div>
+                      ) : !companySettings.slug ? (
+                        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                          <p className="text-red-800 dark:text-red-200 text-sm">
+                            Company URL slug is not configured. Please contact support.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium mb-2">
+                              Your Business URL <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {typeof window !== 'undefined' ? window.location.origin : ''}/
+                              </span>
+                              <Input
+                                type="text"
+                                value={companySettings.slug}
+                                disabled
+                                className="flex-1 bg-gray-100 dark:bg-gray-800"
+                                placeholder="your-business-name"
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Only lowercase letters, numbers, and hyphens allowed
+                            </p>
+                          </div>
 
                         {/* Landing Page URL */}
                         <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -989,8 +1002,9 @@ export default function SettingsPage() {
                             </Button>
                           </div>
                         </div>
-                      </div>
-                    )}
+                        </>
+                      )}
+                    </div>
 
                     {/* Booking Settings */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
