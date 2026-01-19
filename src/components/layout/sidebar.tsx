@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, TrendingUp, Repeat, Wallet } from 'lucide-react';
+import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, TrendingUp, Repeat, Wallet, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -52,6 +52,11 @@ const ownerAdminNavItems = [
 ];
 
 const cleanerNavItems = [
+  {
+    href: '/cleaner/today',
+    label: "Today's Route",
+    icon: MapPin,
+  },
   {
     href: '/cleaner/dashboard',
     label: 'My Jobs',
