@@ -204,7 +204,7 @@ export async function GET(req: NextRequest) {
       distinct: ['serviceType'],
     });
 
-    const serviceTypes = [...new Set(allServiceTypes.map((j) => j.serviceType || 'STANDARD'))];
+    const serviceTypes = Array.from(new Set(allServiceTypes.map((j) => j.serviceType || 'STANDARD')));
 
     return NextResponse.json({
       success: true,
