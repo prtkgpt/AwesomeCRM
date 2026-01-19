@@ -29,6 +29,7 @@ import {
   SkeletonStatsCard,
 } from '@/components/ui/skeleton';
 import { PageTransition, AnimatedList, AnimatedListItem, FadeIn, SlideIn } from '@/components/ui/page-transition';
+import { QuickActionsWidget } from '@/components/dashboard/QuickActionsWidget';
 
 interface DashboardStats {
   totalClients: number;
@@ -248,6 +249,22 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Quick Actions Skeleton */}
+            <Card className="p-6">
+              <div className="mb-5 space-y-2">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2 p-3">
+                    <Skeleton className="h-11 w-11 rounded-xl" />
+                    <Skeleton className="h-3 w-12" />
+                  </div>
+                ))}
+              </div>
+            </Card>
+
             {/* Stats Cards Skeleton */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <SkeletonStatsCard />
@@ -339,6 +356,11 @@ export default function DashboardPage() {
             </div>
           </div>
             </FadeIn>
+
+          {/* Quick Actions Widget */}
+          <FadeIn delay={0.1}>
+            <QuickActionsWidget />
+          </FadeIn>
 
           {/* Metrics - Small Boxes */}
           <AnimatedList className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
