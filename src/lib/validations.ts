@@ -73,6 +73,15 @@ export const updateClientSchema = z.object({
   phone: z.string().optional(),
   tags: z.array(z.string()).optional(),
   notes: z.string().optional(),
+  // Insurance & Helper Bee's Integration
+  hasInsurance: z.boolean().optional(),
+  helperBeesReferralId: z.string().optional(),
+  insuranceProvider: z.string().optional(),
+  insurancePaymentAmount: z.number().optional(),
+  standardCopayAmount: z.number().optional(),
+  hasDiscountedCopay: z.boolean().optional(),
+  copayDiscountAmount: z.number().optional(),
+  copayNotes: z.string().optional(),
 });
 
 // ============================================

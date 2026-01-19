@@ -267,6 +267,15 @@ export async function PATCH(
     // Internal notes
     if (body.internalNotes !== undefined) updateData.internalNotes = body.internalNotes || null;
     if (body.cleaningTeamNotes !== undefined) updateData.cleaningTeamNotes = body.cleaningTeamNotes || null;
+    // Insurance fields
+    if (body.hasInsurance !== undefined) updateData.hasInsurance = body.hasInsurance;
+    if (body.helperBeesReferralId !== undefined) updateData.helperBeesReferralId = body.helperBeesReferralId || null;
+    if (body.insuranceProvider !== undefined) updateData.insuranceProvider = body.insuranceProvider || null;
+    if (body.insurancePaymentAmount !== undefined) updateData.insurancePaymentAmount = body.insurancePaymentAmount;
+    if (body.standardCopayAmount !== undefined) updateData.standardCopayAmount = body.standardCopayAmount;
+    if (body.hasDiscountedCopay !== undefined) updateData.hasDiscountedCopay = body.hasDiscountedCopay;
+    if (body.copayDiscountAmount !== undefined) updateData.copayDiscountAmount = body.copayDiscountAmount;
+    if (body.copayNotes !== undefined) updateData.copayNotes = body.copayNotes || null;
 
     // Update client
     const client = await prisma.client.update({
