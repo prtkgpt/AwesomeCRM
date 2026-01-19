@@ -71,6 +71,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Ensure user has a company
+    if (!user.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'User is not associated with a company' },
+        { status: 400 }
+      );
+    }
+
     const company = await prisma.company.findUnique({
       where: { id: user.companyId },
       select: {
@@ -123,10 +131,15 @@ export async function GET(request: NextRequest) {
         stripeWebhookSecret: company.stripeWebhookSecret ? '••••••••' + company.stripeWebhookSecret.slice(-4) : null,
       },
     });
-  } catch (error) {
-    console.error('Get company settings error:', error);
+  } catch (error: unknown) {
+    console.error('Get company settings error:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch company settings';
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch company settings' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }
