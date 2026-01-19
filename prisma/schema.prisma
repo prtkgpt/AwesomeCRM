@@ -227,9 +227,9 @@ model Company {
   // Branding
   logo                    String?
   favicon                 String?
-  primaryColor            String   @default("#3B82F6")
-  secondaryColor          String   @default("#10B981")
-  accentColor             String   @default("#F59E0B")
+  primaryColor            String?  @default("#3B82F6")
+  secondaryColor          String?  @default("#10B981")
+  accentColor             String?  @default("#F59E0B")
 
   // Regional Settings
   timezone                String   @default("America/New_York")
@@ -679,7 +679,7 @@ model Client {
   user                    User?     @relation("ClientUser", fields: [userId], references: [id])
 
   // Contact
-  firstName               String
+  firstName               String?
   lastName                String?
   email                   String?
   phone                   String?
@@ -1020,7 +1020,7 @@ model Booking {
   company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Reference
-  bookingNumber           String    @unique
+  bookingNumber           String?   @unique
 
   // Client & Address
   clientId                String
@@ -1029,8 +1029,8 @@ model Booking {
   address                 Address   @relation(fields: [addressId], references: [id])
 
   // Created by
-  createdById             String
-  createdBy               User      @relation("BookingCreator", fields: [createdById], references: [id])
+  createdById             String?
+  createdBy               User?     @relation("BookingCreator", fields: [createdById], references: [id])
 
   // Location (for multi-location)
   locationId              String?
@@ -1064,8 +1064,8 @@ model Booking {
   discountCode            String?
   taxAmount               Float     @default(0)
   creditsApplied          Float     @default(0)
-  tipAmount               Float     @default(0)
-  finalPrice              Float
+  tipAmount               Float?    @default(0)
+  finalPrice              Float?    @default(0)
 
   // Insurance & Copay
   hasInsurance            Boolean   @default(false)
