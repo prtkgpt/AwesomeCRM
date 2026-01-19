@@ -155,13 +155,13 @@ export default function SettingsPage() {
   useEffect(() => {
     // Wait for session to finish loading before fetching data
     if (status === 'loading') return;
+    if (status === 'unauthenticated') return;
 
     fetchProfile();
-    const userRole = (session?.user as any)?.role;
-    if (userRole === 'OWNER' || userRole === 'ADMIN') {
-      fetchCompanySettings();
-    }
-  }, [session, status]);
+    // Always try to fetch company settings - the API will check permissions
+    // This ensures we don't miss loading due to role not being in session
+    fetchCompanySettings();
+  }, [status]);
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -209,9 +209,13 @@ export default function SettingsPage() {
           maxDaysAhead: data.data.maxDaysAhead ?? 60,
           requireApproval: data.data.requireApproval ?? false,
         });
+      } else {
+        console.error('Failed to fetch company settings:', data.error);
+        alert(`Failed to load company settings: ${data.error}`);
       }
     } catch (error) {
       console.error('Failed to fetch company settings:', error);
+      alert('Failed to load company settings. Please refresh the page.');
     }
   };
 
