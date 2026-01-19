@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, TrendingUp, Repeat, Wallet, MapPin } from 'lucide-react';
+import { Calendar, Briefcase, Users, Settings, Home, LogOut, FileText, Users2, ClipboardList, Receipt, Activity, User, TrendingUp, Repeat, Wallet, MapPin, CalendarOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -33,6 +33,11 @@ const ownerAdminNavItems = [
     href: '/team',
     label: 'Team',
     icon: Users2,
+  },
+  {
+    href: '/team/time-off',
+    label: 'Time Off',
+    icon: CalendarOff,
   },
   {
     href: '/invoices',
@@ -81,6 +86,11 @@ const cleanerNavItems = [
     href: '/cleaner/schedule',
     label: 'Schedule',
     icon: Calendar,
+  },
+  {
+    href: '/cleaner/time-off',
+    label: 'Time Off',
+    icon: CalendarOff,
   },
   {
     href: '/cleaner/profile',

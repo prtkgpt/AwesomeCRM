@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Home, Menu, FileText, Receipt, TrendingUp, MapPin, Wallet, User, Settings, ClipboardList } from 'lucide-react';
+import { Calendar, Briefcase, Users, Home, Menu, FileText, Receipt, TrendingUp, MapPin, Wallet, User, Settings, ClipboardList, CalendarOff, Users2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { signOut, useSession } from 'next-auth/react';
@@ -18,6 +18,8 @@ const ownerAdminNavItems = [
 
 // Owner/Admin menu items (slide-out)
 const ownerAdminMenuItems = [
+  { href: '/team', label: 'Team', icon: Users2 },
+  { href: '/team/time-off', label: 'Time Off', icon: CalendarOff },
   { href: '/reports', label: 'Reports', icon: TrendingUp },
   { href: '/estimates', label: 'Estimates', icon: Receipt },
   { href: '/invoices', label: 'Invoices', icon: FileText },
@@ -36,6 +38,7 @@ const cleanerNavItems = [
 const cleanerMenuItems = [
   { href: '/cleaner/history', label: 'Job History', icon: ClipboardList },
   { href: '/cleaner/schedule', label: 'Schedule', icon: Calendar },
+  { href: '/cleaner/time-off', label: 'Time Off', icon: CalendarOff },
   { href: '/cleaner/profile', label: 'Profile', icon: User },
   { href: '/cleaner/settings', label: 'Settings', icon: Settings },
 ];

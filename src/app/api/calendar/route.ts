@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
           data: {
             bookings: [],
             conflicts: [],
+            timeOff: [],
             view,
             date: date.toISOString(),
             range: {
@@ -132,11 +133,47 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Fetch approved time-off requests for the date range
+    const timeOffRequests = await prisma.timeOffRequest.findMany({
+      where: {
+        companyId: user.companyId,
+        status: 'APPROVED',
+        startDate: { lte: boundaries.end },
+        endDate: { gte: boundaries.start },
+      },
+      include: {
+        teamMember: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Format time-off data for the calendar
+    const timeOff = timeOffRequests.map((request) => ({
+      id: request.id,
+      type: request.type,
+      startDate: request.startDate.toISOString(),
+      endDate: request.endDate.toISOString(),
+      reason: request.reason,
+      teamMemberId: request.teamMemberId,
+      cleanerName: request.teamMember.user.name || request.teamMember.user.email,
+      cleanerEmail: request.teamMember.user.email,
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
         bookings,
         conflicts,
+        timeOff,
         view,
         date: date.toISOString(),
         range: {

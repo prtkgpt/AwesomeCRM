@@ -190,6 +190,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if assigned cleaner has approved time off during the scheduled date
+    let timeOffWarning = null;
+    if (validatedData.assignedTo) {
+      const scheduledDate = new Date(validatedData.scheduledDate);
+      const approvedTimeOff = await prisma.timeOffRequest.findFirst({
+        where: {
+          teamMemberId: validatedData.assignedTo,
+          status: 'APPROVED',
+          startDate: { lte: scheduledDate },
+          endDate: { gte: scheduledDate },
+        },
+        include: {
+          teamMember: {
+            include: {
+              user: { select: { name: true, email: true } },
+            },
+          },
+        },
+      });
+
+      if (approvedTimeOff) {
+        const cleanerName = approvedTimeOff.teamMember.user.name || approvedTimeOff.teamMember.user.email;
+        timeOffWarning = `Warning: ${cleanerName} has approved time off from ${approvedTimeOff.startDate.toLocaleDateString()} to ${approvedTimeOff.endDate.toLocaleDateString()}. Consider assigning a different cleaner.`;
+      }
+    }
+
     // If recurring and no end date specified, default to 12 months from start date
     const calculatedEndDate = validatedData.isRecurring && !validatedData.recurrenceEndDate
       ? new Date(new Date(validatedData.scheduledDate).setFullYear(
@@ -316,6 +342,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: booking,
       generatedBookings,
+      timeOffWarning,
       message: `Booking created successfully${
         generatedBookings.length > 0
           ? ` with ${generatedBookings.length} recurring instances`

@@ -574,6 +574,312 @@ export function getAnniversaryGreetingEmailTemplate(data: {
   `;
 }
 
+export function getTimeOffRequestEmailTemplate(data: {
+  adminName: string;
+  cleanerName: string;
+  companyName: string;
+  timeOffType: string;
+  startDate: string;
+  endDate: string;
+  reason?: string;
+  conflictCount: number;
+  dashboardUrl?: string;
+}) {
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const typeLabels: Record<string, string> = {
+    VACATION: 'Vacation',
+    SICK_LEAVE: 'Sick Leave',
+    PERSONAL: 'Personal Day',
+    FAMILY: 'Family Emergency',
+    BEREAVEMENT: 'Bereavement',
+    OTHER: 'Other',
+  };
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Off Request</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #f59e0b; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+    <h1 style="margin: 0; font-size: 28px;">Time Off Request</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px;">Requires your approval</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Hi ${data.adminName},</p>
+
+    <p style="font-size: 16px;"><strong>${data.cleanerName}</strong> has submitted a time off request that needs your review.</p>
+
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
+      <h2 style="margin-top: 0; color: #f59e0b; font-size: 20px;">Request Details</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Team Member:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${data.cleanerName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Type:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${typeLabels[data.timeOffType] || data.timeOffType}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Start Date:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${formatDate(data.startDate)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; ${data.reason ? 'border-bottom: 1px solid #e5e7eb;' : ''}"><strong>End Date:</strong></td>
+          <td style="padding: 10px 0; ${data.reason ? 'border-bottom: 1px solid #e5e7eb;' : ''} text-align: right;">${formatDate(data.endDate)}</td>
+        </tr>
+        ${data.reason ? `
+        <tr>
+          <td style="padding: 10px 0;"><strong>Reason:</strong></td>
+          <td style="padding: 10px 0; text-align: right;">${data.reason}</td>
+        </tr>
+        ` : ''}
+      </table>
+    </div>
+
+    ${data.conflictCount > 0 ? `
+    <div style="background-color: #fef2f2; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+      <p style="margin: 0; color: #991b1b;"><strong>⚠️ Schedule Conflict Alert</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #991b1b;">
+        This time off request conflicts with <strong>${data.conflictCount} scheduled job${data.conflictCount > 1 ? 's' : ''}</strong>.
+        Please review and reassign these jobs if you approve this request.
+      </p>
+    </div>
+    ` : `
+    <div style="background-color: #d1fae5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+      <p style="margin: 0; color: #065f46;"><strong>✓ No Schedule Conflicts</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #065f46;">
+        This team member has no scheduled jobs during this time period.
+      </p>
+    </div>
+    `}
+
+    ${data.dashboardUrl ? `
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${data.dashboardUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold;">Review Request</a>
+    </div>
+    ` : ''}
+
+    <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+      Please review and respond to this request at your earliest convenience.
+    </p>
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Best regards,<br>
+      <strong>${data.companyName}</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>© ${new Date().getFullYear()} ${data.companyName}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export function getTimeOffApprovedEmailTemplate(data: {
+  cleanerName: string;
+  companyName: string;
+  timeOffType: string;
+  startDate: string;
+  endDate: string;
+  approverName: string;
+  notes?: string;
+}) {
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const typeLabels: Record<string, string> = {
+    VACATION: 'Vacation',
+    SICK_LEAVE: 'Sick Leave',
+    PERSONAL: 'Personal Day',
+    FAMILY: 'Family Emergency',
+    BEREAVEMENT: 'Bereavement',
+    OTHER: 'Other',
+  };
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Off Approved</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #10b981; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 40px; margin-bottom: 10px;">✓</div>
+    <h1 style="margin: 0; font-size: 28px;">Time Off Approved!</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px;">Your request has been approved</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Hi ${data.cleanerName},</p>
+
+    <p style="font-size: 16px;">Great news! Your time off request has been <strong style="color: #10b981;">approved</strong> by ${data.approverName}.</p>
+
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
+      <h2 style="margin-top: 0; color: #10b981; font-size: 20px;">Approved Time Off</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Type:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${typeLabels[data.timeOffType] || data.timeOffType}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Start Date:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${formatDate(data.startDate)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0;"><strong>End Date:</strong></td>
+          <td style="padding: 10px 0; text-align: right;">${formatDate(data.endDate)}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${data.notes ? `
+    <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+      <p style="margin: 0; color: #1e40af;"><strong>Note from ${data.approverName}:</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #1e40af;">${data.notes}</p>
+    </div>
+    ` : ''}
+
+    <div style="background-color: #d1fae5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+      <p style="margin: 0; color: #065f46;"><strong>✓ Your schedule has been updated</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #065f46;">
+        This time off is now reflected in your calendar. Enjoy your time off!
+      </p>
+    </div>
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Best regards,<br>
+      <strong>${data.companyName}</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>© ${new Date().getFullYear()} ${data.companyName}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export function getTimeOffDeniedEmailTemplate(data: {
+  cleanerName: string;
+  companyName: string;
+  timeOffType: string;
+  startDate: string;
+  endDate: string;
+  approverName: string;
+  reason?: string;
+}) {
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const typeLabels: Record<string, string> = {
+    VACATION: 'Vacation',
+    SICK_LEAVE: 'Sick Leave',
+    PERSONAL: 'Personal Day',
+    FAMILY: 'Family Emergency',
+    BEREAVEMENT: 'Bereavement',
+    OTHER: 'Other',
+  };
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Off Request Update</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #ef4444; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 40px; margin-bottom: 10px;">✗</div>
+    <h1 style="margin: 0; font-size: 28px;">Time Off Not Approved</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px;">Your request could not be approved at this time</p>
+  </div>
+
+  <div style="background-color: #f9fafb; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 18px; margin-top: 0;">Hi ${data.cleanerName},</p>
+
+    <p style="font-size: 16px;">Unfortunately, your time off request could not be approved at this time.</p>
+
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
+      <h2 style="margin-top: 0; color: #ef4444; font-size: 20px;">Request Details</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Type:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${typeLabels[data.timeOffType] || data.timeOffType}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Start Date:</strong></td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${formatDate(data.startDate)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0;"><strong>End Date:</strong></td>
+          <td style="padding: 10px 0; text-align: right;">${formatDate(data.endDate)}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${data.reason ? `
+    <div style="background-color: #fef2f2; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+      <p style="margin: 0; color: #991b1b;"><strong>Reason from ${data.approverName}:</strong></p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #991b1b;">${data.reason}</p>
+    </div>
+    ` : ''}
+
+    <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+      <p style="margin: 0; color: #92400e;"><strong>What you can do:</strong></p>
+      <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #92400e; font-size: 14px;">
+        <li>Discuss alternative dates with your manager</li>
+        <li>Submit a new request for different dates</li>
+        <li>Contact ${data.approverName} for more information</li>
+      </ul>
+    </div>
+
+    <p style="font-size: 14px; margin-top: 20px;">
+      Best regards,<br>
+      <strong>${data.companyName}</strong>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280;">
+    <p>© ${new Date().getFullYear()} ${data.companyName}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
 export function getReviewRequestEmailTemplate(data: {
   customerName: string;
   companyName: string;

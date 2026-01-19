@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { sendEmail, getBookingConfirmationEmailTemplate, getBirthdayGreetingEmailTemplate, getAnniversaryGreetingEmailTemplate, getReviewRequestEmailTemplate } from '@/lib/email';
+import { sendEmail, getBookingConfirmationEmailTemplate, getBirthdayGreetingEmailTemplate, getAnniversaryGreetingEmailTemplate, getReviewRequestEmailTemplate, getTimeOffRequestEmailTemplate, getTimeOffApprovedEmailTemplate, getTimeOffDeniedEmailTemplate } from '@/lib/email';
 import { sendSMS, fillTemplate } from '@/lib/twilio';
 
 /**
@@ -491,6 +491,420 @@ export async function sendReviewRequest(bookingId: string) {
     return { success: true };
   } catch (error) {
     console.error('Error in sendReviewRequest:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Send notification to admin when cleaner submits time off request
+ */
+export async function sendTimeOffRequestNotification(timeOffRequestId: string) {
+  try {
+    const timeOffRequest = await prisma.timeOffRequest.findUnique({
+      where: { id: timeOffRequestId },
+      include: {
+        teamMember: {
+          include: {
+            user: true,
+          },
+        },
+        company: true,
+      },
+    });
+
+    if (!timeOffRequest) {
+      return { success: false, reason: 'Time off request not found' };
+    }
+
+    const { teamMember, company } = timeOffRequest;
+    const cleanerName = teamMember.user.name || teamMember.user.email;
+
+    // Find conflicting bookings
+    const conflictingBookings = await prisma.booking.findMany({
+      where: {
+        companyId: company.id,
+        assignedTo: teamMember.id,
+        status: 'SCHEDULED',
+        scheduledDate: {
+          gte: timeOffRequest.startDate,
+          lte: timeOffRequest.endDate,
+        },
+      },
+    });
+
+    // Update the time off request with conflict info
+    await prisma.timeOffRequest.update({
+      where: { id: timeOffRequestId },
+      data: {
+        conflictedBookingIds: conflictingBookings.map(b => b.id),
+      },
+    });
+
+    // Find admins/owners to notify
+    const admins = await prisma.user.findMany({
+      where: {
+        companyId: company.id,
+        role: { in: ['OWNER', 'ADMIN'] },
+      },
+    });
+
+    if (admins.length === 0) {
+      return { success: false, reason: 'No admins found to notify' };
+    }
+
+    // Get system user for logging
+    const systemUser = admins[0];
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '';
+
+    // Notify each admin
+    for (const admin of admins) {
+      const adminName = admin.name?.split(' ')[0] || 'Admin';
+
+      // Send email
+      if (admin.email) {
+        try {
+          const emailTemplate = getTimeOffRequestEmailTemplate({
+            adminName,
+            cleanerName: cleanerName || 'Team Member',
+            companyName: company.name,
+            timeOffType: timeOffRequest.type,
+            startDate: timeOffRequest.startDate.toISOString(),
+            endDate: timeOffRequest.endDate.toISOString(),
+            reason: timeOffRequest.reason || undefined,
+            conflictCount: conflictingBookings.length,
+            dashboardUrl: baseUrl ? `${baseUrl}/team/time-off` : undefined,
+          });
+
+          await sendEmail({
+            to: admin.email,
+            subject: `📅 Time Off Request from ${cleanerName}`,
+            html: emailTemplate,
+            type: 'notification',
+            apiKey: company.resendApiKey || undefined,
+          });
+
+          await prisma.message.create({
+            data: {
+              companyId: company.id,
+              userId: systemUser.id,
+              to: admin.email,
+              from: company.email || 'noreply@cleanday.com',
+              body: `Time off request notification sent to ${adminName}`,
+              type: 'TIME_OFF_REQUEST',
+              status: 'SENT',
+            },
+          });
+        } catch (error) {
+          console.error('Failed to send time off request email:', error);
+        }
+      }
+
+      // Send SMS
+      if (admin.phone && company.twilioPhoneNumber) {
+        try {
+          const startDateStr = timeOffRequest.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const endDateStr = timeOffRequest.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+          let smsBody = `📅 Time Off Request: ${cleanerName} is requesting ${timeOffRequest.type.toLowerCase().replace(/_/g, ' ')} from ${startDateStr} to ${endDateStr}.`;
+
+          if (conflictingBookings.length > 0) {
+            smsBody += ` ⚠️ ${conflictingBookings.length} job conflict${conflictingBookings.length > 1 ? 's' : ''}.`;
+          }
+
+          smsBody += ' Please review in the dashboard.';
+
+          const smsResult = await sendSMS(admin.phone, smsBody, {
+            accountSid: company.twilioAccountSid || undefined,
+            authToken: company.twilioAuthToken || undefined,
+            from: company.twilioPhoneNumber,
+          });
+
+          await prisma.message.create({
+            data: {
+              companyId: company.id,
+              userId: systemUser.id,
+              to: admin.phone,
+              from: company.twilioPhoneNumber,
+              body: smsBody,
+              type: 'TIME_OFF_REQUEST',
+              status: smsResult.success ? 'SENT' : 'FAILED',
+              twilioSid: smsResult.sid,
+              errorMessage: smsResult.error,
+            },
+          });
+        } catch (error) {
+          console.error('Failed to send time off request SMS:', error);
+        }
+      }
+    }
+
+    // Update notification timestamp
+    await prisma.timeOffRequest.update({
+      where: { id: timeOffRequestId },
+      data: { adminNotifiedAt: new Date() },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in sendTimeOffRequestNotification:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Send notification to cleaner when time off request is approved
+ */
+export async function sendTimeOffApprovedNotification(timeOffRequestId: string) {
+  try {
+    const timeOffRequest = await prisma.timeOffRequest.findUnique({
+      where: { id: timeOffRequestId },
+      include: {
+        teamMember: {
+          include: {
+            user: true,
+          },
+        },
+        company: true,
+      },
+    });
+
+    if (!timeOffRequest) {
+      return { success: false, reason: 'Time off request not found' };
+    }
+
+    // Get approver info
+    let approverName = 'Management';
+    if (timeOffRequest.reviewedBy) {
+      const approver = await prisma.user.findUnique({
+        where: { id: timeOffRequest.reviewedBy },
+      });
+      if (approver) {
+        approverName = approver.name || approver.email;
+      }
+    }
+
+    const { teamMember, company } = timeOffRequest;
+    const cleaner = teamMember.user;
+    const cleanerName = cleaner.name?.split(' ')[0] || 'Team Member';
+
+    // Get system user for logging
+    const systemUser = await prisma.user.findFirst({
+      where: { companyId: company.id, role: 'OWNER' },
+    });
+
+    if (!systemUser) {
+      return { success: false, reason: 'No system user found' };
+    }
+
+    // Send email
+    if (cleaner.email) {
+      try {
+        const emailTemplate = getTimeOffApprovedEmailTemplate({
+          cleanerName,
+          companyName: company.name,
+          timeOffType: timeOffRequest.type,
+          startDate: timeOffRequest.startDate.toISOString(),
+          endDate: timeOffRequest.endDate.toISOString(),
+          approverName,
+          notes: timeOffRequest.reviewNotes || undefined,
+        });
+
+        await sendEmail({
+          to: cleaner.email,
+          subject: `✓ Time Off Approved - ${company.name}`,
+          html: emailTemplate,
+          type: 'notification',
+          apiKey: company.resendApiKey || undefined,
+        });
+
+        await prisma.message.create({
+          data: {
+            companyId: company.id,
+            userId: systemUser.id,
+            to: cleaner.email,
+            from: company.email || 'noreply@cleanday.com',
+            body: 'Time off approval notification sent',
+            type: 'TIME_OFF_APPROVED',
+            status: 'SENT',
+          },
+        });
+      } catch (error) {
+        console.error('Failed to send time off approved email:', error);
+      }
+    }
+
+    // Send SMS
+    if (cleaner.phone && company.twilioPhoneNumber) {
+      try {
+        const startDateStr = timeOffRequest.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const endDateStr = timeOffRequest.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        const smsBody = `✓ Good news! Your time off request (${startDateStr} - ${endDateStr}) has been APPROVED. Enjoy your time off! - ${company.name}`;
+
+        const smsResult = await sendSMS(cleaner.phone, smsBody, {
+          accountSid: company.twilioAccountSid || undefined,
+          authToken: company.twilioAuthToken || undefined,
+          from: company.twilioPhoneNumber,
+        });
+
+        await prisma.message.create({
+          data: {
+            companyId: company.id,
+            userId: systemUser.id,
+            to: cleaner.phone,
+            from: company.twilioPhoneNumber,
+            body: smsBody,
+            type: 'TIME_OFF_APPROVED',
+            status: smsResult.success ? 'SENT' : 'FAILED',
+            twilioSid: smsResult.sid,
+            errorMessage: smsResult.error,
+          },
+        });
+      } catch (error) {
+        console.error('Failed to send time off approved SMS:', error);
+      }
+    }
+
+    // Update notification timestamp
+    await prisma.timeOffRequest.update({
+      where: { id: timeOffRequestId },
+      data: { cleanerNotifiedAt: new Date() },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in sendTimeOffApprovedNotification:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Send notification to cleaner when time off request is denied
+ */
+export async function sendTimeOffDeniedNotification(timeOffRequestId: string) {
+  try {
+    const timeOffRequest = await prisma.timeOffRequest.findUnique({
+      where: { id: timeOffRequestId },
+      include: {
+        teamMember: {
+          include: {
+            user: true,
+          },
+        },
+        company: true,
+      },
+    });
+
+    if (!timeOffRequest) {
+      return { success: false, reason: 'Time off request not found' };
+    }
+
+    // Get denier info
+    let approverName = 'Management';
+    if (timeOffRequest.reviewedBy) {
+      const approver = await prisma.user.findUnique({
+        where: { id: timeOffRequest.reviewedBy },
+      });
+      if (approver) {
+        approverName = approver.name || approver.email;
+      }
+    }
+
+    const { teamMember, company } = timeOffRequest;
+    const cleaner = teamMember.user;
+    const cleanerName = cleaner.name?.split(' ')[0] || 'Team Member';
+
+    // Get system user for logging
+    const systemUser = await prisma.user.findFirst({
+      where: { companyId: company.id, role: 'OWNER' },
+    });
+
+    if (!systemUser) {
+      return { success: false, reason: 'No system user found' };
+    }
+
+    // Send email
+    if (cleaner.email) {
+      try {
+        const emailTemplate = getTimeOffDeniedEmailTemplate({
+          cleanerName,
+          companyName: company.name,
+          timeOffType: timeOffRequest.type,
+          startDate: timeOffRequest.startDate.toISOString(),
+          endDate: timeOffRequest.endDate.toISOString(),
+          approverName,
+          reason: timeOffRequest.reviewNotes || undefined,
+        });
+
+        await sendEmail({
+          to: cleaner.email,
+          subject: `Time Off Request Update - ${company.name}`,
+          html: emailTemplate,
+          type: 'notification',
+          apiKey: company.resendApiKey || undefined,
+        });
+
+        await prisma.message.create({
+          data: {
+            companyId: company.id,
+            userId: systemUser.id,
+            to: cleaner.email,
+            from: company.email || 'noreply@cleanday.com',
+            body: 'Time off denial notification sent',
+            type: 'TIME_OFF_DENIED',
+            status: 'SENT',
+          },
+        });
+      } catch (error) {
+        console.error('Failed to send time off denied email:', error);
+      }
+    }
+
+    // Send SMS
+    if (cleaner.phone && company.twilioPhoneNumber) {
+      try {
+        const startDateStr = timeOffRequest.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const endDateStr = timeOffRequest.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        let smsBody = `Your time off request (${startDateStr} - ${endDateStr}) was not approved.`;
+        if (timeOffRequest.reviewNotes) {
+          smsBody += ` Reason: ${timeOffRequest.reviewNotes}`;
+        }
+        smsBody += ` Please contact ${approverName} for more info. - ${company.name}`;
+
+        const smsResult = await sendSMS(cleaner.phone, smsBody, {
+          accountSid: company.twilioAccountSid || undefined,
+          authToken: company.twilioAuthToken || undefined,
+          from: company.twilioPhoneNumber,
+        });
+
+        await prisma.message.create({
+          data: {
+            companyId: company.id,
+            userId: systemUser.id,
+            to: cleaner.phone,
+            from: company.twilioPhoneNumber,
+            body: smsBody,
+            type: 'TIME_OFF_DENIED',
+            status: smsResult.success ? 'SENT' : 'FAILED',
+            twilioSid: smsResult.sid,
+            errorMessage: smsResult.error,
+          },
+        });
+      } catch (error) {
+        console.error('Failed to send time off denied SMS:', error);
+      }
+    }
+
+    // Update notification timestamp
+    await prisma.timeOffRequest.update({
+      where: { id: timeOffRequestId },
+      data: { cleanerNotifiedAt: new Date() },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in sendTimeOffDeniedNotification:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }

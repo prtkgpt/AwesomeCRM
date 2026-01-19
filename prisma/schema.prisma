@@ -113,6 +113,7 @@ model Company {
   payLogs             PayLog[]
   pricingRules        PricingRule[]
   backups             CompanyBackup[]
+  timeOffRequests     TimeOffRequest[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -214,6 +215,9 @@ model TeamMember {
   // Pay logs
   payLogs           PayLog[]
 
+  // Time off requests
+  timeOffRequests   TimeOffRequest[]
+
   isActive          Boolean   @default(true)
 
   createdAt         DateTime  @default(now())
@@ -221,6 +225,68 @@ model TeamMember {
 
   @@index([companyId])
   @@index([userId])
+}
+
+// ============================================
+// TIME OFF REQUESTS (PTO)
+// ============================================
+
+enum TimeOffType {
+  VACATION       // Planned vacation
+  SICK_LEAVE     // Sick day
+  PERSONAL       // Personal day
+  FAMILY         // Family emergency
+  BEREAVEMENT    // Bereavement leave
+  OTHER          // Other
+}
+
+enum TimeOffStatus {
+  PENDING        // Awaiting admin approval
+  APPROVED       // Approved by admin
+  DENIED         // Denied by admin
+  CANCELLED      // Cancelled by cleaner
+}
+
+model TimeOffRequest {
+  id                String          @id @default(cuid())
+
+  // Multi-tenancy
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Team member making the request
+  teamMemberId      String
+  teamMember        TeamMember      @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  // Request details
+  type              TimeOffType
+  startDate         DateTime        // Start of time off (date only, stored as midnight)
+  endDate           DateTime        // End of time off (inclusive)
+  reason            String?         // Optional reason/notes from cleaner
+
+  // Status tracking
+  status            TimeOffStatus   @default(PENDING)
+
+  // Admin review
+  reviewedBy        String?         // User ID of admin who reviewed
+  reviewedAt        DateTime?       // When the request was reviewed
+  reviewNotes       String?         // Admin notes (e.g., reason for denial)
+
+  // Conflict tracking
+  conflictedBookingIds String[]     @default([]) // IDs of bookings that conflict
+
+  // Notification tracking
+  adminNotifiedAt   DateTime?       // When admin was notified of request
+  cleanerNotifiedAt DateTime?       // When cleaner was notified of decision
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([companyId])
+  @@index([teamMemberId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([companyId, status])
 }
 
 model Invitation {
@@ -699,6 +765,9 @@ enum MessageType {
   BIRTHDAY_GREETING
   ANNIVERSARY_GREETING
   REVIEW_REQUEST
+  TIME_OFF_REQUEST
+  TIME_OFF_APPROVED
+  TIME_OFF_DENIED
 }
 
 model Message {
