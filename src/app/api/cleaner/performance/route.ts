@@ -17,6 +17,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Get user with role check
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, role: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Only cleaners can access this endpoint
+    if (user.role !== 'CLEANER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Get the cleaner's TeamMember record
     const teamMember = await prisma.teamMember.findUnique({
       where: { userId: session.user.id },
@@ -187,6 +202,104 @@ export async function GET(req: NextRequest) {
       take: 5,
     });
 
+    // Calculate completion rate (jobs completed on the same day as scheduled)
+    const onTimeJobs = allCompletedJobs.filter((job) => {
+      if (!job.clockedOutAt) return true; // Manual completions count as on-time
+      const scheduled = new Date(job.scheduledDate);
+      const completed = new Date(job.clockedOutAt);
+      // Same day = on time
+      return scheduled.toDateString() === completed.toDateString();
+    });
+    const onTimeRate = allCompletedJobs.length > 0
+      ? (onTimeJobs.length / allCompletedJobs.length) * 100
+      : 100;
+
+    // Calculate current streak (consecutive days with completed jobs)
+    let currentStreak = 0;
+    const sortedJobs = [...allCompletedJobs].sort(
+      (a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime()
+    );
+    if (sortedJobs.length > 0) {
+      let lastDate = new Date(sortedJobs[0].scheduledDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      lastDate.setHours(0, 0, 0, 0);
+
+      // Only count streak if last job was today or yesterday
+      const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays <= 1) {
+        currentStreak = 1;
+        for (let i = 1; i < sortedJobs.length; i++) {
+          const jobDate = new Date(sortedJobs[i].scheduledDate);
+          jobDate.setHours(0, 0, 0, 0);
+          const dayDiff = Math.floor((lastDate.getTime() - jobDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (dayDiff === 1) {
+            currentStreak++;
+            lastDate = jobDate;
+          } else if (dayDiff > 1) {
+            break;
+          }
+        }
+      }
+    }
+
+    // Calculate last month stats for comparison
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    const jobsLastMonth = allCompletedJobs.filter((job) => {
+      const jobDate = new Date(job.scheduledDate);
+      return jobDate >= startOfLastMonth && jobDate <= endOfLastMonth;
+    });
+    const earningsLastMonth = calculateEarnings(jobsLastMonth);
+    const tipsLastMonth = jobsLastMonth.reduce((sum, job) => sum + (job.tipAmount || 0), 0);
+
+    // Calculate improvement percentages
+    const earningsChange = earningsLastMonth > 0
+      ? ((earningsThisMonth - earningsLastMonth) / earningsLastMonth) * 100
+      : earningsThisMonth > 0 ? 100 : 0;
+    const jobsChange = jobsLastMonth.length > 0
+      ? ((jobsThisMonth.length - jobsLastMonth.length) / jobsLastMonth.length) * 100
+      : jobsThisMonth.length > 0 ? 100 : 0;
+
+    // Calculate milestones/achievements
+    const achievements = [];
+    if (allCompletedJobs.length >= 100) {
+      achievements.push({ icon: '🏆', title: 'Century Club', description: '100+ jobs completed!' });
+    } else if (allCompletedJobs.length >= 50) {
+      achievements.push({ icon: '🌟', title: 'Rising Star', description: '50+ jobs completed!' });
+    } else if (allCompletedJobs.length >= 25) {
+      achievements.push({ icon: '💪', title: 'Getting Started', description: '25+ jobs completed!' });
+    }
+    if (averageRating >= 4.8) {
+      achievements.push({ icon: '⭐', title: 'Customer Favorite', description: '4.8+ star rating!' });
+    }
+    if (currentStreak >= 5) {
+      achievements.push({ icon: '🔥', title: 'On Fire', description: `${currentStreak} day streak!` });
+    }
+    if (tipsAllTime >= 500) {
+      achievements.push({ icon: '💰', title: 'Tip Master', description: '$500+ in tips earned!' });
+    }
+    if (onTimeRate >= 98) {
+      achievements.push({ icon: '⏰', title: 'Always On Time', description: '98%+ on-time rate!' });
+    }
+
+    // Personal bests
+    const personalBests = {
+      bestWeekEarnings: Math.max(...weeklyTrends.map(w => w.earnings + w.tips), 0),
+      bestWeekJobs: Math.max(...weeklyTrends.map(w => w.jobs), 0),
+      highestTip: Math.max(...allCompletedJobs.map(j => j.tipAmount || 0), 0),
+      longestStreak: currentStreak, // Could be expanded with historical tracking
+    };
+
+    // Progress towards next milestone
+    const nextMilestone = allCompletedJobs.length < 25
+      ? { target: 25, current: allCompletedJobs.length, label: '25 Jobs' }
+      : allCompletedJobs.length < 50
+      ? { target: 50, current: allCompletedJobs.length, label: '50 Jobs' }
+      : allCompletedJobs.length < 100
+      ? { target: 100, current: allCompletedJobs.length, label: '100 Jobs' }
+      : { target: 250, current: allCompletedJobs.length, label: '250 Jobs' };
+
     return NextResponse.json({
       success: true,
       data: {
@@ -212,6 +325,14 @@ export async function GET(req: NextRequest) {
         averageRating: Number(averageRating.toFixed(2)),
         totalRatingsReceived: jobsWithRatings.length,
         averageDuration: Math.round(averageDuration),
+        onTimeRate: Math.round(onTimeRate),
+        currentStreak,
+
+        // Comparison stats
+        earningsLastMonth,
+        jobsLastMonth: jobsLastMonth.length,
+        earningsChange: Math.round(earningsChange),
+        jobsChange: Math.round(jobsChange),
 
         // Hourly rate
         hourlyRate: teamMember.hourlyRate || 0,
@@ -219,6 +340,11 @@ export async function GET(req: NextRequest) {
         // Recent performance
         recentJobsWithRatings,
         weeklyTrends,
+
+        // Achievements and motivation
+        achievements,
+        personalBests,
+        nextMilestone,
 
         // Cleaner-submitted reviews
         cleanerReviews: cleanerReviews.map((review) => ({

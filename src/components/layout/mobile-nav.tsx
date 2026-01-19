@@ -2,38 +2,74 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Briefcase, Users, Home, Menu, FileText, Receipt, TrendingUp } from 'lucide-react';
+import { Calendar, Briefcase, Users, Home, Menu, FileText, Receipt, TrendingUp, MapPin, Wallet, User, Settings, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-const navItems = [
-  {
-    href: '/dashboard',
-    label: 'Home',
-    icon: Home,
-  },
-  {
-    href: '/calendar',
-    label: 'Calendar',
-    icon: Calendar,
-  },
-  {
-    href: '/jobs',
-    label: 'Jobs',
-    icon: Briefcase,
-  },
-  {
-    href: '/clients',
-    label: 'Clients',
-    icon: Users,
-  },
+// Owner/Admin bottom nav items
+const ownerAdminNavItems = [
+  { href: '/dashboard', label: 'Home', icon: Home },
+  { href: '/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/jobs', label: 'Jobs', icon: Briefcase },
+  { href: '/clients', label: 'Clients', icon: Users },
+];
+
+// Owner/Admin menu items (slide-out)
+const ownerAdminMenuItems = [
+  { href: '/reports', label: 'Reports', icon: TrendingUp },
+  { href: '/estimates', label: 'Estimates', icon: Receipt },
+  { href: '/invoices', label: 'Invoices', icon: FileText },
+  { href: '/settings', label: 'Settings', icon: Settings },
+];
+
+// Cleaner bottom nav items
+const cleanerNavItems = [
+  { href: '/cleaner/today', label: 'Today', icon: MapPin },
+  { href: '/cleaner/dashboard', label: 'Jobs', icon: Briefcase },
+  { href: '/cleaner/earnings', label: 'Earnings', icon: Wallet },
+  { href: '/cleaner/performance', label: 'Stats', icon: TrendingUp },
+];
+
+// Cleaner menu items (slide-out)
+const cleanerMenuItems = [
+  { href: '/cleaner/history', label: 'Job History', icon: ClipboardList },
+  { href: '/cleaner/schedule', label: 'Schedule', icon: Calendar },
+  { href: '/cleaner/profile', label: 'Profile', icon: User },
+  { href: '/cleaner/settings', label: 'Settings', icon: Settings },
+];
+
+// Customer bottom nav items
+const customerNavItems = [
+  { href: '/customer/dashboard', label: 'Home', icon: Home },
+  { href: '/customer/bookings', label: 'Bookings', icon: ClipboardList },
+  { href: '/customer/invoices', label: 'Invoices', icon: FileText },
+];
+
+// Customer menu items (slide-out)
+const customerMenuItems = [
+  { href: '/customer/settings', label: 'Settings', icon: Settings },
 ];
 
 export function MobileNav() {
   const pathname = usePathname();
   const [showMenu, setShowMenu] = useState(false);
+  const { data: session } = useSession();
+
+  const userRole = (session?.user as any)?.role as string | undefined;
+
+  // Determine which nav items to show based on role
+  let navItems = ownerAdminNavItems;
+  let menuItems = ownerAdminMenuItems;
+
+  if (userRole === 'CLEANER') {
+    navItems = cleanerNavItems;
+    menuItems = cleanerMenuItems;
+  } else if (userRole === 'CUSTOMER') {
+    navItems = customerNavItems;
+    menuItems = customerMenuItems;
+  }
 
   return (
     <>
@@ -58,40 +94,27 @@ export function MobileNav() {
           </div>
 
           <nav className="flex-1 p-4 space-y-2">
-            <Link
-              href="/reports"
-              className="flex items-center gap-3 px-3 py-3 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-              onClick={() => setShowMenu(false)}
-            >
-              <TrendingUp className="w-5 h-5" />
-              <span className="text-sm font-medium">Reports</span>
-            </Link>
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname.startsWith(item.href);
 
-            <Link
-              href="/estimates"
-              className="flex items-center gap-3 px-3 py-3 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-              onClick={() => setShowMenu(false)}
-            >
-              <Receipt className="w-5 h-5" />
-              <span className="text-sm font-medium">Estimates</span>
-            </Link>
-
-            <Link
-              href="/invoices"
-              className="flex items-center gap-3 px-3 py-3 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-              onClick={() => setShowMenu(false)}
-            >
-              <FileText className="w-5 h-5" />
-              <span className="text-sm font-medium">Invoices</span>
-            </Link>
-
-            <Link
-              href="/settings"
-              className="flex items-center px-3 py-3 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-              onClick={() => setShowMenu(false)}
-            >
-              <span className="text-sm font-medium">Settings</span>
-            </Link>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-3 rounded-lg',
+                    isActive
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  )}
+                  onClick={() => setShowMenu(false)}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-sm font-medium">{item.label}</span>
+                </Link>
+              );
+            })}
 
             <div className="pt-2">
               <ThemeToggle />

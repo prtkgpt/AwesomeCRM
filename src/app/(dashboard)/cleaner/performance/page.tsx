@@ -15,6 +15,11 @@ import {
   Gift,
   Target,
   ThumbsUp,
+  Flame,
+  ArrowUpRight,
+  ArrowDownRight,
+  Trophy,
+  Zap,
 } from 'lucide-react';
 
 interface PerformanceData {
@@ -32,6 +37,12 @@ interface PerformanceData {
   totalRatingsReceived: number;
   averageDuration: number;
   hourlyRate: number;
+  onTimeRate: number;
+  currentStreak: number;
+  earningsLastMonth: number;
+  jobsLastMonth: number;
+  earningsChange: number;
+  jobsChange: number;
   recentJobsWithRatings: Array<{
     id: string;
     date: string;
@@ -48,6 +59,22 @@ interface PerformanceData {
     earnings: number;
     tips: number;
   }>;
+  achievements: Array<{
+    icon: string;
+    title: string;
+    description: string;
+  }>;
+  personalBests: {
+    bestWeekEarnings: number;
+    bestWeekJobs: number;
+    highestTip: number;
+    longestStreak: number;
+  };
+  nextMilestone: {
+    target: number;
+    current: number;
+    label: string;
+  };
   cleanerReviews: Array<{
     id: string;
     date: string;
@@ -209,14 +236,14 @@ export default function CleanerPerformancePage() {
         </Card>
 
         {/* Total Tips */}
-        <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+        <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/30 border-2 border-purple-200 dark:border-purple-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Tips (Month)</p>
-              <p className="text-3xl font-bold text-purple-700 mt-1">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Tips (Month)</p>
+              <p className="text-3xl font-bold text-purple-700 dark:text-purple-300 mt-1">
                 {formatCurrency(data.tipsThisMonth)}
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 All time: {formatCurrency(data.tipsAllTime)}
               </p>
             </div>
@@ -224,6 +251,147 @@ export default function CleanerPerformancePage() {
           </div>
         </Card>
       </div>
+
+      {/* Streak & On-Time Rate */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Current Streak */}
+        <Card className="p-6 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/50 dark:to-red-950/30 border-2 border-orange-200 dark:border-orange-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <Flame className="h-4 w-4 text-orange-500" />
+                Current Streak
+              </p>
+              <p className="text-4xl font-bold text-orange-600 dark:text-orange-400 mt-1">
+                {data.currentStreak} {data.currentStreak === 1 ? 'day' : 'days'}
+              </p>
+              {data.currentStreak >= 3 && (
+                <p className="text-sm text-orange-700 dark:text-orange-300 mt-1 font-medium">
+                  {data.currentStreak >= 7 ? "You're on fire! Amazing consistency!" : "Great momentum! Keep it going!"}
+                </p>
+              )}
+            </div>
+            <div className="text-5xl">{data.currentStreak >= 5 ? '🔥' : data.currentStreak >= 3 ? '✨' : '💪'}</div>
+          </div>
+        </Card>
+
+        {/* On-Time Rate */}
+        <Card className="p-6 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-950/50 dark:to-cyan-950/30 border-2 border-teal-200 dark:border-teal-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <Clock className="h-4 w-4 text-teal-500" />
+                On-Time Completion
+              </p>
+              <p className="text-4xl font-bold text-teal-600 dark:text-teal-400 mt-1">
+                {data.onTimeRate}%
+              </p>
+              <p className="text-sm text-teal-700 dark:text-teal-300 mt-1 font-medium">
+                {data.onTimeRate >= 98 ? 'Perfect! Clients love reliability!' : data.onTimeRate >= 90 ? 'Great job staying on schedule!' : 'Room for improvement'}
+              </p>
+            </div>
+            <div className="text-5xl">{data.onTimeRate >= 98 ? '⏰' : data.onTimeRate >= 90 ? '👍' : '📈'}</div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Achievements */}
+      {data.achievements && data.achievements.length > 0 && (
+        <Card className="p-6 bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 dark:from-amber-950/30 dark:via-yellow-950/30 dark:to-orange-950/30 border-2 border-amber-300 dark:border-amber-700">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            Your Achievements
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {data.achievements.map((achievement, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 p-3 bg-white/60 dark:bg-gray-800/60 rounded-xl border border-amber-200 dark:border-amber-800"
+              >
+                <span className="text-3xl">{achievement.icon}</span>
+                <div>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">{achievement.title}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{achievement.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Progress to Next Milestone */}
+      {data.nextMilestone && (
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            Progress to Next Milestone
+          </h2>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-medium text-gray-700 dark:text-gray-300">
+                {data.nextMilestone.label}
+              </span>
+              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                {data.nextMilestone.current} / {data.nextMilestone.target}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min((data.nextMilestone.current / data.nextMilestone.target) * 100, 100)}%` }}
+              />
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {data.nextMilestone.target - data.nextMilestone.current} more jobs to reach your next milestone!
+              {data.nextMilestone.target - data.nextMilestone.current <= 5 && ' Almost there! 🎯'}
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Month-over-Month Comparison */}
+      {(data.earningsChange !== 0 || data.jobsChange !== 0) && (
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Zap className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            Compared to Last Month
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`p-4 rounded-lg ${data.earningsChange >= 0 ? 'bg-green-50 dark:bg-green-950/30' : 'bg-red-50 dark:bg-red-950/30'}`}>
+              <div className="flex items-center gap-2">
+                {data.earningsChange >= 0 ? (
+                  <ArrowUpRight className="h-5 w-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <ArrowDownRight className="h-5 w-5 text-red-600 dark:text-red-400" />
+                )}
+                <span className="font-medium text-gray-700 dark:text-gray-300">Earnings</span>
+              </div>
+              <p className={`text-2xl font-bold mt-1 ${data.earningsChange >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                {data.earningsChange >= 0 ? '+' : ''}{data.earningsChange}%
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                vs. {formatCurrency(data.earningsLastMonth)} last month
+              </p>
+            </div>
+            <div className={`p-4 rounded-lg ${data.jobsChange >= 0 ? 'bg-green-50 dark:bg-green-950/30' : 'bg-red-50 dark:bg-red-950/30'}`}>
+              <div className="flex items-center gap-2">
+                {data.jobsChange >= 0 ? (
+                  <ArrowUpRight className="h-5 w-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <ArrowDownRight className="h-5 w-5 text-red-600 dark:text-red-400" />
+                )}
+                <span className="font-medium text-gray-700 dark:text-gray-300">Jobs Completed</span>
+              </div>
+              <p className={`text-2xl font-bold mt-1 ${data.jobsChange >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                {data.jobsChange >= 0 ? '+' : ''}{data.jobsChange}%
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                vs. {data.jobsLastMonth} jobs last month
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Earnings Breakdown */}
       <Card className="p-6">

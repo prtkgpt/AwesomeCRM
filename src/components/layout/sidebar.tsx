@@ -63,6 +63,11 @@ const cleanerNavItems = [
     icon: Briefcase,
   },
   {
+    href: '/cleaner/history',
+    label: 'Job History',
+    icon: ClipboardList,
+  },
+  {
     href: '/cleaner/earnings',
     label: 'Earnings',
     icon: Wallet,

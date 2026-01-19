@@ -17,6 +17,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Get user with role check
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, role: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Only cleaners can access this endpoint
+    if (user.role !== 'CLEANER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Get the cleaner's TeamMember record
     const teamMember = await prisma.teamMember.findUnique({
       where: { userId: session.user.id },
