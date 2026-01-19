@@ -84,7 +84,7 @@ interface CompanySettings {
 }
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -153,12 +153,15 @@ export default function SettingsPage() {
   } | null>(null);
 
   useEffect(() => {
+    // Wait for session to finish loading before fetching data
+    if (status === 'loading') return;
+
     fetchProfile();
     const userRole = (session?.user as any)?.role;
     if (userRole === 'OWNER' || userRole === 'ADMIN') {
       fetchCompanySettings();
     }
-  }, [session]);
+  }, [session, status]);
 
   const fetchProfile = async () => {
     setLoading(true);
