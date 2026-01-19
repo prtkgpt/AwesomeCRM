@@ -632,7 +632,7 @@ model PayLog {
   teamMemberId    String
   teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
 
-  type            String     // PAYCHECK, BONUS, REIMBURSEMENT, DEDUCTION, ADVANCE
+  type            String?    // PAYCHECK, BONUS, REIMBURSEMENT, DEDUCTION, ADVANCE
   amount          Float
   date            DateTime
   description     String?
@@ -1292,7 +1292,7 @@ model Invoice {
   taxAmount       Float     @default(0)
   total           Float
   amountPaid      Float     @default(0)
-  amountDue       Float
+  amountDue       Float?    @default(0)
 
   // Notes
   notes           String?
@@ -1491,7 +1491,7 @@ model Message {
 
   // Message Details
   type            MessageType @default(CUSTOM)
-  channel         MessageChannel
+  channel         MessageChannel?
 
   // Recipients
   to              String    // Phone number or email
@@ -1499,7 +1499,7 @@ model Message {
 
   // Content
   subject         String?   // For emails
-  body            String
+  body            String?
 
   // Status
   status          MessageStatus @default(PENDING)
@@ -1534,12 +1534,12 @@ model MessageTemplate {
   companyId       String
   company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  type            MessageType
-  channel         MessageChannel
+  type            MessageType?
+  channel         MessageChannel?
 
-  name            String
+  name            String?
   subject         String?   // For emails
-  body            String    // Template with {{variables}}
+  body            String?   // Template with {{variables}}
 
   isDefault       Boolean   @default(false)
   isActive        Boolean   @default(true)
