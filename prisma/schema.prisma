@@ -1021,7 +1021,7 @@ model Booking {
   company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Reference
-  bookingNumber           String?   @unique
+  bookingNumber           String?
 
   // Client & Address
   clientId                String
