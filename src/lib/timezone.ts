@@ -9,27 +9,36 @@ export const COMPANY_TIMEZONE = 'America/Los_Angeles';
 
 /**
  * Convert a date and time string to PST and return as ISO string
+ * The input is ALWAYS interpreted as PST time, regardless of user's local timezone.
  * @param dateString - Date string in YYYY-MM-DD format
  * @param timeString - Time string in HH:mm format
- * @returns ISO string representing the date/time in PST
+ * @returns ISO string representing the date/time in UTC (converted from PST input)
+ * @example createPSTDate("2026-01-20", "10:00") => "2026-01-20T18:00:00.000Z" (10 AM PST = 6 PM UTC)
  */
 export function createPSTDate(dateString: string, timeString: string): string {
-  // Create the date string in PST timezone
-  const dateTimeString = `${dateString}T${timeString}:00`;
+  // Parse the date and time components directly (no timezone interpretation)
+  const [year, month, day] = dateString.split('-').map(Number);
+  const [hours, minutes] = timeString.split(':').map(Number);
 
-  // Parse as PST using Intl.DateTimeFormat
-  // This ensures the time is interpreted as PST, not the user's local timezone
-  const date = new Date(dateTimeString);
+  // Create a date representing "what time it should be" in PST
+  // We'll use a reference date to calculate the PST offset
+  const referenceDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 
-  // Get the offset for PST at this date (handles PST/PDT automatically)
-  const pstDate = new Date(date.toLocaleString('en-US', { timeZone: COMPANY_TIMEZONE }));
-  const localDate = new Date(date.toLocaleString('en-US'));
-  const offset = localDate.getTime() - pstDate.getTime();
+  // Get PST offset for this date (handles DST automatically)
+  // PST is UTC-8, PDT is UTC-7
+  const pstOffsetString = referenceDate.toLocaleString('en-US', {
+    timeZone: COMPANY_TIMEZONE,
+    timeZoneName: 'shortOffset',
+  });
 
-  // Adjust the date by the offset to get the correct PST time
-  const adjustedDate = new Date(date.getTime() + offset);
+  // Extract offset from string like "1/20/2026, 4:00:00 AM GMT-8"
+  const offsetMatch = pstOffsetString.match(/GMT([+-]\d+)/);
+  const offsetHours = offsetMatch ? parseInt(offsetMatch[1]) : -8;
 
-  return adjustedDate.toISOString();
+  // Create UTC date: if user wants 10:00 PST and PST is UTC-8, we need 10:00 + 8 = 18:00 UTC
+  const utcDate = new Date(Date.UTC(year, month - 1, day, hours - offsetHours, minutes, 0));
+
+  return utcDate.toISOString();
 }
 
 /**

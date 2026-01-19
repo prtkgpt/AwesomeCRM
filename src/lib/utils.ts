@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { format, addDays, addWeeks, addMonths, isAfter, isBefore } from "date-fns";
+import { format, addDays, addWeeks, addMonths, isAfter, isBefore, parse } from "date-fns";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 // Company timezone - used for parsing input dates (e.g., from booking forms)
@@ -142,22 +142,30 @@ export function formatTime(date: Date | string): string {
 /**
  * Parse a date+time string as if it's in company timezone (PST)
  * Converts PST time to UTC for database storage
- * @param dateStr - Date string in format "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"
+ * @param dateStr - Date string in format "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm" or "YYYY-MM-DDTHH:mm:ss"
  * @returns Date object in UTC
  * @example parseDateInCompanyTZ("2026-01-20T10:00") => Date representing 10 AM PST (6 PM UTC)
  */
 export function parseDateInCompanyTZ(dateStr: string): Date {
+  // Normalize the date string format
+  let normalizedStr = dateStr;
+
   // If it's just a date (YYYY-MM-DD), append midnight
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    dateStr = `${dateStr}T00:00:00`;
+  if (normalizedStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    normalizedStr = `${normalizedStr}T00:00:00`;
+  }
+  // If it's missing seconds (YYYY-MM-DDTHH:mm), append :00
+  else if (normalizedStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)) {
+    normalizedStr = `${normalizedStr}:00`;
   }
 
-  // Create a Date object from the string (this will be interpreted in local server time)
-  const localDate = new Date(dateStr);
+  // Use date-fns parse to extract date components WITHOUT timezone interpretation
+  // This creates a Date where the components match the input string
+  const parsedDate = parse(normalizedStr, "yyyy-MM-dd'T'HH:mm:ss", new Date(0));
 
-  // Treat this date as if it's in PST and convert to UTC
-  // fromZonedTime interprets the date as being in the specified timezone
-  const utcDate = fromZonedTime(localDate, COMPANY_TIMEZONE);
+  // fromZonedTime treats the input Date's components as being in the specified timezone
+  // and returns the equivalent UTC time
+  const utcDate = fromZonedTime(parsedDate, COMPANY_TIMEZONE);
   return utcDate;
 }
 
