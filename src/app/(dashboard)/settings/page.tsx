@@ -191,7 +191,7 @@ export default function SettingsPage() {
       const data = await response.json();
       console.log('Company settings response:', data);
 
-      if (data.success) {
+      if (data.success && data.data) {
         console.log('Setting companySettings with id:', data.data?.id, 'slug:', data.data?.slug);
         setCompanySettings(data.data);
         setCompanyForm({
@@ -212,6 +212,8 @@ export default function SettingsPage() {
           maximumLeadTime: data.data.maximumLeadTime ?? 60,
           requireApproval: data.data.requireApproval ?? false,
         });
+      } else {
+        console.error('Failed to fetch company settings:', data.error);
       }
     } catch (error) {
       console.error('Failed to fetch company settings:', error);
@@ -279,21 +281,27 @@ export default function SettingsPage() {
     setSaving(true);
 
     try {
+      console.log('Submitting company form:', companyForm);
+
       const response = await fetch('/api/company/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(companyForm),
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (data.success) {
         alert('Company settings updated successfully!');
         fetchCompanySettings();
       } else {
+        console.error('Update failed:', data.error);
         alert(data.error || 'Failed to update company settings');
       }
     } catch (error) {
+      console.error('Company update error:', error);
       alert('An error occurred. Please try again.');
     } finally {
       setSaving(false);
@@ -1003,7 +1011,10 @@ export default function SettingsPage() {
                     ) : (
                       <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
                         <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                          Your business URL will appear here once your company settings are saved.
+                          {companySettings ?
+                            'Your company slug is not set. Please contact support to resolve this issue.' :
+                            'Loading company settings... Your business URLs will appear here once loaded.'
+                          }
                         </p>
                       </div>
                     )}

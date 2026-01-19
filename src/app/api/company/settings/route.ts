@@ -8,7 +8,7 @@ import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
 const updateCompanySettingsSchema = z.object({
-  name: z.string().min(1, 'Company name is required').optional(),
+  name: z.string().optional(), // Allow empty string, we'll validate non-empty only if updating
   emailDomain: z.string().optional(),
   googleReviewUrl: z.string().optional(),
   yelpReviewUrl: z.string().optional(),
@@ -187,7 +187,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log('PATCH /api/company/settings received body:', JSON.stringify(body, null, 2));
+
     const validatedData = updateCompanySettingsSchema.parse(body);
+    console.log('Validated data:', JSON.stringify(validatedData, null, 2));
 
     // Check if company name is being changed and if it's already in use
     if (validatedData.name && validatedData.name.trim()) {
@@ -286,6 +289,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update company
+    console.log('Updating company with data:', JSON.stringify(updateData, null, 2));
+    console.log('Company ID:', user.companyId);
+
     const updatedCompany = await prisma.company.update({
       where: { id: user.companyId },
       data: updateData,
@@ -347,12 +353,35 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error) {
     console.error('Update company settings error:', error);
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error || {})));
 
     if (error instanceof z.ZodError) {
+      const errorMessage = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
       return NextResponse.json(
-        { success: false, error: error.errors[0].message },
+        { success: false, error: `Validation error: ${errorMessage}` },
         { status: 400 }
       );
+    }
+
+    // Handle Prisma errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as { code: string; message?: string; meta?: any };
+      console.error('Prisma error code:', prismaError.code);
+      console.error('Prisma error meta:', prismaError.meta);
+
+      if (prismaError.code === 'P2002') {
+        return NextResponse.json(
+          { success: false, error: 'A record with this value already exists' },
+          { status: 400 }
+        );
+      }
+      if (prismaError.code === 'P2025') {
+        return NextResponse.json(
+          { success: false, error: 'Company not found' },
+          { status: 404 }
+        );
+      }
     }
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
