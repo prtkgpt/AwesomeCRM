@@ -321,8 +321,14 @@ export async function PATCH(request: NextRequest) {
       },
       message: 'Company settings updated successfully',
     });
-  } catch (error) {
-    console.error('Update company settings error:', error);
+  } catch (error: unknown) {
+    // Log detailed error information
+    console.error('Update company settings error:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      error,
+    });
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -348,8 +354,10 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Return the actual error message for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update company settings';
     return NextResponse.json(
-      { success: false, error: 'Failed to update company settings' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }
