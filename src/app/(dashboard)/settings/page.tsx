@@ -46,9 +46,46 @@ import {
   TrendingUp,
   Link,
   ExternalLink,
+  MessageSquare,
+  Send,
+  History,
+  Search,
+  Loader2,
 } from 'lucide-react';
 
-type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import' | 'pricing' | 'operations' | 'referral';
+type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import' | 'pricing' | 'operations' | 'referral' | 'communications';
+
+// Types for Communications tab
+interface Recipient {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  type: 'client' | 'cleaner';
+}
+
+interface MessageHistoryItem {
+  id: string;
+  to: string;
+  from: string;
+  body: string;
+  type: string;
+  status: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  booking?: {
+    id: string;
+    scheduledDate: string;
+    client: {
+      id: string;
+      name: string;
+    };
+  } | null;
+}
 
 interface UserProfile {
   id: string;
@@ -151,6 +188,32 @@ export default function SettingsPage() {
     clients?: { restored: number; skipped: number };
     bookings?: { restored: number; skipped: number; matchedFromBackup: number };
   } | null>(null);
+
+  // Communications state
+  const [recipients, setRecipients] = useState<{
+    clients: Recipient[];
+    cleaners: Recipient[];
+  }>({ clients: [], cleaners: [] });
+  const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [messageChannel, setMessageChannel] = useState<'sms' | 'email' | 'both'>('sms');
+  const [messageSubject, setMessageSubject] = useState('');
+  const [messageBody, setMessageBody] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [sendResults, setSendResults] = useState<{
+    successful: Array<{ recipientId: string; name: string; channel: string }>;
+    failed: Array<{ recipientId: string; name: string; channel: string; error: string }>;
+  } | null>(null);
+  const [messageHistory, setMessageHistory] = useState<MessageHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPagination, setHistoryPagination] = useState<{
+    totalCount: number;
+    totalPages: number;
+    hasMore: boolean;
+  } | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -377,6 +440,136 @@ export default function SettingsPage() {
     window.URL.revokeObjectURL(url);
   };
 
+  // Communications functions
+  const fetchRecipients = async (search?: string) => {
+    setLoadingRecipients(true);
+    try {
+      const params = new URLSearchParams({ type: 'all' });
+      if (search) params.append('search', search);
+
+      const response = await fetch(`/api/communications/recipients?${params}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setRecipients(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch recipients:', error);
+    } finally {
+      setLoadingRecipients(false);
+    }
+  };
+
+  const fetchMessageHistory = async (page = 1) => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch(`/api/communications/history?page=${page}&limit=10`);
+      const data = await response.json();
+
+      if (data.success) {
+        setMessageHistory(data.data.messages);
+        setHistoryPagination(data.data.pagination);
+        setHistoryPage(page);
+      }
+    } catch (error) {
+      console.error('Failed to fetch message history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (selectedRecipients.length === 0) {
+      alert('Please select at least one recipient');
+      return;
+    }
+
+    if (!messageBody.trim()) {
+      alert('Please enter a message');
+      return;
+    }
+
+    if ((messageChannel === 'email' || messageChannel === 'both') && !messageSubject.trim()) {
+      alert('Please enter a subject for the email');
+      return;
+    }
+
+    setSendingMessage(true);
+    setSendResults(null);
+
+    try {
+      const response = await fetch('/api/communications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipients: selectedRecipients,
+          channel: messageChannel,
+          subject: messageSubject,
+          message: messageBody,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSendResults(data.data);
+        // Clear form on success
+        if (data.data.successful.length > 0) {
+          setSelectedRecipients([]);
+          setMessageSubject('');
+          setMessageBody('');
+        }
+        // Refresh history if viewing
+        if (showHistory) {
+          fetchMessageHistory(1);
+        }
+      } else {
+        alert(data.error || 'Failed to send message');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const toggleRecipient = (recipient: Recipient) => {
+    setSelectedRecipients((prev) => {
+      const exists = prev.find((r) => r.id === recipient.id && r.type === recipient.type);
+      if (exists) {
+        return prev.filter((r) => !(r.id === recipient.id && r.type === recipient.type));
+      }
+      return [...prev, recipient];
+    });
+  };
+
+  const selectAllClients = () => {
+    const clientsToAdd = recipients.clients.filter(
+      (c) => !selectedRecipients.find((r) => r.id === c.id && r.type === 'client')
+    );
+    setSelectedRecipients((prev) => [...prev, ...clientsToAdd]);
+  };
+
+  const selectAllCleaners = () => {
+    const cleanersToAdd = recipients.cleaners.filter(
+      (c) => !selectedRecipients.find((r) => r.id === c.id && r.type === 'cleaner')
+    );
+    setSelectedRecipients((prev) => [...prev, ...cleanersToAdd]);
+  };
+
+  const clearSelectedRecipients = () => {
+    setSelectedRecipients([]);
+  };
+
+  // Fetch recipients when communications tab is activated
+  useEffect(() => {
+    if (activeTab === 'communications') {
+      fetchRecipients();
+    }
+  }, [activeTab]);
+
   const userRole = (session?.user as any)?.role;
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -384,6 +577,7 @@ export default function SettingsPage() {
     ...(userRole === 'OWNER' || userRole === 'ADMIN'
       ? [
           { id: 'company', label: 'Company', icon: Building2 },
+          { id: 'communications', label: 'Communications', icon: MessageSquare },
           { id: 'import', label: 'Import Data', icon: Upload },
           { id: 'pricing', label: 'Pricing Configuration', icon: DollarSign },
         ]
@@ -1722,6 +1916,441 @@ export default function SettingsPage() {
                   )}
                 </Button>
               </div>
+            </Card>
+          )}
+
+          {/* Communications Tab */}
+          {activeTab === 'communications' && (
+            <Card className="p-6">
+              <div className="mb-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold">Communications</h2>
+                    <p className="text-gray-600 dark:text-gray-400 mt-1">
+                      Send messages and emails to clients and cleaners
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowHistory(!showHistory);
+                      if (!showHistory && messageHistory.length === 0) {
+                        fetchMessageHistory(1);
+                      }
+                    }}
+                  >
+                    <History className="h-4 w-4 mr-2" />
+                    {showHistory ? 'Compose Message' : 'View History'}
+                  </Button>
+                </div>
+              </div>
+
+              {showHistory ? (
+                // Message History View
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">Message History</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fetchMessageHistory(historyPage)}
+                      disabled={loadingHistory}
+                    >
+                      {loadingHistory ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Refresh'
+                      )}
+                    </Button>
+                  </div>
+
+                  {loadingHistory ? (
+                    <div className="text-center py-8">Loading history...</div>
+                  ) : messageHistory.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No messages sent yet
+                    </div>
+                  ) : (
+                    <>
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 dark:bg-gray-800">
+                            <tr>
+                              <th className="text-left px-4 py-3 font-medium">To</th>
+                              <th className="text-left px-4 py-3 font-medium">Message</th>
+                              <th className="text-left px-4 py-3 font-medium">Type</th>
+                              <th className="text-left px-4 py-3 font-medium">Status</th>
+                              <th className="text-left px-4 py-3 font-medium">Sent At</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {messageHistory.map((msg) => (
+                              <tr key={msg.id}>
+                                <td className="px-4 py-3">{msg.to}</td>
+                                <td className="px-4 py-3 max-w-xs truncate">{msg.body}</td>
+                                <td className="px-4 py-3">
+                                  <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                                    {msg.type}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-1 text-xs rounded-full ${
+                                    msg.status === 'SENT' || msg.status === 'DELIVERED'
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                      : msg.status === 'FAILED'
+                                      ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                                      : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                                  }`}>
+                                    {msg.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-gray-500">
+                                  {new Date(msg.createdAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination */}
+                      {historyPagination && historyPagination.totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4">
+                          <p className="text-sm text-gray-500">
+                            Page {historyPage} of {historyPagination.totalPages} ({historyPagination.totalCount} total)
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fetchMessageHistory(historyPage - 1)}
+                              disabled={historyPage === 1 || loadingHistory}
+                            >
+                              Previous
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fetchMessageHistory(historyPage + 1)}
+                              disabled={!historyPagination.hasMore || loadingHistory}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : (
+                // Compose Message View
+                <form onSubmit={handleSendMessage} className="space-y-6">
+                  {/* Send Results */}
+                  {sendResults && (
+                    <div className={`p-4 rounded-lg ${
+                      sendResults.failed.length === 0
+                        ? 'bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800'
+                        : sendResults.successful.length === 0
+                        ? 'bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800'
+                        : 'bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800'
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        {sendResults.failed.length === 0 ? (
+                          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        ) : sendResults.successful.length === 0 ? (
+                          <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <p className="font-medium">
+                            {sendResults.successful.length} message(s) sent successfully
+                            {sendResults.failed.length > 0 && `, ${sendResults.failed.length} failed`}
+                          </p>
+                          {sendResults.failed.length > 0 && (
+                            <ul className="mt-2 text-sm">
+                              {sendResults.failed.map((f, i) => (
+                                <li key={i} className="text-red-600">
+                                  {f.name} ({f.channel}): {f.error}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSendResults(null)}
+                          className="ml-auto text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recipient Selection */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Select Recipients
+                    </label>
+
+                    {/* Search */}
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Input
+                        type="text"
+                        placeholder="Search clients and cleaners..."
+                        value={recipientSearch}
+                        onChange={(e) => {
+                          setRecipientSearch(e.target.value);
+                          fetchRecipients(e.target.value);
+                        }}
+                        className="pl-10"
+                      />
+                    </div>
+
+                    {/* Selected Recipients */}
+                    {selectedRecipients.length > 0 && (
+                      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                            {selectedRecipients.length} recipient(s) selected
+                          </span>
+                          <button
+                            type="button"
+                            onClick={clearSelectedRecipients}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Clear all
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedRecipients.map((r) => (
+                            <span
+                              key={`${r.type}-${r.id}`}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full"
+                            >
+                              {r.name || r.email || 'Unknown'}
+                              <button
+                                type="button"
+                                onClick={() => toggleRecipient(r)}
+                                className="hover:text-blue-900"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recipients Lists */}
+                    {loadingRecipients ? (
+                      <div className="text-center py-4">Loading recipients...</div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Clients */}
+                        <div className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              Clients ({recipients.clients.length})
+                            </h4>
+                            {recipients.clients.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={selectAllClients}
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                              >
+                                Select all
+                              </button>
+                            )}
+                          </div>
+                          <div className="max-h-48 overflow-y-auto space-y-1">
+                            {recipients.clients.length === 0 ? (
+                              <p className="text-sm text-gray-500">No clients found</p>
+                            ) : (
+                              recipients.clients.map((client) => (
+                                <label
+                                  key={client.id}
+                                  className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedRecipients.some(
+                                      (r) => r.id === client.id && r.type === 'client'
+                                    )}
+                                    onChange={() => toggleRecipient(client)}
+                                    className="rounded border-gray-300"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{client.name}</p>
+                                    <p className="text-xs text-gray-500 truncate">
+                                      {client.email || client.phone || 'No contact info'}
+                                    </p>
+                                  </div>
+                                </label>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Cleaners */}
+                        <div className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Briefcase className="h-4 w-4" />
+                              Cleaners ({recipients.cleaners.length})
+                            </h4>
+                            {recipients.cleaners.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={selectAllCleaners}
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                              >
+                                Select all
+                              </button>
+                            )}
+                          </div>
+                          <div className="max-h-48 overflow-y-auto space-y-1">
+                            {recipients.cleaners.length === 0 ? (
+                              <p className="text-sm text-gray-500">No cleaners found</p>
+                            ) : (
+                              recipients.cleaners.map((cleaner) => (
+                                <label
+                                  key={cleaner.id}
+                                  className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedRecipients.some(
+                                      (r) => r.id === cleaner.id && r.type === 'cleaner'
+                                    )}
+                                    onChange={() => toggleRecipient(cleaner)}
+                                    className="rounded border-gray-300"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{cleaner.name || 'Unnamed'}</p>
+                                    <p className="text-xs text-gray-500 truncate">
+                                      {cleaner.email || cleaner.phone || 'No contact info'}
+                                    </p>
+                                  </div>
+                                </label>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Channel Selection */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Send Via
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="channel"
+                          value="sms"
+                          checked={messageChannel === 'sms'}
+                          onChange={(e) => setMessageChannel(e.target.value as 'sms' | 'email' | 'both')}
+                          className="text-blue-600"
+                        />
+                        <Phone className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">SMS</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="channel"
+                          value="email"
+                          checked={messageChannel === 'email'}
+                          onChange={(e) => setMessageChannel(e.target.value as 'sms' | 'email' | 'both')}
+                          className="text-blue-600"
+                        />
+                        <Mail className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">Email</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="channel"
+                          value="both"
+                          checked={messageChannel === 'both'}
+                          onChange={(e) => setMessageChannel(e.target.value as 'sms' | 'email' | 'both')}
+                          className="text-blue-600"
+                        />
+                        <MessageSquare className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">Both</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Email Subject (shown for email/both) */}
+                  {(messageChannel === 'email' || messageChannel === 'both') && (
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Email Subject
+                      </label>
+                      <Input
+                        type="text"
+                        value={messageSubject}
+                        onChange={(e) => setMessageSubject(e.target.value)}
+                        placeholder="Enter email subject..."
+                        required={messageChannel === 'email' || messageChannel === 'both'}
+                      />
+                    </div>
+                  )}
+
+                  {/* Message Body */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Message
+                    </label>
+                    <textarea
+                      value={messageBody}
+                      onChange={(e) => setMessageBody(e.target.value)}
+                      placeholder="Type your message here..."
+                      rows={5}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {messageBody.length} characters
+                      {messageChannel === 'sms' && messageBody.length > 160 && (
+                        <span className="text-yellow-600"> (SMS may be split into multiple messages)</span>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Send Button */}
+                  <Button
+                    type="submit"
+                    disabled={sendingMessage || selectedRecipients.length === 0 || !messageBody.trim()}
+                    className="w-full"
+                  >
+                    {sendingMessage ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Send to {selectedRecipients.length} recipient(s)
+                      </>
+                    )}
+                  </Button>
+                </form>
+              )}
             </Card>
           )}
 
