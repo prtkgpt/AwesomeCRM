@@ -46,9 +46,12 @@ import {
   TrendingUp,
   Link,
   ExternalLink,
+  MessageSquare,
+  Activity,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import' | 'pricing' | 'operations' | 'referral';
+type TabType = 'profile' | 'security' | 'company' | 'preferences' | 'about' | 'import' | 'pricing' | 'operations' | 'referral' | 'communications' | 'activity-log';
 
 interface UserProfile {
   id: string;
@@ -85,6 +88,7 @@ interface CompanySettings {
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -407,6 +411,8 @@ export default function SettingsPage() {
       ? [
           { id: 'operations', label: 'Operations', icon: Briefcase },
           { id: 'referral', label: 'Referral Program', icon: Gift },
+          { id: 'communications', label: 'Communications', icon: MessageSquare },
+          { id: 'activity-log', label: 'Activity Log', icon: Activity },
         ]
       : []),
     { id: 'about', label: 'About', icon: Info },
@@ -1888,6 +1894,34 @@ export default function SettingsPage() {
 
           {/* Referral Program Tab */}
           {activeTab === 'referral' && <ReferralTabContent />}
+
+          {/* Communications Tab - Redirect to dedicated page */}
+          {activeTab === 'communications' && (
+            <Card className="p-8 text-center">
+              <MessageSquare className="h-16 w-16 mx-auto mb-4 text-blue-500" />
+              <h2 className="text-2xl font-bold mb-2">Communications History</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                View all sent messages with sender information, delivery status, and more.
+              </p>
+              <Button onClick={() => router.push('/settings/communications')}>
+                Open Communications
+              </Button>
+            </Card>
+          )}
+
+          {/* Activity Log Tab - Redirect to dedicated page */}
+          {activeTab === 'activity-log' && (
+            <Card className="p-8 text-center">
+              <Activity className="h-16 w-16 mx-auto mb-4 text-purple-500" />
+              <h2 className="text-2xl font-bold mb-2">Activity Log</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                360-degree view of all business activities with 7/15/30 day filters.
+              </p>
+              <Button onClick={() => router.push('/settings/activity-log')}>
+                Open Activity Log
+              </Button>
+            </Card>
+          )}
         </motion.div>
       </AnimatePresence>
     </div>
