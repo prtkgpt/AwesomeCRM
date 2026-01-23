@@ -166,3 +166,30 @@ export type UpdateBookingInput = z.infer<typeof updateBookingSchema>;
 export type MarkPaidInput = z.infer<typeof markPaidSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type UpdateMessageTemplateInput = z.infer<typeof updateMessageTemplateSchema>;
+
+// ============================================
+// MARKETING CAMPAIGNS
+// ============================================
+
+export const createCampaignSchema = z.object({
+  name: z.string().min(1, 'Campaign name is required').max(100),
+  description: z.string().max(500).optional(),
+  type: z.enum(['BULK_SMS', 'BULK_EMAIL', 'BOTH']),
+  segmentType: z.enum(['ALL', 'TAGS', 'BOOKING_FREQUENCY', 'INACTIVE', 'LOCATION', 'INSURANCE', 'CUSTOM']).default('ALL'),
+  segmentData: z.object({
+    tags: z.array(z.string()).optional(),
+    inactiveDays: z.number().min(1).max(365).optional(),
+    cities: z.array(z.string()).optional(),
+    states: z.array(z.string()).optional(),
+    hasInsurance: z.boolean().optional(),
+    bookingFrequency: z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'ONCE']).optional(),
+  }).optional(),
+  subject: z.string().max(200).optional(), // For emails
+  messageBody: z.string().min(1, 'Message body is required').max(1600), // SMS limit consideration
+  scheduledAt: z.string().datetime().optional(), // ISO datetime string
+});
+
+export const updateCampaignSchema = createCampaignSchema.partial();
+
+export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
+export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;

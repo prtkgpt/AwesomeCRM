@@ -115,6 +115,7 @@ model Company {
   backups          CompanyBackup[]
   timeOffRequests  TimeOffRequest[]
   auditLogs        AuditLog[]
+  campaigns        Campaign[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -170,6 +171,9 @@ model User {
 
   // Activity logs
   auditLogs AuditLog[]
+
+  // Marketing campaigns created
+  campaigns Campaign[]
 
   // Password reset
   resetToken       String?
@@ -395,6 +399,15 @@ model Client {
   // Tracking sent greetings
   lastBirthdayGreetingSent    DateTime?
   lastAnniversaryGreetingSent DateTime?
+
+  // Marketing Preferences
+  marketingOptOut    Boolean   @default(false) // Client opted out of marketing messages
+  marketingOptOutAt  DateTime? // When they opted out
+  lastMarketingEmail DateTime? // Last marketing email sent
+  lastMarketingSMS   DateTime? // Last marketing SMS sent
+
+  // Campaign recipients (for tracking)
+  campaignRecipients CampaignRecipient[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1117,6 +1130,15 @@ enum AuditAction {
   TIME_OFF_REQUESTED
   TIME_OFF_APPROVED
   TIME_OFF_DENIED
+
+  // Marketing operations
+  CAMPAIGN_CREATED
+  CAMPAIGN_UPDATED
+  CAMPAIGN_SENT
+  CAMPAIGN_SCHEDULED
+  CAMPAIGN_CANCELLED
+  CAMPAIGN_DELETED
+  MARKETING_OPT_OUT
 }
 
 model AuditLog {
@@ -1156,4 +1178,128 @@ model AuditLog {
   @@index([companyId, action])
   @@index([userId])
   @@index([entityType, entityId])
+}
+
+// ============================================
+// MARKETING CAMPAIGNS
+// ============================================
+
+enum CampaignType {
+  BULK_SMS // SMS to multiple recipients
+  BULK_EMAIL // Email to multiple recipients
+  BOTH // Both SMS and Email
+}
+
+enum CampaignStatus {
+  DRAFT // Not yet sent, can be edited
+  SCHEDULED // Scheduled for future send
+  SENDING // Currently being sent
+  COMPLETED // Finished sending
+  PAUSED // Manually paused
+  CANCELLED // Cancelled before completion
+}
+
+enum SegmentType {
+  ALL // All clients (with marketing opt-in)
+  TAGS // Filter by tags
+  BOOKING_FREQUENCY // By booking frequency (weekly, monthly, etc.)
+  INACTIVE // Clients who haven't booked in X days
+  LOCATION // By city/state/zip
+  INSURANCE // Insurance vs non-insurance clients
+  CUSTOM // Custom filter criteria
+}
+
+model Campaign {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Campaign details
+  name        String
+  description String?
+  type        CampaignType
+  status      CampaignStatus @default(DRAFT)
+
+  // Targeting/Segmentation
+  segmentType SegmentType @default(ALL)
+  segmentData Json? // Flexible filter criteria: { tags: [...], inactiveDays: 30, cities: [...] }
+
+  // Message content
+  subject     String? // For emails
+  messageBody String // The message content (supports {{variables}})
+
+  // Scheduling
+  scheduledAt DateTime? // When to send (null = immediate when triggered)
+  sentAt      DateTime? // When sending started
+  completedAt DateTime? // When sending finished
+
+  // Statistics
+  totalRecipients Int @default(0) // Total recipients at time of send
+  sentCount       Int @default(0) // Successfully sent
+  failedCount     Int @default(0) // Failed to send
+  deliveredCount  Int @default(0) // Confirmed delivered (from webhooks)
+  openedCount     Int @default(0) // Opened (for emails, if tracking)
+  clickedCount    Int @default(0) // Clicked links (for emails, if tracking)
+
+  // Created by
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Recipients tracking
+  recipients CampaignRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, scheduledAt])
+  @@index([companyId, createdAt])
+}
+
+enum CampaignRecipientStatus {
+  PENDING // Not yet sent
+  SENT // Message sent
+  DELIVERED // Confirmed delivered
+  FAILED // Failed to send
+  BOUNCED // Email bounced
+  OPENED // Email opened
+  CLICKED // Link clicked
+  OPTED_OUT // Recipient was opted out
+}
+
+model CampaignRecipient {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  companyId String
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Contact used
+  channel   CampaignType // SMS or EMAIL for this specific send
+  recipient String // Phone number or email address used
+
+  // Status tracking
+  status       CampaignRecipientStatus @default(PENDING)
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  failedAt     DateTime?
+  errorMessage String?
+
+  // External tracking IDs
+  twilioSid String? // For SMS
+  resendId  String? // For Email
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, clientId, channel]) // One entry per client per channel per campaign
+  @@index([campaignId])
+  @@index([companyId])
+  @@index([clientId])
+  @@index([status])
 }
