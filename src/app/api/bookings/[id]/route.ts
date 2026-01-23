@@ -398,6 +398,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Ensure user has a valid companyId
+    if (!user.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'User is not associated with a company' },
+        { status: 400 }
+      );
+    }
+
     // Cleaners cannot delete bookings
     if (user.role === 'CLEANER') {
       return NextResponse.json(
@@ -460,6 +468,14 @@ export async function PATCH(
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Ensure user has a valid companyId
+    if (!user.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'User is not associated with a company' },
+        { status: 400 }
+      );
     }
 
     // Build where clause based on role
@@ -564,9 +580,14 @@ export async function PATCH(
       message: 'Documentation updated successfully',
     });
   } catch (error) {
-    console.error('PATCH /api/bookings/[id] error:', error);
+    console.error('PATCH /api/bookings/[id] error:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update documentation';
     return NextResponse.json(
-      { success: false, error: 'Failed to update documentation' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }
