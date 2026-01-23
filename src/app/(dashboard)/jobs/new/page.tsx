@@ -509,7 +509,11 @@ export default function NewJobPage() {
       if (data.success) {
         router.push('/jobs');
       } else {
-        setError(data.error || 'Failed to create job');
+        // Show error with details if available
+        const errorMsg = data.details
+          ? `${data.error}: ${data.details}`
+          : (data.error || 'Failed to create job');
+        setError(errorMsg);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {

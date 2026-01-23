@@ -164,8 +164,8 @@ export async function POST(request: NextRequest) {
       select: { companyId: true },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!user || !user.companyId) {
+      return NextResponse.json({ error: 'User not found or not associated with a company' }, { status: 404 });
     }
 
     // Verify client and address belong to user's company
@@ -227,6 +227,18 @@ export async function POST(request: NextRequest) {
     const applyCreditsFlag = (body as any).applyCredits === true;
     let creditsApplied = 0;
     let finalPrice = validatedData.price;
+
+    // Debug: Log the data being used for booking creation
+    console.log('Creating booking with:', {
+      companyId: user.companyId,
+      userId: session.user.id,
+      clientId: validatedData.clientId,
+      addressId: validatedData.addressId,
+      scheduledDate: validatedData.scheduledDate,
+      duration: validatedData.duration,
+      price: validatedData.price,
+      assignedTo: validatedData.assignedTo,
+    });
 
     // Create the main booking
     const booking = await prisma.booking.create({
@@ -359,8 +371,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Log the full error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Booking creation failed with:', errorMessage);
+
     return NextResponse.json(
-      { success: false, error: 'Failed to create booking' },
+      { success: false, error: 'Failed to create booking', details: errorMessage },
       { status: 500 }
     );
   }
