@@ -142,6 +142,7 @@ export const sendMessageSchema = z.object({
   to: z.string().min(10, 'Valid phone number is required'),
   body: z.string().min(1, 'Message body is required'),
   bookingId: z.string().optional(),
+  recipientId: z.string().optional(), // Client or user ID for template variable filling
   type: z.enum(['CONFIRMATION', 'REMINDER', 'ON_MY_WAY', 'THANK_YOU', 'PAYMENT_REQUEST', 'CUSTOM']).default('CUSTOM'),
 });
 

@@ -395,6 +395,7 @@ export default function CommunicationsPage() {
           to: selectedRecipient.phone,
           body: messageBody,
           type: messageType,
+          recipientId: selectedRecipient.type === 'client' ? selectedRecipient.id : undefined,
         }),
       });
 
@@ -819,7 +820,7 @@ export default function CommunicationsPage() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            Available placeholders: {'{{clientName}}'}, {'{{date}}'}, {'{{time}}'}, {'{{cleanerName}}'}, {'{{amount}}'}, {'{{reviewLink}}'}, {'{{eta}}'}
+                            Available placeholders: {'{{clientName}}'}, {'{{businessName}}'}, {'{{companyName}}'}, {'{{date}}'}, {'{{time}}'}, {'{{cleanerName}}'}, {'{{amount}}'}, {'{{reviewLink}}'}, {'{{eta}}'}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -875,12 +876,26 @@ export default function CommunicationsPage() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <code className="bg-gray-100 px-2 py-1 rounded">{'{{clientName}}'}</code>
-                  <span className="text-gray-600">Client's name</span>
+                  <span className="text-gray-600">Client's first name</span>
+                </div>
+                <div className="flex justify-between">
+                  <code className="bg-gray-100 px-2 py-1 rounded">{'{{businessName}}'}</code>
+                  <span className="text-gray-600">Your business name</span>
+                </div>
+                <div className="flex justify-between">
+                  <code className="bg-gray-100 px-2 py-1 rounded">{'{{companyName}}'}</code>
+                  <span className="text-gray-600">Your company name</span>
+                </div>
+                <div className="flex justify-between">
+                  <code className="bg-gray-100 px-2 py-1 rounded">{'{{senderName}}'}</code>
+                  <span className="text-gray-600">Your name (sender)</span>
                 </div>
                 <div className="flex justify-between">
                   <code className="bg-gray-100 px-2 py-1 rounded">{'{{date}}'}</code>
                   <span className="text-gray-600">Appointment date</span>
                 </div>
+              </div>
+              <div className="space-y-2">
                 <div className="flex justify-between">
                   <code className="bg-gray-100 px-2 py-1 rounded">{'{{time}}'}</code>
                   <span className="text-gray-600">Appointment time</span>
@@ -889,23 +904,17 @@ export default function CommunicationsPage() {
                   <code className="bg-gray-100 px-2 py-1 rounded">{'{{cleanerName}}'}</code>
                   <span className="text-gray-600">Assigned cleaner</span>
                 </div>
-              </div>
-              <div className="space-y-2">
                 <div className="flex justify-between">
                   <code className="bg-gray-100 px-2 py-1 rounded">{'{{amount}}'}</code>
                   <span className="text-gray-600">Invoice amount</span>
                 </div>
                 <div className="flex justify-between">
                   <code className="bg-gray-100 px-2 py-1 rounded">{'{{eta}}'}</code>
-                  <span className="text-gray-600">Estimated arrival time</span>
+                  <span className="text-gray-600">Estimated arrival</span>
                 </div>
                 <div className="flex justify-between">
                   <code className="bg-gray-100 px-2 py-1 rounded">{'{{reviewLink}}'}</code>
                   <span className="text-gray-600">Review page link</span>
-                </div>
-                <div className="flex justify-between">
-                  <code className="bg-gray-100 px-2 py-1 rounded">{'{{companyName}}'}</code>
-                  <span className="text-gray-600">Your company name</span>
                 </div>
               </div>
             </div>
