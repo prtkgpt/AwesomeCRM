@@ -26,7 +26,8 @@ import {
   Key,
   Sparkles,
   PawPrint,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -113,6 +114,8 @@ export default function ClientDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, any>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const loadClient = useCallback(async () => {
     try {
@@ -190,6 +193,27 @@ export default function ClientDetailPage() {
     setEditForm({});
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        router.push('/clients');
+      } else {
+        alert('Failed to delete client: ' + data.error);
+        setShowDeleteConfirm(false);
+      }
+    } catch {
+      alert('Network error while deleting');
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -236,10 +260,35 @@ export default function ClientDetailPage() {
             <p className="text-sm text-gray-500">Customer since {format(new Date(client.createdAt), 'MMM yyyy')}</p>
           </div>
         </div>
-        <Button onClick={() => router.push(`/jobs/new?clientId=${client.id}`)}>
-          <Calendar className="h-4 w-4 mr-2" />Book Service
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => router.push(`/jobs/new?clientId=${client.id}`)}>
+            <Calendar className="h-4 w-4 mr-2" />Book Service
+          </Button>
+          <Button variant="outline" size="icon" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="p-6 max-w-md mx-4">
+            <h3 className="text-lg font-bold text-red-600 mb-2">Delete Client?</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete <strong>{client.name}</strong>? This will also delete all their addresses and booking history. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Delete Client'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
