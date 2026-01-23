@@ -193,26 +193,31 @@ export async function POST(request: NextRequest) {
     // Check if assigned cleaner has approved time off during the scheduled date
     let timeOffWarning = null;
     if (validatedData.assignedTo) {
-      const scheduledDate = new Date(validatedData.scheduledDate);
-      const approvedTimeOff = await prisma.timeOffRequest.findFirst({
-        where: {
-          teamMemberId: validatedData.assignedTo,
-          status: 'APPROVED',
-          startDate: { lte: scheduledDate },
-          endDate: { gte: scheduledDate },
-        },
-        include: {
-          teamMember: {
-            include: {
-              user: { select: { name: true, email: true } },
+      try {
+        const scheduledDate = new Date(validatedData.scheduledDate);
+        const approvedTimeOff = await prisma.timeOffRequest.findFirst({
+          where: {
+            teamMemberId: validatedData.assignedTo,
+            status: 'APPROVED',
+            startDate: { lte: scheduledDate },
+            endDate: { gte: scheduledDate },
+          },
+          include: {
+            teamMember: {
+              include: {
+                user: { select: { name: true, email: true } },
+              },
             },
           },
-        },
-      });
+        });
 
-      if (approvedTimeOff) {
-        const cleanerName = approvedTimeOff.teamMember.user.name || approvedTimeOff.teamMember.user.email;
-        timeOffWarning = `Warning: ${cleanerName} has approved time off from ${approvedTimeOff.startDate.toLocaleDateString()} to ${approvedTimeOff.endDate.toLocaleDateString()}. Consider assigning a different cleaner.`;
+        if (approvedTimeOff) {
+          const cleanerName = approvedTimeOff.teamMember.user.name || approvedTimeOff.teamMember.user.email;
+          timeOffWarning = `Warning: ${cleanerName} has approved time off from ${approvedTimeOff.startDate.toLocaleDateString()} to ${approvedTimeOff.endDate.toLocaleDateString()}. Consider assigning a different cleaner.`;
+        }
+      } catch (timeOffError) {
+        // TimeOffRequest table may not exist yet - skip this check
+        console.log('Time off check skipped (table may not exist):', timeOffError);
       }
     }
 
