@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import {
   DollarSign,
   TrendingUp,
@@ -13,6 +14,8 @@ import {
   Clock,
   ArrowUp,
   ArrowDown,
+  FileText,
+  ArrowRight,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
@@ -327,6 +330,31 @@ export default function ReportsPage() {
             No team member data available for this period
           </div>
         )}
+      </Card>
+
+      {/* Tax Reports Link */}
+      <Card className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+              <FileText className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-amber-900 dark:text-amber-100">
+                1099 Tax Reports
+              </h3>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Year-end contractor compensation reports for tax filing
+              </p>
+            </div>
+          </div>
+          <Link href="/reports/tax">
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white">
+              View Tax Reports
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </Link>
+        </div>
       </Card>
 
       {/* Average Job Value */}
