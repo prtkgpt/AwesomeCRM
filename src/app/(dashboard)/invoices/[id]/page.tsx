@@ -19,6 +19,8 @@ import {
   AlertCircle,
   XCircle,
   ExternalLink,
+  Bell,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -44,6 +46,8 @@ interface Invoice {
   terms?: string;
   sentAt?: string;
   sentTo?: string;
+  lastReminderAt?: string;
+  reminderCount?: number;
   client: {
     id: string;
     name: string;
@@ -69,6 +73,15 @@ interface Invoice {
   };
 }
 
+interface Reminder {
+  id: string;
+  reminderType: string;
+  channel: string;
+  sentAt: string;
+  sentTo: string;
+  message: string;
+}
+
 export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -77,10 +90,70 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [sendingReminder, setSendingReminder] = useState(false);
 
   useEffect(() => {
     fetchInvoice();
+    fetchReminders();
   }, [invoiceId]);
+
+  const fetchReminders = async () => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/send-reminder`);
+      const data = await response.json();
+      if (data.success) {
+        setReminders(data.data.reminders || []);
+      }
+    } catch (error) {
+      console.error('Error fetching reminders:', error);
+    }
+  };
+
+  const handleSendReminder = async (channel: 'EMAIL' | 'SMS' | 'BOTH' = 'EMAIL') => {
+    if (!invoice) return;
+
+    const hasEmail = invoice.client.email;
+    const hasPhone = invoice.client.phone;
+
+    if (channel === 'EMAIL' && !hasEmail) {
+      alert('Client does not have an email address');
+      return;
+    }
+    if (channel === 'SMS' && !hasPhone) {
+      alert('Client does not have a phone number');
+      return;
+    }
+
+    const channelText = channel === 'BOTH' ? 'email and SMS' : channel.toLowerCase();
+    if (!confirm(`Send payment reminder via ${channelText} to ${invoice.client.name}?`)) {
+      return;
+    }
+
+    setSendingReminder(true);
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/send-reminder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`Reminder sent successfully!${data.daysOverdue > 0 ? ` (${data.daysOverdue} days overdue)` : ''}`);
+        fetchInvoice();
+        fetchReminders();
+      } else {
+        alert(data.error || 'Failed to send reminder');
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      alert('Failed to send reminder');
+    } finally {
+      setSendingReminder(false);
+    }
+  };
 
   const fetchInvoice = async () => {
     try {
@@ -352,6 +425,17 @@ export default function InvoiceDetailPage() {
                 Send
               </Button>
             )}
+            {(invoice.status === 'SENT' || invoice.status === 'OVERDUE') && (
+              <Button
+                onClick={() => handleSendReminder('EMAIL')}
+                disabled={sendingReminder}
+                variant="outline"
+                className="flex items-center gap-2 text-orange-600 hover:bg-orange-50"
+              >
+                <Bell className="w-4 h-4" />
+                {sendingReminder ? 'Sending...' : 'Send Reminder'}
+              </Button>
+            )}
             {invoice.status !== 'PAID' && (
               <Button
                 onClick={handleDelete}
@@ -532,6 +616,91 @@ export default function InvoiceDetailPage() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Reminder History */}
+      {(invoice.status === 'SENT' || invoice.status === 'OVERDUE' || reminders.length > 0) && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Payment Reminders
+              {(invoice.reminderCount || 0) > 0 && (
+                <span className="text-sm font-normal text-gray-500">
+                  ({invoice.reminderCount} sent)
+                </span>
+              )}
+            </h3>
+            {(invoice.status === 'SENT' || invoice.status === 'OVERDUE') && (
+              <div className="flex gap-2">
+                {invoice.client.email && (
+                  <Button
+                    onClick={() => handleSendReminder('EMAIL')}
+                    disabled={sendingReminder}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Mail className="w-4 h-4 mr-1" />
+                    Email
+                  </Button>
+                )}
+                {invoice.client.phone && (
+                  <Button
+                    onClick={() => handleSendReminder('SMS')}
+                    disabled={sendingReminder}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-1" />
+                    SMS
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {invoice.lastReminderAt && (
+            <p className="text-sm text-gray-500 mb-4">
+              Last reminder sent: {formatDate(invoice.lastReminderAt)}
+            </p>
+          )}
+
+          {reminders.length > 0 ? (
+            <div className="space-y-3">
+              {reminders.map((reminder) => (
+                <div
+                  key={reminder.id}
+                  className="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-full ${
+                      reminder.channel === 'SMS' ? 'bg-green-100' : 'bg-blue-100'
+                    }`}>
+                      {reminder.channel === 'SMS' ? (
+                        <MessageSquare className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Mail className="w-4 h-4 text-blue-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">
+                        {reminder.reminderType.charAt(0) + reminder.reminderType.slice(1).toLowerCase()} Reminder
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Sent to {reminder.sentTo}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {formatDate(reminder.sentAt)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No reminders sent yet</p>
+          )}
+        </Card>
       )}
 
       {/* Actions */}

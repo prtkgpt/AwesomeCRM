@@ -895,6 +895,11 @@ model Invoice {
   sentAt DateTime?
   sentTo String? // Email address
 
+  // Reminder tracking
+  lastReminderAt DateTime?
+  reminderCount  Int       @default(0)
+  reminders      InvoiceReminder[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -903,6 +908,33 @@ model Invoice {
   @@index([clientId])
   @@index([status])
   @@index([invoiceNumber])
+}
+
+// Invoice payment reminders
+model InvoiceReminder {
+  id String @id @default(cuid())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // Reminder details
+  reminderType  String // 'FIRST', 'SECOND', 'THIRD', 'FINAL', 'CUSTOM'
+  channel       String // 'EMAIL', 'SMS', 'BOTH'
+  sentAt        DateTime @default(now())
+  sentTo        String // Email or phone number
+  sentBy        String? // User ID who triggered it (null if automated)
+
+  // Content
+  subject   String?
+  message   String
+
+  // Tracking
+  emailOpened   Boolean   @default(false)
+  emailOpenedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId])
 }
 
 model PayLog {
