@@ -279,18 +279,8 @@ export function checkCompoundRateLimit(
 ): RateLimitResult {
   for (const check of checks) {
     const limiter = rateLimitFromPreset(check.preset);
-
-    // If custom key provided, create custom key generator
-    const customRequest = check.key
-      ? {
-          ...request,
-          headers: new Headers(request.headers),
-          // Override the key by creating a fake request
-        }
-      : request;
-
     const prefix = check.key ? `${check.prefix}:${check.key}` : check.prefix;
-    const result = limiter.check(customRequest, prefix);
+    const result = limiter.check(request, prefix);
 
     if (!result.success) {
       return result;
@@ -300,7 +290,8 @@ export function checkCompoundRateLimit(
   // All checks passed, return the last result
   const lastCheck = checks[checks.length - 1];
   const limiter = rateLimitFromPreset(lastCheck.preset);
-  return limiter.check(request, lastCheck.prefix);
+  const prefix = lastCheck.key ? `${lastCheck.prefix}:${lastCheck.key}` : lastCheck.prefix;
+  return limiter.check(request, prefix);
 }
 
 /**
