@@ -3,12 +3,17 @@ import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 // POST /api/payments/webhook - Stripe webhook handler
 export async function POST(request: NextRequest) {
+  // Rate limit: 100 webhook calls per minute per IP (Stripe may send bursts)
+  const rateLimited = checkRateLimit(request, 'webhook');
+  if (rateLimited) return rateLimited;
+
   // Check if Stripe is configured
   if (!stripe) {
     return NextResponse.json(

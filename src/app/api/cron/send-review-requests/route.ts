@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendReviewRequest } from '@/lib/notifications';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,10 @@ export const dynamic = 'force-dynamic';
  * Schedule: 0 *\/4 * * * (every 4 hours)
  */
 export async function GET(request: NextRequest) {
+  // Rate limit: 2 cron executions per minute
+  const rateLimited = checkRateLimit(request, 'cron', 'cron-reviews');
+  if (rateLimited) return rateLimited;
+
   try {
     // Verify cron secret to prevent unauthorized access
     const authHeader = request.headers.get('authorization');

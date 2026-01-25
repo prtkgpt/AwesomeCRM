@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendSMS, fillTemplate, twilioPhoneNumber } from '@/lib/twilio';
 import { formatDate, formatTime, formatCurrency, normalizePhoneNumber } from '@/lib/utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 // GET /api/cron/reminders - Send 24hr reminders (called by Vercel Cron)
 export async function GET(request: NextRequest) {
+  // Rate limit: 2 cron executions per minute (protection against accidental hammering)
+  const rateLimited = checkRateLimit(request, 'cron', 'cron-reminders');
+  if (rateLimited) return rateLimited;
+
   try {
     // Verify cron secret
     const authHeader = request.headers.get('authorization');

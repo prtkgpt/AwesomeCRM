@@ -3,12 +3,17 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 // POST /api/payments/auto-charge - Automatically charge customer's saved payment method
 export async function POST(request: NextRequest) {
+  // Rate limit: 10 payment operations per minute per IP
+  const rateLimited = checkRateLimit(request, 'payments');
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

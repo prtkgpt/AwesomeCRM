@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  // Rate limit: 60 requests per minute per IP (read-only endpoint)
+  const rateLimited = checkRateLimit(request, 'publicCompanyInfo');
+  if (rateLimited) return rateLimited;
+
   try {
     const { slug } = params;
 

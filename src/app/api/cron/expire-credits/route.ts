@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { expireOldCredits } from '@/lib/referral';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,10 @@ export const dynamic = 'force-dynamic';
  * This can be called by a cron job or manually by admins
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 2 cron executions per minute
+  const rateLimited = checkRateLimit(request, 'cron', 'cron-expire-credits');
+  if (rateLimited) return rateLimited;
+
   try {
     // Optional: Verify cron secret for security
     const authHeader = request.headers.get('authorization');
@@ -49,6 +54,10 @@ export async function POST(request: NextRequest) {
  * Get count of credits that would be expired
  */
 export async function GET(request: NextRequest) {
+  // Rate limit: 2 cron executions per minute
+  const rateLimited = checkRateLimit(request, 'cron', 'cron-expire-credits-get');
+  if (rateLimited) return rateLimited;
+
   try {
     // Optional: Verify cron secret for security
     const authHeader = request.headers.get('authorization');
