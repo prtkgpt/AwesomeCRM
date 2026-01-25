@@ -38,7 +38,6 @@ async function rateLimitedHandler(
     }
   }
 
-  // @ts-expect-error - NextAuth handler types
   return handler(request, context);
 }
 
