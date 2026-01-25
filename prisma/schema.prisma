@@ -900,6 +900,11 @@ model Invoice {
   reminderCount  Int       @default(0)
   reminders      InvoiceReminder[]
 
+  // Payment tracking
+  paidAt                 DateTime?
+  paidVia                String?   // STRIPE, ZELLE, VENMO, CASHAPP, MANUAL
+  stripePaymentIntentId  String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1145,6 +1150,7 @@ enum AuditAction {
   PAYMENT_FAILED
   INVOICE_CREATED
   INVOICE_SENT
+  INVOICE_PAID
 
   // Communication operations
   MESSAGE_SENT
