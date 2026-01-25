@@ -225,7 +225,8 @@ export default function DashboardPage() {
   };
 
   const userRole = (session?.user as any)?.role as string | undefined;
-  const userName = (session?.user as any)?.name || (session?.user as any)?.email || 'User';
+  const userName = session?.user?.name || 'User';
+  const displayRole = userRole ? userRole.charAt(0) + userRole.slice(1).toLowerCase() : 'User';
 
   if (loading) {
     return (
@@ -329,7 +330,7 @@ export default function DashboardPage() {
                   {userName}
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
-                  {userRole || 'USER'}
+                  {displayRole}
                 </p>
               </div>
             </div>
