@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendEmail, getBookingConfirmationEmailTemplate, getBirthdayGreetingEmailTemplate, getAnniversaryGreetingEmailTemplate, getReviewRequestEmailTemplate } from '@/lib/email';
 import { sendSMS, fillTemplate } from '@/lib/twilio';
+import { formatDate, formatTime } from '@/lib/utils';
 
 /**
  * Send booking confirmation via email and SMS
@@ -99,14 +100,8 @@ export async function sendBookingConfirmation(bookingId: string) {
           'Your cleaning with {{companyName}} is confirmed! 📅 {{date}} at {{time}} 📍 {{address}} 💰 ${{price}}. We look forward to serving you!',
           {
             companyName: company.name,
-            date: new Date(booking.scheduledDate).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric'
-            }),
-            time: new Date(booking.scheduledDate).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit'
-            }),
+            date: formatDate(booking.scheduledDate, 'MMM d'),
+            time: formatTime(booking.scheduledDate),
             address: formattedAddress,
             price: booking.price.toFixed(2),
           }

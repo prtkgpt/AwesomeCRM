@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { formatDate } from '@/lib/utils';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
         subtotal,
         tax: taxAmount,
         total,
-        notes: notes || `Service completed on ${new Date(booking.scheduledDate).toLocaleDateString()}`,
+        notes: notes || `Service completed on ${formatDate(booking.scheduledDate)}`,
         terms: terms || 'Payment due within 30 days',
         status: 'DRAFT',
       },
