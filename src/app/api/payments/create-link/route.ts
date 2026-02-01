@@ -77,31 +77,20 @@ export async function POST(request: NextRequest) {
       apiVersion: '2023-10-16',
     });
 
-    // Create Stripe payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(booking.price * 100), // Convert to cents
-      currency: 'usd',
-      description: `Cleaning service - ${booking.client.name}`,
-      metadata: {
-        bookingId: booking.id,
-        clientId: booking.client.id,
-        userId: session.user.id,
-      },
-      ...(booking.client.stripeCustomerId && {
-        customer: booking.client.stripeCustomerId,
-      }),
-    });
-
-    // Create a payment link (using Checkout Session for better UX)
+    // Create a Checkout Session (creates its own PaymentIntent automatically)
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_intent_data: {
+        description: `Cleaning service - ${booking.client.name}`,
         metadata: {
           bookingId: booking.id,
           clientId: booking.client.id,
           userId: session.user.id,
           companyId: booking.companyId,
         },
+        ...(booking.client.stripeCustomerId && {
+          customer: booking.client.stripeCustomerId,
+        }),
       },
       line_items: [
         {
@@ -121,11 +110,16 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/jobs/${booking.id}?payment=cancelled`,
     });
 
+    // Store the Checkout Session's PaymentIntent ID (not a separate orphaned one)
+    const paymentIntentId = typeof checkoutSession.payment_intent === 'string'
+      ? checkoutSession.payment_intent
+      : checkoutSession.payment_intent?.id || null;
+
     // Update booking with payment link
     await prisma.booking.update({
       where: { id: booking.id },
       data: {
-        stripePaymentIntentId: paymentIntent.id,
+        ...(paymentIntentId && { stripePaymentIntentId: paymentIntentId }),
         stripePaymentLink: checkoutSession.url,
       },
     });
@@ -134,13 +128,19 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         paymentLink: checkoutSession.url,
-        paymentIntentId: paymentIntent.id,
+        paymentIntentId,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('POST /api/payments/create-link error:', error);
+
+    // Surface Stripe-specific errors for better debugging
+    const message = error?.type?.startsWith('Stripe')
+      ? error.message
+      : 'Failed to create payment link';
+
     return NextResponse.json(
-      { success: false, error: 'Failed to create payment link' },
+      { success: false, error: message },
       { status: 500 }
     );
   }
