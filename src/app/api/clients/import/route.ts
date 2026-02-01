@@ -237,12 +237,11 @@ export async function POST(request: NextRequest) {
         });
 
         result.success++;
-      } catch (error: any) {
+      } catch (error) {
         result.failed++;
         result.errors.push({
           row: rowNum,
-          error: error.message || 'Failed to create client',
-          data: row,
+          error: 'Failed to import client',
         });
       }
     }

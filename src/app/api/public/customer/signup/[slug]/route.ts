@@ -101,10 +101,7 @@ export async function POST(
   } catch (error) {
     console.error('POST /api/public/customer/signup error:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to create account',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Failed to create account' },
       { status: 500 }
     );
   }

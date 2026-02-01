@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Greeting cron job failed',
         timestamp: new Date().toISOString(),
       },
       { status: 500 }

@@ -169,13 +169,10 @@ export async function POST(
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/invoices/[id]/send error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to send invoice',
-      },
+      { success: false, error: 'Failed to send invoice' },
       { status: 500 }
     );
   }

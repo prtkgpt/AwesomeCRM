@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
             console.log(`✅ Sent feedback SMS to ${booking.client.phone} for booking ${booking.id}`);
           } catch (error) {
             console.error(`Failed to send feedback SMS for booking ${booking.id}:`, error);
-            errors.push(`SMS: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            errors.push('SMS: Send failed');
           }
         }
 
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
             console.log(`✅ Sent feedback email to ${booking.client.email} for booking ${booking.id}`);
           } catch (error) {
             console.error(`Failed to send feedback email for booking ${booking.id}:`, error);
-            errors.push(`Email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            errors.push('Email: Send failed');
           }
         }
 
@@ -219,7 +219,7 @@ export async function GET(request: NextRequest) {
         failed++;
         results.push({
           bookingId: booking.id,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: 'Failed to process booking',
           success: false,
         });
       }

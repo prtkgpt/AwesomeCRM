@@ -18,9 +18,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get the client record for this user with addresses
+    // Get the client record for this customer user with addresses
     const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
+      where: { customerUserId: session.user.id },
       include: {
         addresses: {
           orderBy: { createdAt: 'asc' }
@@ -60,9 +60,9 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Get the client record for this user
+    // Get the client record for this customer user
     const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
+      where: { customerUserId: session.user.id },
     });
 
     if (!client) {

@@ -84,6 +84,18 @@ export async function POST(request: NextRequest) {
 
       addressId = address.id;
     } else if (clientId) {
+      // Verify existing client belongs to user's company
+      const existingClient = await prisma.client.findFirst({
+        where: { id: clientId, companyId: user.companyId },
+      });
+
+      if (!existingClient) {
+        return NextResponse.json(
+          { error: 'Client not found' },
+          { status: 404 }
+        );
+      }
+
       // Get first address for existing client
       const address = await prisma.address.findFirst({
         where: { clientId },
@@ -182,11 +194,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Handle Prisma errors
+    // Handle specific known errors
     if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-
-      // Check for specific Prisma errors
       if (error.message.includes('Unique constraint')) {
         return NextResponse.json(
           { success: false, error: 'A client with this email or phone already exists' },
@@ -200,25 +209,10 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-
-      if (error.message.includes('Required field')) {
-        return NextResponse.json(
-          { success: false, error: 'Missing required field: ' + error.message },
-          { status: 400 }
-        );
-      }
-
-      // Return actual error message for debugging
-      return NextResponse.json({
-        success: false,
-        error: `Failed to create estimate: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
     }
 
-    // Generic error fallback
     return NextResponse.json(
-      { success: false, error: 'Failed to create estimate - unknown error' },
+      { success: false, error: 'Failed to create estimate' },
       { status: 500 }
     );
   }
@@ -263,17 +257,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/estimates error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to fetch estimates: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch estimates - unknown error' },
+      { success: false, error: 'Failed to fetch estimates' },
       { status: 500 }
     );
   }

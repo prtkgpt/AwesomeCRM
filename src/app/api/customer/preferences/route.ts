@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     // Get the client record for this user
     const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
+      where: { customerUserId: session.user.id },
       include: { preferences: true },
     });
 
@@ -58,7 +58,7 @@ export async function PUT(req: NextRequest) {
 
     // Get the client record for this user
     const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
+      where: { customerUserId: session.user.id },
       include: { preferences: true },
     });
 
@@ -128,7 +128,7 @@ export async function DELETE(req: NextRequest) {
 
     // Get the client record for this user
     const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
+      where: { customerUserId: session.user.id },
       include: { preferences: true },
     });
 

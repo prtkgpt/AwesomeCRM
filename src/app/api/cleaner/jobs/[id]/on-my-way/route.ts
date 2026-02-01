@@ -153,18 +153,8 @@ export async function POST(
   } catch (error) {
     console.error('🔴 POST /api/cleaner/jobs/[id]/on-my-way error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to mark as "On My Way": ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to mark as "On My Way" - unknown error' },
+      { success: false, error: 'Failed to mark as "On My Way"' },
       { status: 500 }
     );
   }

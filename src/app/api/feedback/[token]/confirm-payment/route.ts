@@ -82,10 +82,10 @@ export async function POST(
         { status: 400 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/feedback/[token]/confirm-payment error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to confirm payment' },
+      { success: false, error: 'Failed to confirm payment' },
       { status: 500 }
     );
   }

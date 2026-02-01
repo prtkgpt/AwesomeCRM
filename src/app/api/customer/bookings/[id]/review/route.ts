@@ -37,12 +37,9 @@ export async function POST(
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
-        client: true,
-        assignee: {
-          include: {
-            user: true
-          }
-        }
+        client: {
+          select: { customerUserId: true },
+        },
       },
     });
 
@@ -53,8 +50,8 @@ export async function POST(
       );
     }
 
-    // Verify the booking belongs to a client owned by this user
-    if (booking.client.userId !== session.user.id) {
+    // Verify the booking belongs to this customer's client record
+    if (booking.client.customerUserId !== session.user.id) {
       return NextResponse.json(
         { success: false, error: 'You can only review your own bookings' },
         { status: 403 }
