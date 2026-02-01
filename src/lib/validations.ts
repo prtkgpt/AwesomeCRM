@@ -121,7 +121,7 @@ export const updateBookingSchema = z.object({
 
 export const markPaidSchema = z.object({
   bookingId: z.string().min(1, 'Booking ID is required'),
-  paymentMethod: z.enum(['cash', 'check', 'zelle', 'card']),
+  paymentMethod: z.string().min(1, 'Payment method is required'),
   paidAt: z.string().or(z.date()).transform((val) => new Date(val)).optional(),
 });
 
