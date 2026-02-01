@@ -25,9 +25,18 @@ import {
   XCircle,
   TrendingDown,
   RefreshCw,
+  Zap,
+  ToggleLeft,
+  ToggleRight,
+  DollarSign,
+  UserCheck,
+  ChevronDown,
+  ChevronUp,
+  Edit3,
+  Save,
 } from 'lucide-react';
 
-type MarketingTab = 'messaging' | 'campaigns' | 'templates' | 'retention';
+type MarketingTab = 'messaging' | 'campaigns' | 'templates' | 'retention' | 'automations';
 
 interface Recipient {
   id: string;
@@ -68,6 +77,41 @@ interface RetentionData {
   atRiskClients: (Recipient & { bookings: { scheduledDate: string; price: number }[] })[];
   dormantClients: (Recipient & { bookings: { scheduledDate: string; price: number }[] })[];
   lostClients: (Recipient & { bookings: { scheduledDate: string; price: number }[] })[];
+}
+
+interface WinBackStep {
+  days: number;
+  channel: 'SMS' | 'EMAIL' | 'BOTH';
+  template: string;
+  emailSubject?: string;
+  discountPercent: number;
+}
+
+interface WinBackAttempt {
+  id: string;
+  client: { id: string; name: string; email: string | null; phone: string | null };
+  step: number;
+  channel: string;
+  discountPercent: number;
+  result: string;
+  sentAt: string;
+  convertedAt: string | null;
+  convertedRevenue: number | null;
+}
+
+interface WinBackData {
+  enabled: boolean;
+  config: { steps: WinBackStep[] };
+  stats: {
+    totalAttempts: number;
+    totalConverted: number;
+    conversionRate: number;
+    last30DaysAttempts: number;
+    last30DaysConverted: number;
+    revenueRecovered: number;
+    eligibleClients: number;
+  };
+  recentAttempts: WinBackAttempt[];
 }
 
 interface MessageTemplate {
@@ -121,6 +165,14 @@ export default function MarketingPage() {
   const [retention, setRetention] = useState<RetentionData | null>(null);
   const [loadingRetention, setLoadingRetention] = useState(false);
   const [retentionTab, setRetentionTab] = useState<'at_risk' | 'dormant' | 'lost'>('at_risk');
+
+  // Win-back automations state
+  const [winBack, setWinBack] = useState<WinBackData | null>(null);
+  const [loadingWinBack, setLoadingWinBack] = useState(false);
+  const [savingWinBack, setSavingWinBack] = useState(false);
+  const [editingSteps, setEditingSteps] = useState(false);
+  const [editSteps, setEditSteps] = useState<WinBackStep[]>([]);
+  const [expandedStep, setExpandedStep] = useState<number | null>(null);
 
   const availableTags = ['VIP', 'Weekly', 'Monthly', 'Biweekly', 'One-time', 'Pain'];
 
@@ -186,12 +238,71 @@ export default function MarketingPage() {
     }
   }, []);
 
+  const fetchWinBack = useCallback(async () => {
+    setLoadingWinBack(true);
+    try {
+      const res = await fetch('/api/marketing/winback');
+      const data = await res.json();
+      if (data.success) {
+        setWinBack(data.data);
+        if (!editingSteps) {
+          setEditSteps(data.data.config.steps);
+        }
+      }
+    } catch {
+      console.error('Failed to fetch win-back data');
+    } finally {
+      setLoadingWinBack(false);
+    }
+  }, [editingSteps]);
+
+  const toggleWinBack = async () => {
+    if (!winBack) return;
+    setSavingWinBack(true);
+    try {
+      const res = await fetch('/api/marketing/winback', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !winBack.enabled }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWinBack({ ...winBack, enabled: !winBack.enabled });
+      }
+    } catch {
+      console.error('Failed to toggle win-back');
+    } finally {
+      setSavingWinBack(false);
+    }
+  };
+
+  const saveWinBackConfig = async () => {
+    setSavingWinBack(true);
+    try {
+      const res = await fetch('/api/marketing/winback', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: { steps: editSteps } }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingSteps(false);
+        fetchWinBack();
+      }
+    } catch {
+      console.error('Failed to save win-back config');
+    } finally {
+      setSavingWinBack(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'messaging') fetchRecipients();
     if (activeTab === 'campaigns') fetchCampaigns();
     if (activeTab === 'templates') fetchTemplates();
     if (activeTab === 'retention') fetchRetention();
-  }, [activeTab, fetchRecipients, fetchCampaigns, fetchTemplates, fetchRetention]);
+    if (activeTab === 'automations') fetchWinBack();
+  }, [activeTab, fetchRecipients, fetchCampaigns, fetchTemplates, fetchRetention, fetchWinBack]);
 
   const handleSendBulk = async () => {
     if (selectedIds.length === 0 || !messageBody) return;
@@ -339,6 +450,7 @@ export default function MarketingPage() {
     { id: 'campaigns' as MarketingTab, label: 'Campaigns', icon: Megaphone },
     { id: 'templates' as MarketingTab, label: 'Templates', icon: FileText },
     { id: 'retention' as MarketingTab, label: 'Customer Retention', icon: Users },
+    { id: 'automations' as MarketingTab, label: 'Automations', icon: Zap },
   ];
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -1004,6 +1116,348 @@ export default function MarketingPage() {
                     ))
                   )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* ============ AUTOMATIONS TAB ============ */}
+          {activeTab === 'automations' && (
+            <div className="space-y-6">
+              {loadingWinBack ? (
+                <Card className="p-8 text-center text-gray-500">Loading automation data...</Card>
+              ) : !winBack ? (
+                <Card className="p-8 text-center text-gray-500">Failed to load automation data</Card>
+              ) : (
+                <>
+                  {/* Win-Back Engine Header */}
+                  <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                            <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Win-Back Engine</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Automatically re-engage clients who stop booking
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={toggleWinBack}
+                        disabled={savingWinBack}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
+                      >
+                        {winBack.enabled ? (
+                          <>
+                            <ToggleRight className="h-8 w-8 text-green-500" />
+                            <span className="text-sm font-semibold text-green-600">Active</span>
+                          </>
+                        ) : (
+                          <>
+                            <ToggleLeft className="h-8 w-8 text-gray-400" />
+                            <span className="text-sm font-semibold text-gray-500">Disabled</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {winBack.enabled && (
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-700 dark:text-green-400">
+                        Win-back automation is running. Clients who stop booking will automatically receive your message sequence.
+                        {winBack.stats.eligibleClients > 0 && (
+                          <span className="font-semibold"> {winBack.stats.eligibleClients} clients currently eligible.</span>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Send className="h-4 w-4 text-blue-500" />
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Messages Sent</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{winBack.stats.totalAttempts}</p>
+                      <p className="text-xs text-gray-400">Last 30d: {winBack.stats.last30DaysAttempts}</p>
+                    </Card>
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <UserCheck className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Won Back</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{winBack.stats.totalConverted}</p>
+                      <p className="text-xs text-gray-400">Last 30d: {winBack.stats.last30DaysConverted}</p>
+                    </Card>
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingDown className="h-4 w-4 text-purple-500" />
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Conversion Rate</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{winBack.stats.conversionRate}%</p>
+                      <p className="text-xs text-gray-400">of messages → rebookings</p>
+                    </Card>
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <DollarSign className="h-4 w-4 text-emerald-500" />
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Revenue Recovered</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        ${winBack.stats.revenueRecovered.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-400">from won-back clients</p>
+                    </Card>
+                  </div>
+
+                  {/* Message Sequence Configuration */}
+                  <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">Message Sequence</h3>
+                      {editingSteps ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingSteps(false);
+                              setEditSteps(winBack.config.steps);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={saveWinBackConfig}
+                            disabled={savingWinBack}
+                          >
+                            <Save className="h-3.5 w-3.5 mr-1" />
+                            {savingWinBack ? 'Saving...' : 'Save Changes'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => setEditingSteps(true)}>
+                          <Edit3 className="h-3.5 w-3.5 mr-1" /> Edit Sequence
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {(editingSteps ? editSteps : winBack.config.steps).map((step, idx) => (
+                        <div
+                          key={idx}
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                        >
+                          <button
+                            className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                            onClick={() => setExpandedStep(expandedStep === idx ? null : idx)}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                idx === 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                                idx === 1 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' :
+                                'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                              }`}>
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900 dark:text-white">
+                                  {step.days === 1 ? '1 day' : `${step.days} days`} after last booking
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <span className="inline-flex items-center gap-1">
+                                    {step.channel === 'SMS' && <><Phone className="h-3 w-3" /> SMS</>}
+                                    {step.channel === 'EMAIL' && <><Mail className="h-3 w-3" /> Email</>}
+                                    {step.channel === 'BOTH' && <><Phone className="h-3 w-3" /><Mail className="h-3 w-3" /> SMS + Email</>}
+                                  </span>
+                                  {step.discountPercent > 0 && (
+                                    <span className="text-green-600 dark:text-green-400 font-medium">
+                                      • {step.discountPercent}% discount
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            {expandedStep === idx ? (
+                              <ChevronUp className="h-4 w-4 text-gray-400" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-gray-400" />
+                            )}
+                          </button>
+
+                          {expandedStep === idx && (
+                            <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
+                              {editingSteps ? (
+                                <>
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Days After Last Booking</label>
+                                      <Input
+                                        type="number"
+                                        min={1}
+                                        value={step.days}
+                                        onChange={(e) => {
+                                          const updated = [...editSteps];
+                                          updated[idx] = { ...updated[idx], days: parseInt(e.target.value) || 1 };
+                                          setEditSteps(updated);
+                                        }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Channel</label>
+                                      <select
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800"
+                                        value={step.channel}
+                                        onChange={(e) => {
+                                          const updated = [...editSteps];
+                                          updated[idx] = { ...updated[idx], channel: e.target.value as 'SMS' | 'EMAIL' | 'BOTH' };
+                                          setEditSteps(updated);
+                                        }}
+                                      >
+                                        <option value="SMS">SMS</option>
+                                        <option value="EMAIL">Email</option>
+                                        <option value="BOTH">Both</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Discount %</label>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={step.discountPercent}
+                                        onChange={(e) => {
+                                          const updated = [...editSteps];
+                                          updated[idx] = { ...updated[idx], discountPercent: parseInt(e.target.value) || 0 };
+                                          setEditSteps(updated);
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  {(step.channel === 'EMAIL' || step.channel === 'BOTH') && (
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email Subject</label>
+                                      <Input
+                                        value={step.emailSubject || ''}
+                                        onChange={(e) => {
+                                          const updated = [...editSteps];
+                                          updated[idx] = { ...updated[idx], emailSubject: e.target.value };
+                                          setEditSteps(updated);
+                                        }}
+                                        placeholder="e.g., We miss you! Here's {{discount}}% off"
+                                      />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Message Template</label>
+                                    <textarea
+                                      className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 min-h-[80px]"
+                                      value={step.template}
+                                      onChange={(e) => {
+                                        const updated = [...editSteps];
+                                        updated[idx] = { ...updated[idx], template: e.target.value };
+                                        setEditSteps(updated);
+                                      }}
+                                    />
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      Variables: {'{{firstName}}'}, {'{{clientName}}'}, {'{{companyName}}'}, {'{{discount}}'}, {'{{bookingLink}}'}
+                                    </p>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{step.template}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {editingSteps && editSteps.length < 5 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => {
+                            const lastStep = editSteps[editSteps.length - 1];
+                            setEditSteps([
+                              ...editSteps,
+                              {
+                                days: (lastStep?.days || 30) + 30,
+                                channel: 'BOTH',
+                                template: 'Hi {{firstName}}, we\'d love to see you again at {{companyName}}!',
+                                discountPercent: 0,
+                              },
+                            ]);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Step
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Recent Activity */}
+                  <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">Recent Activity</h3>
+                      <Button size="sm" variant="outline" onClick={fetchWinBack} disabled={loadingWinBack}>
+                        <RefreshCw className={`h-3.5 w-3.5 ${loadingWinBack ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+
+                    {winBack.recentAttempts.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Zap className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No win-back messages sent yet.</p>
+                        <p className="text-sm">Enable the engine and messages will be sent automatically.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {winBack.recentAttempts.map((attempt) => (
+                          <div
+                            key={attempt.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full ${
+                                attempt.result === 'CONVERTED' ? 'bg-green-500' :
+                                attempt.result === 'SENT' ? 'bg-blue-500' :
+                                attempt.result === 'DELIVERED' ? 'bg-blue-400' :
+                                attempt.result === 'FAILED' ? 'bg-red-500' :
+                                'bg-gray-400'
+                              }`} />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {attempt.client.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Step {attempt.step === 14 ? '1' : attempt.step === 30 ? '2' : attempt.step === 60 ? '3' : attempt.step} • {attempt.channel}
+                                  {attempt.discountPercent > 0 && ` • ${attempt.discountPercent}% off`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                attempt.result === 'CONVERTED' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
+                                attempt.result === 'SENT' || attempt.result === 'DELIVERED' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                                attempt.result === 'FAILED' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {attempt.result}
+                                {attempt.convertedRevenue ? ` • $${attempt.convertedRevenue}` : ''}
+                              </span>
+                              <p className="text-xs text-gray-400 mt-1">{formatDate(attempt.sentAt)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                </>
               )}
             </div>
           )}

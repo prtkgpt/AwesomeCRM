@@ -86,6 +86,10 @@ model Company {
   ownerSalary           Float?   @default(0)      // Monthly owner salary
   otherExpenses         Float?   @default(0)      // Other monthly operational expenses
 
+  // Win-Back Automation
+  winBackEnabled        Boolean  @default(false)  // Enable/disable automated win-back
+  winBackConfig         Json?    // { steps: [{ days: 14, channel: "SMS", template: "...", discountPercent: 0 }, ...] }
+
   // Referral Program Configuration
   referralEnabled       Boolean  @default(false)  // Enable/disable referral program
   referralReferrerReward Float?  @default(25)     // Credit for referrer (e.g., $25)
@@ -107,6 +111,7 @@ model Company {
   messages            Message[]
   messageTemplates    MessageTemplate[]
   campaigns           Campaign[]
+  winBackAttempts     WinBackAttempt[]
   invoices            Invoice[]
   teamMembers         TeamMember[]
   invitations         Invitation[]
@@ -318,6 +323,9 @@ model Client {
   // Tracking sent greetings
   lastBirthdayGreetingSent     DateTime?
   lastAnniversaryGreetingSent  DateTime?
+
+  // Win-back tracking
+  winBackAttempts              WinBackAttempt[]
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -807,6 +815,51 @@ model Campaign {
   @@index([companyId])
   @@index([userId])
   @@index([status])
+}
+
+// ============================================
+// WIN-BACK AUTOMATION
+// ============================================
+
+enum WinBackResult {
+  SENT
+  DELIVERED
+  CONVERTED
+  EXPIRED
+  FAILED
+}
+
+model WinBackAttempt {
+  id            String        @id @default(cuid())
+
+  // Multi-tenancy
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  step          Int           // 1, 2, or 3 (which sequence step)
+  channel       String        // SMS, EMAIL, BOTH
+  discountPercent Int         @default(0)
+
+  result        WinBackResult @default(SENT)
+
+  // If converted, link to the rebooking
+  convertedBookingId String?
+  convertedAt       DateTime?
+  convertedRevenue  Float?    // Revenue from rebooking
+
+  sentAt        DateTime      @default(now())
+  expiresAt     DateTime?     // When this step expires (next step triggers)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([companyId, result])
+  @@index([companyId, clientId, step])
 }
 
 // ============================================
