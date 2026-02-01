@@ -86,12 +86,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Create a Checkout Session (creates its own PaymentIntent automatically)
-    // Note: `customer` must be a top-level param, not inside payment_intent_data
+    // Use customer_email to pre-fill checkout; customer association happens via webhook metadata
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'payment',
-      ...(booking.client.stripeCustomerId
-        ? { customer: booking.client.stripeCustomerId }
-        : { customer_email: booking.client.email || undefined }),
+      customer_email: booking.client.email || undefined,
       payment_intent_data: {
         description: `Cleaning service - ${booking.client.name}`,
         metadata: {
