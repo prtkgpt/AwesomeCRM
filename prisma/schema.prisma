@@ -106,6 +106,7 @@ model Company {
   bookings            Booking[]
   messages            Message[]
   messageTemplates    MessageTemplate[]
+  campaigns           Campaign[]
   invoices            Invoice[]
   teamMembers         TeamMember[]
   invitations         Invitation[]
@@ -142,6 +143,7 @@ model User {
   bookings      Booking[]
   messages      Message[]
   messageTemplates MessageTemplate[]
+  campaigns     Campaign[]
   invoices      Invoice[]
 
   // Cleaner profile (if role = CLEANER)
@@ -690,6 +692,23 @@ enum MessageType {
   BIRTHDAY_GREETING
   ANNIVERSARY_GREETING
   REVIEW_REQUEST
+  MARKETING_SMS
+  MARKETING_EMAIL
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum CampaignChannel {
+  SMS
+  EMAIL
+  BOTH
 }
 
 model Message {
@@ -747,6 +766,47 @@ model MessageTemplate {
   @@unique([companyId, type])
   @@index([companyId])
   @@index([userId, type])
+}
+
+// ============================================
+// MARKETING CAMPAIGNS
+// ============================================
+
+model Campaign {
+  id              String          @id @default(cuid())
+
+  // Multi-tenancy
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name            String
+  channel         CampaignChannel @default(SMS)
+  status          CampaignStatus  @default(DRAFT)
+
+  subject         String?         // Email subject line
+  body            String          // Message content with {{variables}}
+
+  // Audience targeting
+  segmentFilter   Json?           // { tags: ["VIP"], noBookingDays: 90, etc. }
+  recipientCount  Int             @default(0)
+
+  // Stats
+  sentCount       Int             @default(0)
+  failedCount     Int             @default(0)
+
+  // Scheduling
+  scheduledFor    DateTime?
+  sentAt          DateTime?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([status])
 }
 
 // ============================================

@@ -1,0 +1,1014 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { motion, AnimatePresence } from 'framer-motion';
+import { tabContentVariants } from '@/lib/animations';
+import {
+  Send,
+  Megaphone,
+  FileText,
+  Users,
+  Check,
+  AlertCircle,
+  Trash2,
+  Plus,
+  Mail,
+  Phone,
+  Search,
+  ArrowRight,
+  Clock,
+  CheckCircle,
+  XCircle,
+  TrendingDown,
+  RefreshCw,
+} from 'lucide-react';
+
+type MarketingTab = 'messaging' | 'campaigns' | 'templates' | 'retention';
+
+interface Recipient {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  tags: string[];
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  channel: 'SMS' | 'EMAIL' | 'BOTH';
+  status: string;
+  subject: string | null;
+  body: string;
+  segmentFilter: any;
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+  scheduledFor: string | null;
+  sentAt: string | null;
+  createdAt: string;
+  user: { name: string };
+}
+
+interface RetentionData {
+  summary: {
+    totalClients: number;
+    activeClients: number;
+    atRiskCount: number;
+    dormantCount: number;
+    lostCount: number;
+    neverBooked: number;
+    recentCampaigns: number;
+    marketingMessagesSent: number;
+  };
+  atRiskClients: (Recipient & { bookings: { scheduledDate: string; price: number }[] })[];
+  dormantClients: (Recipient & { bookings: { scheduledDate: string; price: number }[] })[];
+  lostClients: (Recipient & { bookings: { scheduledDate: string; price: number }[] })[];
+}
+
+interface MessageTemplate {
+  id: string;
+  type: string;
+  name: string;
+  template: string;
+  isActive: boolean;
+}
+
+export default function MarketingPage() {
+  const { data: session } = useSession();
+  const [activeTab, setActiveTab] = useState<MarketingTab>('messaging');
+
+  // Messaging state
+  const [channel, setChannel] = useState<'SMS' | 'EMAIL' | 'BOTH'>('SMS');
+  const [filterTags, setFilterTags] = useState<string[]>([]);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [messageBody, setMessageBody] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{ sentCount: number; failedCount: number } | null>(null);
+  const [recipientSearch, setRecipientSearch] = useState('');
+
+  // Campaigns state
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [showCampaignForm, setShowCampaignForm] = useState(false);
+  const [campaignForm, setCampaignForm] = useState({
+    name: '',
+    channel: 'SMS' as 'SMS' | 'EMAIL' | 'BOTH',
+    subject: '',
+    body: '',
+    tags: [] as string[],
+    noBookingDays: 0,
+  });
+  const [savingCampaign, setSavingCampaign] = useState(false);
+  const [sendingCampaignId, setSendingCampaignId] = useState<string | null>(null);
+
+  // Templates state
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
+  const [templateForm, setTemplateForm] = useState({ name: '', template: '', type: 'CUSTOM' });
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
+  // Retention state
+  const [retention, setRetention] = useState<RetentionData | null>(null);
+  const [loadingRetention, setLoadingRetention] = useState(false);
+  const [retentionTab, setRetentionTab] = useState<'at_risk' | 'dormant' | 'lost'>('at_risk');
+
+  const availableTags = ['VIP', 'Weekly', 'Monthly', 'Biweekly', 'One-time', 'Pain'];
+
+  // Fetch recipients when filters change
+  const fetchRecipients = useCallback(async () => {
+    setLoadingRecipients(true);
+    try {
+      const res = await fetch('/api/marketing/recipients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: filterTags.length > 0 ? filterTags : undefined, channel }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRecipients(data.data.recipients);
+        if (selectAll) {
+          setSelectedIds(data.data.recipients.map((r: Recipient) => r.id));
+        }
+      }
+    } catch {
+      console.error('Failed to fetch recipients');
+    } finally {
+      setLoadingRecipients(false);
+    }
+  }, [filterTags, channel, selectAll]);
+
+  const fetchCampaigns = useCallback(async () => {
+    setLoadingCampaigns(true);
+    try {
+      const res = await fetch('/api/marketing/campaigns');
+      const data = await res.json();
+      if (data.success) setCampaigns(data.data);
+    } catch {
+      console.error('Failed to fetch campaigns');
+    } finally {
+      setLoadingCampaigns(false);
+    }
+  }, []);
+
+  const fetchTemplates = useCallback(async () => {
+    setLoadingTemplates(true);
+    try {
+      const res = await fetch('/api/messages/templates');
+      const data = await res.json();
+      if (data.success) setTemplates(data.data);
+    } catch {
+      console.error('Failed to fetch templates');
+    } finally {
+      setLoadingTemplates(false);
+    }
+  }, []);
+
+  const fetchRetention = useCallback(async () => {
+    setLoadingRetention(true);
+    try {
+      const res = await fetch('/api/marketing/retention');
+      const data = await res.json();
+      if (data.success) setRetention(data.data);
+    } catch {
+      console.error('Failed to fetch retention');
+    } finally {
+      setLoadingRetention(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'messaging') fetchRecipients();
+    if (activeTab === 'campaigns') fetchCampaigns();
+    if (activeTab === 'templates') fetchTemplates();
+    if (activeTab === 'retention') fetchRetention();
+  }, [activeTab, fetchRecipients, fetchCampaigns, fetchTemplates, fetchRetention]);
+
+  const handleSendBulk = async () => {
+    if (selectedIds.length === 0 || !messageBody) return;
+    setSending(true);
+    setSendResult(null);
+    try {
+      const res = await fetch('/api/marketing/send-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientIds: selectedIds,
+          channel,
+          subject: emailSubject || undefined,
+          message: messageBody,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSendResult(data.data);
+        setMessageBody('');
+        setEmailSubject('');
+      } else {
+        alert(data.error || 'Failed to send');
+      }
+    } catch {
+      alert('Failed to send messages');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleCreateCampaign = async () => {
+    if (!campaignForm.name || !campaignForm.body) return;
+    setSavingCampaign(true);
+    try {
+      const segmentFilter: any = {};
+      if (campaignForm.tags.length > 0) segmentFilter.tags = campaignForm.tags;
+      if (campaignForm.noBookingDays > 0) segmentFilter.noBookingDays = campaignForm.noBookingDays;
+
+      const res = await fetch('/api/marketing/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: campaignForm.name,
+          channel: campaignForm.channel,
+          subject: campaignForm.subject || undefined,
+          body: campaignForm.body,
+          segmentFilter: Object.keys(segmentFilter).length > 0 ? segmentFilter : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowCampaignForm(false);
+        setCampaignForm({ name: '', channel: 'SMS', subject: '', body: '', tags: [], noBookingDays: 0 });
+        fetchCampaigns();
+      } else {
+        alert(data.error || 'Failed to create campaign');
+      }
+    } catch {
+      alert('Failed to create campaign');
+    } finally {
+      setSavingCampaign(false);
+    }
+  };
+
+  const handleSendCampaign = async (id: string) => {
+    if (!confirm('Send this campaign to all matching recipients? This cannot be undone.')) return;
+    setSendingCampaignId(id);
+    try {
+      const res = await fetch(`/api/marketing/campaigns/${id}/send`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Campaign sent! ${data.data.sentCount} sent, ${data.data.failedCount} failed.`);
+        fetchCampaigns();
+      } else {
+        alert(data.error || 'Failed to send campaign');
+      }
+    } catch {
+      alert('Failed to send campaign');
+    } finally {
+      setSendingCampaignId(null);
+    }
+  };
+
+  const handleDeleteCampaign = async (id: string) => {
+    if (!confirm('Delete this campaign?')) return;
+    try {
+      await fetch(`/api/marketing/campaigns/${id}`, { method: 'DELETE' });
+      fetchCampaigns();
+    } catch {
+      alert('Failed to delete');
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateForm.name || !templateForm.template) return;
+    setSavingTemplate(true);
+    try {
+      const res = await fetch('/api/messages/templates', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: templateForm.type,
+          name: templateForm.name,
+          template: templateForm.template,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingTemplate(null);
+        setTemplateForm({ name: '', template: '', type: 'CUSTOM' });
+        fetchTemplates();
+      }
+    } catch {
+      alert('Failed to save template');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const toggleRecipient = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedIds([]);
+      setSelectAll(false);
+    } else {
+      setSelectedIds(filteredRecipients.map((r) => r.id));
+      setSelectAll(true);
+    }
+  };
+
+  const filteredRecipients = recipients.filter((r) =>
+    !recipientSearch || r.name.toLowerCase().includes(recipientSearch.toLowerCase()) ||
+    r.email?.toLowerCase().includes(recipientSearch.toLowerCase()) ||
+    r.phone?.includes(recipientSearch)
+  );
+
+  const tabs = [
+    { id: 'messaging' as MarketingTab, label: 'Messaging', icon: Send },
+    { id: 'campaigns' as MarketingTab, label: 'Campaigns', icon: Megaphone },
+    { id: 'templates' as MarketingTab, label: 'Templates', icon: FileText },
+    { id: 'retention' as MarketingTab, label: 'Customer Retention', icon: Users },
+  ];
+
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const daysAgo = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24));
+
+  const statusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      DRAFT: 'bg-gray-100 text-gray-700',
+      SCHEDULED: 'bg-blue-100 text-blue-700',
+      SENDING: 'bg-yellow-100 text-yellow-700',
+      SENT: 'bg-green-100 text-green-700',
+      FAILED: 'bg-red-100 text-red-700',
+      CANCELLED: 'bg-gray-100 text-gray-500',
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100'}`}>
+        {status}
+      </span>
+    );
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Marketing</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+          Send messages, manage campaigns, and retain customers
+        </p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto pb-px">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all duration-200 border-b-2 ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          variants={tabContentVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          {/* ============ MESSAGING TAB ============ */}
+          {activeTab === 'messaging' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left: Recipient Selection */}
+              <Card className="p-6">
+                <h2 className="font-semibold text-lg mb-4">Select Recipients</h2>
+
+                {/* Channel */}
+                <div className="mb-4">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">Channel</label>
+                  <div className="flex gap-2">
+                    {(['SMS', 'EMAIL', 'BOTH'] as const).map((ch) => (
+                      <button
+                        key={ch}
+                        onClick={() => setChannel(ch)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                          channel === ch
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
+                        }`}
+                      >
+                        {ch === 'SMS' && <Phone className="inline h-3.5 w-3.5 mr-1" />}
+                        {ch === 'EMAIL' && <Mail className="inline h-3.5 w-3.5 mr-1" />}
+                        {ch === 'BOTH' && <><Phone className="inline h-3.5 w-3.5 mr-1" /><Mail className="inline h-3.5 w-3.5" /></>}
+                        {' '}{ch}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tag Filter */}
+                <div className="mb-4">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">Filter by Tag</label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          setFilterTags((prev) =>
+                            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+                          );
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                          filterTags.includes(tag)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                    {filterTags.length > 0 && (
+                      <button
+                        onClick={() => setFilterTags([])}
+                        className="text-xs text-red-500 hover:underline ml-1"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Search */}
+                <div className="mb-3 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search recipients..."
+                    value={recipientSearch}
+                    onChange={(e) => setRecipientSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                {/* Recipients List */}
+                <div className="border rounded-lg max-h-80 overflow-y-auto">
+                  <div className="sticky top-0 bg-gray-50 dark:bg-gray-900 px-3 py-2 border-b flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectAll}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 rounded text-blue-600"
+                      />
+                      Select all ({filteredRecipients.length})
+                    </label>
+                    <span className="text-xs text-gray-500">{selectedIds.length} selected</span>
+                  </div>
+                  {loadingRecipients ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">Loading...</div>
+                  ) : filteredRecipients.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">No recipients found</div>
+                  ) : (
+                    filteredRecipients.map((r) => (
+                      <label
+                        key={r.id}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b last:border-0"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(r.id)}
+                          onChange={() => toggleRecipient(r.id)}
+                          className="w-4 h-4 rounded text-blue-600"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{r.name}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {r.phone || 'No phone'} {r.email ? `• ${r.email}` : ''}
+                          </p>
+                        </div>
+                        {r.tags.length > 0 && (
+                          <div className="flex gap-1">
+                            {r.tags.slice(0, 2).map((t) => (
+                              <span key={t} className="text-[10px] bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </label>
+                    ))
+                  )}
+                </div>
+              </Card>
+
+              {/* Right: Compose */}
+              <Card className="p-6">
+                <h2 className="font-semibold text-lg mb-4">Compose Message</h2>
+
+                {(channel === 'EMAIL' || channel === 'BOTH') && (
+                  <div className="mb-4">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
+                      Email Subject
+                    </label>
+                    <Input
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      placeholder="e.g. Special offer from {{company.name}}"
+                    />
+                  </div>
+                )}
+
+                <div className="mb-3">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
+                    Message
+                  </label>
+                  <textarea
+                    value={messageBody}
+                    onChange={(e) => setMessageBody(e.target.value)}
+                    placeholder={`Hi {{client.name}}, we have a special offer for you...`}
+                    rows={6}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Variables: {'{{client.name}}'}, {'{{company.name}}'}
+                  </p>
+                </div>
+
+                {/* Preview */}
+                {messageBody && (
+                  <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <p className="text-xs font-medium text-gray-500 mb-1">Preview</p>
+                    <p className="text-sm">
+                      {messageBody
+                        .replace(/\{\{client\.name\}\}/g, 'John Smith')
+                        .replace(/\{\{clientName\}\}/g, 'John Smith')
+                        .replace(/\{\{company\.name\}\}/g, 'Your Company')}
+                    </p>
+                  </div>
+                )}
+
+                {sendResult && (
+                  <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                        Sent: {sendResult.sentCount} {sendResult.failedCount > 0 && `• Failed: ${sendResult.failedCount}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleSendBulk}
+                  disabled={sending || selectedIds.length === 0 || !messageBody}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {sending ? 'Sending...' : `Send to ${selectedIds.length} recipient${selectedIds.length !== 1 ? 's' : ''}`}
+                </Button>
+              </Card>
+            </div>
+          )}
+
+          {/* ============ CAMPAIGNS TAB ============ */}
+          {activeTab === 'campaigns' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-lg">Campaigns</h2>
+                <Button onClick={() => setShowCampaignForm(true)} size="sm">
+                  <Plus className="h-4 w-4 mr-1" /> New Campaign
+                </Button>
+              </div>
+
+              {/* New Campaign Form */}
+              {showCampaignForm && (
+                <Card className="p-6 mb-6">
+                  <h3 className="font-semibold mb-4">Create Campaign</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="text-sm font-medium block mb-1">Campaign Name</label>
+                      <Input
+                        value={campaignForm.name}
+                        onChange={(e) => setCampaignForm({ ...campaignForm, name: e.target.value })}
+                        placeholder="e.g. Spring Cleaning Promo"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-1">Channel</label>
+                      <select
+                        value={campaignForm.channel}
+                        onChange={(e) => setCampaignForm({ ...campaignForm, channel: e.target.value as any })}
+                        className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                      >
+                        <option value="SMS">SMS</option>
+                        <option value="EMAIL">Email</option>
+                        <option value="BOTH">Both</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {(campaignForm.channel === 'EMAIL' || campaignForm.channel === 'BOTH') && (
+                    <div className="mb-4">
+                      <label className="text-sm font-medium block mb-1">Email Subject</label>
+                      <Input
+                        value={campaignForm.subject}
+                        onChange={(e) => setCampaignForm({ ...campaignForm, subject: e.target.value })}
+                        placeholder="Email subject line"
+                      />
+                    </div>
+                  )}
+
+                  <div className="mb-4">
+                    <label className="text-sm font-medium block mb-1">Message Body</label>
+                    <textarea
+                      value={campaignForm.body}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, body: e.target.value })}
+                      placeholder={`Hi {{client.name}}, ...`}
+                      rows={4}
+                      className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  {/* Audience Segment */}
+                  <div className="mb-4">
+                    <label className="text-sm font-medium block mb-2">Target Audience</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {availableTags.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => {
+                            const tags = campaignForm.tags.includes(tag)
+                              ? campaignForm.tags.filter((t) => t !== tag)
+                              : [...campaignForm.tags, tag];
+                            setCampaignForm({ ...campaignForm, tags });
+                          }}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                            campaignForm.tags.includes(tag)
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">No booking in last</span>
+                      <Input
+                        type="number"
+                        value={campaignForm.noBookingDays || ''}
+                        onChange={(e) => setCampaignForm({ ...campaignForm, noBookingDays: parseInt(e.target.value) || 0 })}
+                        className="w-20"
+                        placeholder="0"
+                      />
+                      <span className="text-sm text-gray-600">days</span>
+                    </div>
+                    {!campaignForm.tags.length && !campaignForm.noBookingDays && (
+                      <p className="text-xs text-gray-500 mt-1">No filters = send to all clients</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleCreateCampaign} disabled={savingCampaign || !campaignForm.name || !campaignForm.body}>
+                      {savingCampaign ? 'Saving...' : 'Save as Draft'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowCampaignForm(false)}>Cancel</Button>
+                  </div>
+                </Card>
+              )}
+
+              {/* Campaign List */}
+              {loadingCampaigns ? (
+                <Card className="p-6 text-center text-gray-500">Loading campaigns...</Card>
+              ) : campaigns.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <Megaphone className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No campaigns yet. Create your first one.</p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {campaigns.map((c) => (
+                    <Card key={c.id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-sm truncate">{c.name}</h3>
+                            {statusBadge(c.status)}
+                            <span className="text-xs text-gray-500">{c.channel}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">{c.body}</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                            <span>{formatDate(c.createdAt)}</span>
+                            {c.status === 'SENT' && (
+                              <>
+                                <span className="text-green-600">{c.sentCount} sent</span>
+                                {c.failedCount > 0 && <span className="text-red-600">{c.failedCount} failed</span>}
+                              </>
+                            )}
+                            <span>by {c.user.name}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          {c.status === 'DRAFT' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleSendCampaign(c.id)}
+                              disabled={sendingCampaignId === c.id}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Send className="h-3.5 w-3.5 mr-1" />
+                              {sendingCampaignId === c.id ? 'Sending...' : 'Send'}
+                            </Button>
+                          )}
+                          {(c.status === 'DRAFT' || c.status === 'SENT' || c.status === 'FAILED') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteCampaign(c.id)}
+                              className="text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ============ TEMPLATES TAB ============ */}
+          {activeTab === 'templates' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-lg">Message Templates</h2>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingTemplate('new');
+                    setTemplateForm({ name: '', template: '', type: 'CUSTOM' });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> New Template
+                </Button>
+              </div>
+
+              {/* Template Editor */}
+              {editingTemplate && (
+                <Card className="p-6 mb-6">
+                  <h3 className="font-semibold mb-4">{editingTemplate === 'new' ? 'New Template' : 'Edit Template'}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="text-sm font-medium block mb-1">Template Name</label>
+                      <Input
+                        value={templateForm.name}
+                        onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
+                        placeholder="e.g. Welcome Back Offer"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-1">Type</label>
+                      <select
+                        value={templateForm.type}
+                        onChange={(e) => setTemplateForm({ ...templateForm, type: e.target.value })}
+                        className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                      >
+                        <option value="CUSTOM">Custom</option>
+                        <option value="MARKETING_SMS">Marketing SMS</option>
+                        <option value="MARKETING_EMAIL">Marketing Email</option>
+                        <option value="CONFIRMATION">Booking Confirmation</option>
+                        <option value="REMINDER">Reminder</option>
+                        <option value="REVIEW_REQUEST">Review Request</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mb-4">
+                    <label className="text-sm font-medium block mb-1">Template Content</label>
+                    <textarea
+                      value={templateForm.template}
+                      onChange={(e) => setTemplateForm({ ...templateForm, template: e.target.value })}
+                      placeholder={`Hi {{clientName}}, thank you for choosing {{companyName}}...`}
+                      rows={5}
+                      className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Variables: {'{{clientName}}'}, {'{{companyName}}'}, {'{{date}}'}, {'{{time}}'}, {'{{price}}'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveTemplate} disabled={savingTemplate}>
+                      {savingTemplate ? 'Saving...' : 'Save Template'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditingTemplate(null)}>Cancel</Button>
+                  </div>
+                </Card>
+              )}
+
+              {/* Template List */}
+              {loadingTemplates ? (
+                <Card className="p-6 text-center text-gray-500">Loading templates...</Card>
+              ) : templates.length === 0 && !editingTemplate ? (
+                <Card className="p-8 text-center">
+                  <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No templates yet. Create reusable message templates.</p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {templates.map((t) => (
+                    <Card key={t.id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-sm">{t.name}</h3>
+                            <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{t.type}</span>
+                            {!t.isActive && (
+                              <span className="text-xs text-gray-400">Inactive</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">{t.template}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingTemplate(t.id);
+                            setTemplateForm({ name: t.name, template: t.template, type: t.type });
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ============ RETENTION TAB ============ */}
+          {activeTab === 'retention' && (
+            <div>
+              {/* Summary Cards */}
+              {retention && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <Card className="p-4 text-center">
+                    <p className="text-2xl font-bold text-green-600">{retention.summary.activeClients}</p>
+                    <p className="text-xs text-gray-500">Active (30d)</p>
+                  </Card>
+                  <Card className="p-4 text-center">
+                    <p className="text-2xl font-bold text-yellow-600">{retention.summary.atRiskCount}</p>
+                    <p className="text-xs text-gray-500">At Risk (30-60d)</p>
+                  </Card>
+                  <Card className="p-4 text-center">
+                    <p className="text-2xl font-bold text-orange-600">{retention.summary.dormantCount}</p>
+                    <p className="text-xs text-gray-500">Dormant (60-90d)</p>
+                  </Card>
+                  <Card className="p-4 text-center">
+                    <p className="text-2xl font-bold text-red-600">{retention.summary.lostCount}</p>
+                    <p className="text-xs text-gray-500">Lost (90d+)</p>
+                  </Card>
+                </div>
+              )}
+
+              {/* Additional Stats */}
+              {retention && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <Card className="p-3">
+                    <p className="text-sm font-medium">{retention.summary.totalClients}</p>
+                    <p className="text-xs text-gray-500">Total Clients</p>
+                  </Card>
+                  <Card className="p-3">
+                    <p className="text-sm font-medium">{retention.summary.neverBooked}</p>
+                    <p className="text-xs text-gray-500">Never Booked</p>
+                  </Card>
+                  <Card className="p-3">
+                    <p className="text-sm font-medium">{retention.summary.recentCampaigns}</p>
+                    <p className="text-xs text-gray-500">Campaigns (30d)</p>
+                  </Card>
+                  <Card className="p-3">
+                    <p className="text-sm font-medium">{retention.summary.marketingMessagesSent}</p>
+                    <p className="text-xs text-gray-500">Messages Sent (30d)</p>
+                  </Card>
+                </div>
+              )}
+
+              {/* Retention Sub-tabs */}
+              <div className="flex gap-2 mb-4">
+                {[
+                  { id: 'at_risk' as const, label: 'At Risk', count: retention?.summary.atRiskCount || 0, color: 'yellow' },
+                  { id: 'dormant' as const, label: 'Dormant', count: retention?.summary.dormantCount || 0, color: 'orange' },
+                  { id: 'lost' as const, label: 'Lost', count: retention?.summary.lostCount || 0, color: 'red' },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setRetentionTab(t.id)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                      retentionTab === t.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    {t.label} ({t.count})
+                  </button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={fetchRetention}
+                  disabled={loadingRetention}
+                  className="ml-auto"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${loadingRetention ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+
+              {/* Client List */}
+              {loadingRetention ? (
+                <Card className="p-6 text-center text-gray-500">Loading retention data...</Card>
+              ) : !retention ? (
+                <Card className="p-6 text-center text-gray-500">Failed to load data</Card>
+              ) : (
+                <div className="space-y-2">
+                  {(retentionTab === 'at_risk'
+                    ? retention.atRiskClients
+                    : retentionTab === 'dormant'
+                    ? retention.dormantClients
+                    : retention.lostClients
+                  ).length === 0 ? (
+                    <Card className="p-8 text-center">
+                      <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
+                      <p className="text-gray-500">
+                        No {retentionTab === 'at_risk' ? 'at-risk' : retentionTab} clients. Great retention!
+                      </p>
+                    </Card>
+                  ) : (
+                    (retentionTab === 'at_risk'
+                      ? retention.atRiskClients
+                      : retentionTab === 'dormant'
+                      ? retention.dormantClients
+                      : retention.lostClients
+                    ).map((client) => (
+                      <Card key={client.id} className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{client.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              {client.phone && <span>{client.phone}</span>}
+                              {client.email && <span>{client.email}</span>}
+                            </div>
+                            {client.bookings[0] && (
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                Last booked: {formatDate(client.bookings[0].scheduledDate)} ({daysAgo(client.bookings[0].scheduledDate)} days ago)
+                                {' '}• ${client.bookings[0].price}
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setActiveTab('messaging');
+                              setSelectedIds([client.id]);
+                              setSelectAll(false);
+                            }}
+                            className="text-xs"
+                          >
+                            <Send className="h-3 w-3 mr-1" /> Message
+                          </Button>
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
