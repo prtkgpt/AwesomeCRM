@@ -64,16 +64,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if company has Stripe configured
-    if (!booking.company.stripeSecretKey) {
+    // Check if company has Stripe configured with a valid key
+    const stripeKey = booking.company.stripeSecretKey;
+    if (!stripeKey) {
       return NextResponse.json(
-        { success: false, error: 'Payment processing is not configured for your company' },
+        { success: false, error: 'Payment processing is not configured. Go to Settings to add your Stripe secret key.' },
         { status: 503 }
       );
     }
 
+    if (!stripeKey.startsWith('sk_test_') && !stripeKey.startsWith('sk_live_')) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid Stripe secret key. The key must start with sk_test_ or sk_live_. Please update it in Settings.' },
+        { status: 400 }
+      );
+    }
+
     // Initialize Stripe with company's credentials
-    const stripe = new Stripe(booking.company.stripeSecretKey, {
+    const stripe = new Stripe(stripeKey, {
       apiVersion: '2023-10-16',
     });
 
@@ -134,10 +142,17 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('POST /api/payments/create-link error:', error);
 
-    // Surface Stripe-specific errors for better debugging
-    const message = error?.type?.startsWith('Stripe')
-      ? error.message
-      : 'Failed to create payment link';
+    // Map Stripe errors to safe, user-friendly messages
+    let message = 'Failed to create payment link. Please try again.';
+    if (error?.type === 'StripeAuthenticationError') {
+      message = 'Stripe authentication failed. Please check your Stripe secret key in Settings.';
+    } else if (error?.type === 'StripePermissionError') {
+      message = 'Your Stripe account does not have permission for this operation.';
+    } else if (error?.type === 'StripeInvalidRequestError') {
+      message = 'Payment request failed: ' + (error.message || 'invalid parameters');
+    } else if (error?.type === 'StripeConnectionError') {
+      message = 'Could not connect to Stripe. Please try again.';
+    }
 
     return NextResponse.json(
       { success: false, error: message },

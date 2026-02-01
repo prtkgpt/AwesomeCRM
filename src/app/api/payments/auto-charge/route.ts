@@ -143,13 +143,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Map Stripe errors to safe, user-friendly messages
+    let message = 'Failed to charge customer. Please try again.';
+    if (error?.type === 'StripeAuthenticationError') {
+      message = 'Stripe authentication failed. Please check your Stripe configuration in Settings.';
+    } else if (error?.type === 'StripeCardError') {
+      message = 'The card was declined. Please ask the customer to update their payment method.';
+    } else if (error?.type === 'StripeInvalidRequestError') {
+      message = 'Payment request failed. The customer\'s payment method may need to be updated.';
+    } else if (error?.type === 'StripeConnectionError') {
+      message = 'Could not connect to Stripe. Please try again.';
+    }
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to charge customer',
-        type: error.type,
-        code: error.code,
-      },
+      { success: false, error: message },
       { status: 500 }
     );
   }
