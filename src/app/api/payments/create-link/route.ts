@@ -86,8 +86,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Create a Checkout Session (creates its own PaymentIntent automatically)
+    // Note: `customer` must be a top-level param, not inside payment_intent_data
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'payment',
+      ...(booking.client.stripeCustomerId
+        ? { customer: booking.client.stripeCustomerId }
+        : { customer_email: booking.client.email || undefined }),
       payment_intent_data: {
         description: `Cleaning service - ${booking.client.name}`,
         metadata: {
@@ -96,9 +100,6 @@ export async function POST(request: NextRequest) {
           userId: session.user.id,
           companyId: booking.companyId,
         },
-        ...(booking.client.stripeCustomerId && {
-          customer: booking.client.stripeCustomerId,
-        }),
       },
       line_items: [
         {
@@ -113,7 +114,6 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      customer_email: booking.client.email || undefined,
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/jobs/${booking.id}?payment=success`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://cleandaycrm.com'}/jobs/${booking.id}?payment=cancelled`,
     });
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     } else if (error?.type === 'StripePermissionError') {
       message = 'Your Stripe account does not have permission for this operation.';
     } else if (error?.type === 'StripeInvalidRequestError') {
-      message = 'Payment request failed: ' + (error.message || 'invalid parameters');
+      message = 'Payment request configuration error. Please contact support.';
     } else if (error?.type === 'StripeConnectionError') {
       message = 'Could not connect to Stripe. Please try again.';
     }
