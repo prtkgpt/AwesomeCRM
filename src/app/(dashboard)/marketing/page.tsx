@@ -34,9 +34,13 @@ import {
   ChevronUp,
   Edit3,
   Save,
+  Tag,
+  Percent,
+  Copy,
+  Calendar,
 } from 'lucide-react';
 
-type MarketingTab = 'messaging' | 'campaigns' | 'templates' | 'retention' | 'automations';
+type MarketingTab = 'messaging' | 'campaigns' | 'templates' | 'retention' | 'automations' | 'discounts';
 
 interface Recipient {
   id: string;
@@ -122,6 +126,19 @@ interface MessageTemplate {
   isActive: boolean;
 }
 
+interface DiscountCode {
+  id: string;
+  code: string;
+  discountType: 'PERCENT' | 'FIXED';
+  discountValue: number;
+  validFrom: string;
+  validUntil: string;
+  isActive: boolean;
+  maxUses: number | null;
+  usedCount: number;
+  createdAt: string;
+}
+
 export default function MarketingPage() {
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<MarketingTab>('messaging');
@@ -173,6 +190,22 @@ export default function MarketingPage() {
   const [editingSteps, setEditingSteps] = useState(false);
   const [editSteps, setEditSteps] = useState<WinBackStep[]>([]);
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
+
+  // Discounts state
+  const [discounts, setDiscounts] = useState<DiscountCode[]>([]);
+  const [loadingDiscounts, setLoadingDiscounts] = useState(false);
+  const [showDiscountForm, setShowDiscountForm] = useState(false);
+  const [savingDiscount, setSavingDiscount] = useState(false);
+  const [editingDiscountId, setEditingDiscountId] = useState<string | null>(null);
+  const [discountForm, setDiscountForm] = useState({
+    code: '',
+    discountType: 'PERCENT' as 'PERCENT' | 'FIXED',
+    discountValue: '',
+    validFrom: '',
+    validUntil: '',
+    maxUses: '',
+  });
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const availableTags = ['VIP', 'Weekly', 'Monthly', 'Biweekly', 'One-time', 'Pain'];
 
@@ -296,13 +329,101 @@ export default function MarketingPage() {
     }
   };
 
+  const fetchDiscounts = useCallback(async () => {
+    setLoadingDiscounts(true);
+    try {
+      const res = await fetch('/api/marketing/discounts');
+      const data = await res.json();
+      if (data.success) setDiscounts(data.data);
+    } catch {
+      console.error('Failed to fetch discounts');
+    } finally {
+      setLoadingDiscounts(false);
+    }
+  }, []);
+
+  const handleSaveDiscount = async () => {
+    setSavingDiscount(true);
+    try {
+      const url = editingDiscountId
+        ? `/api/marketing/discounts/${editingDiscountId}`
+        : '/api/marketing/discounts';
+      const res = await fetch(url, {
+        method: editingDiscountId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...discountForm,
+          discountValue: parseFloat(discountForm.discountValue),
+          maxUses: discountForm.maxUses ? parseInt(discountForm.maxUses) : null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowDiscountForm(false);
+        setEditingDiscountId(null);
+        setDiscountForm({ code: '', discountType: 'PERCENT', discountValue: '', validFrom: '', validUntil: '', maxUses: '' });
+        fetchDiscounts();
+      } else {
+        alert(data.error || 'Failed to save discount');
+      }
+    } catch {
+      alert('Failed to save discount');
+    } finally {
+      setSavingDiscount(false);
+    }
+  };
+
+  const handleDeleteDiscount = async (id: string) => {
+    if (!confirm('Delete this discount code?')) return;
+    try {
+      const res = await fetch(`/api/marketing/discounts/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) fetchDiscounts();
+    } catch {
+      console.error('Failed to delete discount');
+    }
+  };
+
+  const handleToggleDiscount = async (id: string, currentActive: boolean) => {
+    try {
+      const res = await fetch(`/api/marketing/discounts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentActive }),
+      });
+      const data = await res.json();
+      if (data.success) fetchDiscounts();
+    } catch {
+      console.error('Failed to toggle discount');
+    }
+  };
+
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch {
+      // fallback
+      const textarea = document.createElement('textarea');
+      textarea.value = code;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try { document.execCommand('copy'); setCopiedCode(code); setTimeout(() => setCopiedCode(null), 2000); } catch {}
+      document.body.removeChild(textarea);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'messaging') fetchRecipients();
     if (activeTab === 'campaigns') fetchCampaigns();
     if (activeTab === 'templates') fetchTemplates();
     if (activeTab === 'retention') fetchRetention();
     if (activeTab === 'automations') fetchWinBack();
-  }, [activeTab, fetchRecipients, fetchCampaigns, fetchTemplates, fetchRetention, fetchWinBack]);
+    if (activeTab === 'discounts') fetchDiscounts();
+  }, [activeTab, fetchRecipients, fetchCampaigns, fetchTemplates, fetchRetention, fetchWinBack, fetchDiscounts]);
 
   const handleSendBulk = async () => {
     if (selectedIds.length === 0 || !messageBody) return;
@@ -451,6 +572,7 @@ export default function MarketingPage() {
     { id: 'templates' as MarketingTab, label: 'Templates', icon: FileText },
     { id: 'retention' as MarketingTab, label: 'Customer Retention', icon: Users },
     { id: 'automations' as MarketingTab, label: 'Automations', icon: Zap },
+    { id: 'discounts' as MarketingTab, label: 'Discounts', icon: Tag },
   ];
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -1458,6 +1580,288 @@ export default function MarketingPage() {
                     )}
                   </Card>
                 </>
+              )}
+            </div>
+          )}
+
+          {/* ============ DISCOUNTS TAB ============ */}
+          {activeTab === 'discounts' && (
+            <div className="space-y-6">
+              {/* Header + Create Button */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Discount Codes</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Create and manage discount codes for your customers
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setShowDiscountForm(true);
+                    setEditingDiscountId(null);
+                    setDiscountForm({ code: '', discountType: 'PERCENT', discountValue: '', validFrom: '', validUntil: '', maxUses: '' });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Create Discount
+                </Button>
+              </div>
+
+              {/* Create/Edit Form */}
+              {showDiscountForm && (
+                <Card className="p-6">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
+                    {editingDiscountId ? 'Edit Discount Code' : 'Create Discount Code'}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Discount Code
+                      </label>
+                      <Input
+                        value={discountForm.code}
+                        onChange={(e) => setDiscountForm({ ...discountForm, code: e.target.value.toUpperCase() })}
+                        placeholder="e.g., SPRING25"
+                        className="uppercase"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Discount Type
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setDiscountForm({ ...discountForm, discountType: 'PERCENT' })}
+                          className={`flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors ${
+                            discountForm.discountType === 'PERCENT'
+                              ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
+                              : 'border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-400'
+                          }`}
+                        >
+                          <Percent className="h-4 w-4 inline mr-1" /> Percentage
+                        </button>
+                        <button
+                          onClick={() => setDiscountForm({ ...discountForm, discountType: 'FIXED' })}
+                          className={`flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors ${
+                            discountForm.discountType === 'FIXED'
+                              ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
+                              : 'border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-400'
+                          }`}
+                        >
+                          <DollarSign className="h-4 w-4 inline mr-1" /> Fixed Amount
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Discount Value {discountForm.discountType === 'PERCENT' ? '(%)' : '($)'}
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max={discountForm.discountType === 'PERCENT' ? '100' : undefined}
+                        value={discountForm.discountValue}
+                        onChange={(e) => setDiscountForm({ ...discountForm, discountValue: e.target.value })}
+                        placeholder={discountForm.discountType === 'PERCENT' ? 'e.g., 25' : 'e.g., 50'}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Max Uses <span className="text-gray-400 font-normal">(leave empty for unlimited)</span>
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={discountForm.maxUses}
+                        onChange={(e) => setDiscountForm({ ...discountForm, maxUses: e.target.value })}
+                        placeholder="Unlimited"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Valid From
+                      </label>
+                      <Input
+                        type="date"
+                        value={discountForm.validFrom}
+                        onChange={(e) => setDiscountForm({ ...discountForm, validFrom: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Valid Until
+                      </label>
+                      <Input
+                        type="date"
+                        value={discountForm.validUntil}
+                        onChange={(e) => setDiscountForm({ ...discountForm, validUntil: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Preview */}
+                  {discountForm.code && discountForm.discountValue && (
+                    <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center gap-3">
+                      <Tag className="h-5 w-5 text-blue-500" />
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                        Code <span className="font-bold text-gray-900 dark:text-white">{discountForm.code}</span> gives{' '}
+                        <span className="font-bold text-green-600 dark:text-green-400">
+                          {discountForm.discountType === 'PERCENT'
+                            ? `${discountForm.discountValue}% off`
+                            : `$${discountForm.discountValue} off`}
+                        </span>
+                        {discountForm.validFrom && discountForm.validUntil && (
+                          <> from {discountForm.validFrom} to {discountForm.validUntil}</>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDiscountForm(false);
+                        setEditingDiscountId(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSaveDiscount}
+                      disabled={savingDiscount || !discountForm.code || !discountForm.discountValue || !discountForm.validFrom || !discountForm.validUntil}
+                    >
+                      {savingDiscount ? 'Saving...' : editingDiscountId ? 'Update Discount' : 'Create Discount'}
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
+              {/* Discount List */}
+              {loadingDiscounts ? (
+                <Card className="p-8 text-center text-gray-500">Loading discount codes...</Card>
+              ) : discounts.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <Tag className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 mb-1">No discount codes yet</p>
+                  <p className="text-sm text-gray-400">Create your first discount code to offer deals to customers</p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {discounts.map((d) => {
+                    const now = new Date();
+                    const isExpired = new Date(d.validUntil) < now;
+                    const notStarted = new Date(d.validFrom) > now;
+                    const isMaxed = d.maxUses !== null && d.usedCount >= d.maxUses;
+                    const isLive = d.isActive && !isExpired && !notStarted && !isMaxed;
+
+                    return (
+                      <Card key={d.id} className={`p-4 ${!d.isActive ? 'opacity-60' : ''}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            {/* Code badge */}
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => copyCode(d.code)}
+                                className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 font-mono font-bold text-sm tracking-wider hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                title="Click to copy"
+                              >
+                                {d.code}
+                                {copiedCode === d.code ? (
+                                  <Check className="h-3.5 w-3.5 text-green-500" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5 text-gray-400" />
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Details */}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-gray-900 dark:text-white">
+                                  {d.discountType === 'PERCENT' ? `${d.discountValue}% off` : `$${d.discountValue} off`}
+                                </span>
+                                {isLive && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                                    Live
+                                  </span>
+                                )}
+                                {isExpired && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                    Expired
+                                  </span>
+                                )}
+                                {notStarted && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                    Scheduled
+                                  </span>
+                                )}
+                                {isMaxed && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                    Maxed Out
+                                  </span>
+                                )}
+                                {!d.isActive && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                    Disabled
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {formatDate(d.validFrom)} - {formatDate(d.validUntil)}
+                                </span>
+                                <span>
+                                  Used: {d.usedCount}{d.maxUses !== null ? `/${d.maxUses}` : ''}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleToggleDiscount(d.id, d.isActive)}
+                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                              title={d.isActive ? 'Disable' : 'Enable'}
+                            >
+                              {d.isActive ? (
+                                <ToggleRight className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <ToggleLeft className="h-5 w-5 text-gray-400" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingDiscountId(d.id);
+                                setDiscountForm({
+                                  code: d.code,
+                                  discountType: d.discountType,
+                                  discountValue: String(d.discountValue),
+                                  validFrom: d.validFrom.split('T')[0],
+                                  validUntil: d.validUntil.split('T')[0],
+                                  maxUses: d.maxUses !== null ? String(d.maxUses) : '',
+                                });
+                                setShowDiscountForm(true);
+                              }}
+                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit3 className="h-4 w-4 text-gray-500" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDiscount(d.id)}
+                              className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-400" />
+                            </button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}

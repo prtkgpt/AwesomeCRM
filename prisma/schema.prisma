@@ -112,6 +112,7 @@ model Company {
   messageTemplates    MessageTemplate[]
   campaigns           Campaign[]
   winBackAttempts     WinBackAttempt[]
+  discountCodes       DiscountCode[]
   invoices            Invoice[]
   teamMembers         TeamMember[]
   invitations         Invitation[]
@@ -860,6 +861,39 @@ model WinBackAttempt {
   @@index([clientId])
   @@index([companyId, result])
   @@index([companyId, clientId, step])
+}
+
+// ============================================
+// DISCOUNT CODES
+// ============================================
+
+model DiscountCode {
+  id              String    @id @default(cuid())
+
+  // Multi-tenancy
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code            String              // e.g., "COMEBACK25", "SPRING2025"
+  discountType    String              // "PERCENT" or "FIXED"
+  discountValue   Float               // 25 (for 25%) or 50 (for $50)
+
+  validFrom       DateTime
+  validUntil      DateTime
+
+  isActive        Boolean   @default(true)
+
+  // Usage limits
+  maxUses         Int?                // null = unlimited
+  usedCount       Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([code])
+  @@index([companyId, isActive])
 }
 
 // ============================================
