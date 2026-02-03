@@ -55,11 +55,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch recipients scoped to company
+    // Fetch recipients scoped to company, excluding opted-out clients
     const recipients = await prisma.client.findMany({
       where: {
         id: { in: recipientIds },
         companyId: user.companyId,
+        marketingOptOut: { not: true },
       },
       select: { id: true, name: true, email: true, phone: true },
     });

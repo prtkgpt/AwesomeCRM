@@ -5,8 +5,11 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/marketing/recipients - Preview audience from filter criteria
-export async function POST(request: NextRequest) {
+// GET /api/marketing/campaigns/[id]/preview-recipients - Preview who would receive a draft campaign
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -22,30 +25,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { tags, noBookingDays, channel } = body;
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: params.id, companyId: user.companyId },
+    });
 
+    if (!campaign) {
+      return NextResponse.json({ success: false, error: 'Campaign not found' }, { status: 404 });
+    }
+
+    // Build audience from segment filter (same logic as send)
+    const filter = (campaign.segmentFilter as any) || {};
     const whereClause: any = {
       companyId: user.companyId,
       marketingOptOut: { not: true },
     };
 
-    if (tags && tags.length > 0) {
-      whereClause.tags = { hasSome: tags };
+    if (filter.tags && filter.tags.length > 0) {
+      whereClause.tags = { hasSome: filter.tags };
     }
-
-    if (noBookingDays) {
+    if (filter.noBookingDays) {
       const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - noBookingDays);
+      cutoff.setDate(cutoff.getDate() - filter.noBookingDays);
       whereClause.bookings = {
         none: { scheduledDate: { gte: cutoff } },
       };
     }
 
-    // Filter by contact availability based on channel
-    if (channel === 'SMS') {
+    // Filter by channel capability
+    if (campaign.channel === 'SMS') {
       whereClause.phone = { not: null };
-    } else if (channel === 'EMAIL') {
+    } else if (campaign.channel === 'EMAIL') {
       whereClause.email = { not: null };
     }
 
@@ -61,15 +70,20 @@ export async function POST(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        count: recipients.length,
-        recipients,
+    // Also get count of clients who ARE opted out (for info display)
+    const optedOutCount = await prisma.client.count({
+      where: {
+        companyId: user.companyId,
+        marketingOptOut: true,
       },
     });
+
+    return NextResponse.json({
+      success: true,
+      data: { recipients, optedOutCount },
+    });
   } catch (error) {
-    console.error('POST /api/marketing/recipients error:', error);
+    console.error('GET /api/marketing/campaigns/[id]/preview-recipients error:', error);
     return NextResponse.json({ success: false, error: 'Failed to preview recipients' }, { status: 500 });
   }
 }

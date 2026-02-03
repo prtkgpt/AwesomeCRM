@@ -227,6 +227,7 @@ export async function PATCH(
     if (body.email !== undefined) updateData.email = body.email || null;
     if (body.phone !== undefined) updateData.phone = body.phone;
     if (body.tags !== undefined) updateData.tags = body.tags;
+    if (body.marketingOptOut !== undefined) updateData.marketingOptOut = body.marketingOptOut;
 
     // Update client
     const client = await prisma.client.update({

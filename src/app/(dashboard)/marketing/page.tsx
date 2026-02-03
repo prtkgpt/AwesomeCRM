@@ -192,6 +192,14 @@ export default function MarketingPage() {
   const [campaignRecipients, setCampaignRecipients] = useState<CampaignRecipientData[]>([]);
   const [loadingRecipientsCampaign, setLoadingRecipientsCampaign] = useState(false);
 
+  // Campaign recipient preview (for DRAFT campaigns before sending)
+  const [previewCampaignId, setPreviewCampaignId] = useState<string | null>(null);
+  const [previewRecipients, setPreviewRecipients] = useState<Recipient[]>([]);
+  const [previewExcluded, setPreviewExcluded] = useState<Set<string>>(new Set());
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewOptedOutCount, setPreviewOptedOutCount] = useState(0);
+  const [previewSearch, setPreviewSearch] = useState('');
+
   // Templates state
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -446,6 +454,43 @@ export default function MarketingPage() {
     if (activeTab === 'discounts') fetchDiscounts();
   }, [activeTab, fetchRecipients, fetchCampaigns, fetchTemplates, fetchRetention, fetchWinBack, fetchDiscounts]);
 
+  const fetchPreviewRecipients = async (campaignId: string) => {
+    if (previewCampaignId === campaignId) {
+      setPreviewCampaignId(null);
+      setPreviewRecipients([]);
+      setPreviewExcluded(new Set());
+      setPreviewSearch('');
+      return;
+    }
+    setPreviewCampaignId(campaignId);
+    setLoadingPreview(true);
+    setPreviewExcluded(new Set());
+    setPreviewSearch('');
+    try {
+      const res = await fetch(`/api/marketing/campaigns/${campaignId}/preview-recipients`);
+      const data = await res.json();
+      if (data.success) {
+        setPreviewRecipients(data.data.recipients);
+        setPreviewOptedOutCount(data.data.optedOutCount);
+      } else {
+        setPreviewRecipients([]);
+      }
+    } catch {
+      setPreviewRecipients([]);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const togglePreviewRecipient = (clientId: string) => {
+    setPreviewExcluded((prev) => {
+      const next = new Set(prev);
+      if (next.has(clientId)) next.delete(clientId);
+      else next.add(clientId);
+      return next;
+    });
+  };
+
   const fetchCampaignRecipients = async (campaignId: string) => {
     if (expandedCampaignId === campaignId) {
       setExpandedCampaignId(null);
@@ -531,13 +576,23 @@ export default function MarketingPage() {
   };
 
   const handleSendCampaign = async (id: string) => {
-    if (!confirm('Send this campaign to all matching recipients? This cannot be undone.')) return;
+    const selectedCount = previewRecipients.length - previewExcluded.size;
+    if (!confirm(`Send this campaign to ${selectedCount} recipient${selectedCount !== 1 ? 's' : ''}? This cannot be undone.`)) return;
     setSendingCampaignId(id);
     try {
-      const res = await fetch(`/api/marketing/campaigns/${id}/send`, { method: 'POST' });
+      const res = await fetch(`/api/marketing/campaigns/${id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          excludedClientIds: Array.from(previewExcluded),
+        }),
+      });
       const data = await res.json();
       if (data.success) {
         alert(`Campaign sent! ${data.data.sentCount} sent, ${data.data.failedCount} failed.`);
+        setPreviewCampaignId(null);
+        setPreviewRecipients([]);
+        setPreviewExcluded(new Set());
         fetchCampaigns();
       } else {
         alert(data.error || 'Failed to send campaign');
@@ -1022,12 +1077,11 @@ export default function MarketingPage() {
                             {c.status === 'DRAFT' && (
                               <Button
                                 size="sm"
-                                onClick={() => handleSendCampaign(c.id)}
-                                disabled={sendingCampaignId === c.id}
-                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => fetchPreviewRecipients(c.id)}
+                                className="bg-blue-600 hover:bg-blue-700"
                               >
-                                <Send className="h-3.5 w-3.5 mr-1" />
-                                {sendingCampaignId === c.id ? 'Sending...' : 'Send'}
+                                <Users className="h-3.5 w-3.5 mr-1" />
+                                {previewCampaignId === c.id ? 'Hide Recipients' : 'Select Recipients'}
                               </Button>
                             )}
                             {(c.status === 'DRAFT' || c.status === 'SENT' || c.status === 'FAILED') && (
@@ -1044,7 +1098,133 @@ export default function MarketingPage() {
                         </div>
                       </div>
 
-                      {/* Expanded Recipients List */}
+                      {/* DRAFT: Recipient Preview & Selection */}
+                      {previewCampaignId === c.id && c.status === 'DRAFT' && (
+                        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <Users className="h-4 w-4" />
+                                Select Recipients
+                              </h4>
+                              <div className="flex items-center gap-3 text-xs">
+                                <span className="text-green-600 font-medium">
+                                  {previewRecipients.length - previewExcluded.size} selected
+                                </span>
+                                {previewExcluded.size > 0 && (
+                                  <span className="text-gray-500">
+                                    {previewExcluded.size} excluded
+                                  </span>
+                                )}
+                                {previewOptedOutCount > 0 && (
+                                  <span className="text-amber-600">
+                                    {previewOptedOutCount} opted out
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                                <Input
+                                  placeholder="Search recipients..."
+                                  value={previewSearch}
+                                  onChange={(e) => setPreviewSearch(e.target.value)}
+                                  className="pl-8 h-8 text-sm"
+                                />
+                              </div>
+                              <button
+                                onClick={() => {
+                                  if (previewExcluded.size === 0) {
+                                    setPreviewExcluded(new Set(previewRecipients.map(r => r.id)));
+                                  } else {
+                                    setPreviewExcluded(new Set());
+                                  }
+                                }}
+                                className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+                              >
+                                {previewExcluded.size === 0 ? 'Deselect All' : 'Select All'}
+                              </button>
+                            </div>
+                          </div>
+                          {loadingPreview ? (
+                            <div className="p-6 text-center text-gray-500 text-sm">Loading recipients...</div>
+                          ) : previewRecipients.length === 0 ? (
+                            <div className="p-6 text-center text-gray-500 text-sm">No recipients match the campaign filters</div>
+                          ) : (
+                            <>
+                              <div className="max-h-72 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+                                {previewRecipients
+                                  .filter((r) =>
+                                    !previewSearch ||
+                                    r.name.toLowerCase().includes(previewSearch.toLowerCase()) ||
+                                    r.email?.toLowerCase().includes(previewSearch.toLowerCase()) ||
+                                    r.phone?.includes(previewSearch)
+                                  )
+                                  .map((r) => (
+                                  <label
+                                    key={r.id}
+                                    className={`px-4 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
+                                      previewExcluded.has(r.id)
+                                        ? 'bg-gray-100 dark:bg-gray-800 opacity-60'
+                                        : 'hover:bg-white dark:hover:bg-gray-800'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                      <input
+                                        type="checkbox"
+                                        checked={!previewExcluded.has(r.id)}
+                                        onChange={() => togglePreviewRecipient(r.id)}
+                                        className="w-4 h-4 rounded text-blue-600 flex-shrink-0"
+                                      />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                          {r.name}
+                                        </p>
+                                        <p className="text-xs text-gray-500 truncate">
+                                          {r.phone || 'No phone'}{r.email ? ` • ${r.email}` : ''}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {r.tags.length > 0 && (
+                                      <div className="hidden sm:flex gap-1 ml-2">
+                                        {r.tags.slice(0, 2).map((t) => (
+                                          <span key={t} className="text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                                            {t}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </label>
+                                ))}
+                              </div>
+                              <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <p className="text-xs text-gray-500">
+                                  {previewRecipients.length - previewExcluded.size} of {previewRecipients.length} recipients selected
+                                  {previewOptedOutCount > 0 && (
+                                    <span className="text-amber-600 ml-1">
+                                      ({previewOptedOutCount} client{previewOptedOutCount !== 1 ? 's' : ''} opted out of marketing)
+                                    </span>
+                                  )}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSendCampaign(c.id)}
+                                  disabled={sendingCampaignId === c.id || previewRecipients.length - previewExcluded.size === 0}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Send className="h-3.5 w-3.5 mr-1" />
+                                  {sendingCampaignId === c.id
+                                    ? 'Sending...'
+                                    : `Send to ${previewRecipients.length - previewExcluded.size} recipient${previewRecipients.length - previewExcluded.size !== 1 ? 's' : ''}`}
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Expanded Recipients List (for sent campaigns) */}
                       {expandedCampaignId === c.id && (
                         <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">

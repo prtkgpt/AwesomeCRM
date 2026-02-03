@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote, TrendingUp, DollarSign, Calendar, FileText, Download, Eye } from 'lucide-react';
+import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote, TrendingUp, DollarSign, Calendar, FileText, Download, Eye, BellOff, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -124,6 +124,24 @@ export default function ClientDetailPage() {
   const handleCancelNotes = () => {
     setNotes(client?.notes || '');
     setEditingNotes(false);
+  };
+
+  const handleToggleMarketingOptOut = async () => {
+    if (!client) return;
+    const newValue = !client.marketingOptOut;
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marketingOptOut: newValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClient({ ...client, marketingOptOut: newValue });
+      }
+    } catch {
+      console.error('Failed to update marketing opt-out');
+    }
   };
 
   const handleDelete = async () => {
@@ -465,6 +483,45 @@ export default function ClientDetailPage() {
             )}
           </div>
         )}
+      </Card>
+
+      {/* Marketing Opt-Out */}
+      <Card className="p-4 md:p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {client.marketingOptOut ? (
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <BellOff className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+            ) : (
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <Bell className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+            )}
+            <div>
+              <h3 className="font-medium text-sm text-gray-900 dark:text-white">Marketing Messages</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {client.marketingOptOut
+                  ? 'This client will NOT receive marketing campaigns or bulk messages'
+                  : 'This client can receive marketing campaigns and bulk messages'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleToggleMarketingOptOut}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              client.marketingOptOut
+                ? 'bg-red-500'
+                : 'bg-green-500'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                client.marketingOptOut ? 'translate-x-1' : 'translate-x-6'
+              }`}
+            />
+          </button>
+        </div>
       </Card>
 
       {/* Customer Preferences Section */}

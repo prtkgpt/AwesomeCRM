@@ -321,6 +321,9 @@ model Client {
   enableBirthdayGreetings      Boolean @default(true)
   enableAnniversaryGreetings   Boolean @default(true)
 
+  // Marketing opt-out
+  marketingOptOut               Boolean @default(false)
+
   // Tracking sent greetings
   lastBirthdayGreetingSent     DateTime?
   lastAnniversaryGreetingSent  DateTime?

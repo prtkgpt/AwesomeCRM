@@ -42,9 +42,21 @@ export async function POST(
       );
     }
 
+    // Accept optional excluded/selected recipient IDs from request body
+    let bodyData: any = {};
+    try { bodyData = await request.json(); } catch { /* no body is fine */ }
+    const excludedClientIds: string[] = bodyData.excludedClientIds || [];
+
     // Build audience from segment filter
     const filter = (campaign.segmentFilter as any) || {};
-    const whereClause: any = { companyId: user.companyId };
+    const whereClause: any = {
+      companyId: user.companyId,
+      marketingOptOut: { not: true },
+    };
+
+    if (excludedClientIds.length > 0) {
+      whereClause.id = { notIn: excludedClientIds };
+    }
 
     if (filter.tags && filter.tags.length > 0) {
       whereClause.tags = { hasSome: filter.tags };
