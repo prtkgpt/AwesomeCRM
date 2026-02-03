@@ -38,6 +38,8 @@ import {
   Percent,
   Copy,
   Calendar,
+  Eye,
+  ChevronRight,
 } from 'lucide-react';
 
 type MarketingTab = 'messaging' | 'campaigns' | 'templates' | 'retention' | 'automations' | 'discounts';
@@ -48,6 +50,21 @@ interface Recipient {
   email: string | null;
   phone: string | null;
   tags: string[];
+}
+
+interface CampaignRecipientData {
+  id: string;
+  clientId: string;
+  channel: 'SMS' | 'EMAIL' | 'BOTH';
+  status: string;
+  sentAt: string | null;
+  client: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    tags: string[];
+  };
 }
 
 interface Campaign {
@@ -65,6 +82,7 @@ interface Campaign {
   sentAt: string | null;
   createdAt: string;
   user: { name: string };
+  _count?: { recipients: number };
 }
 
 interface RetentionData {
@@ -170,6 +188,9 @@ export default function MarketingPage() {
   });
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [sendingCampaignId, setSendingCampaignId] = useState<string | null>(null);
+  const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
+  const [campaignRecipients, setCampaignRecipients] = useState<CampaignRecipientData[]>([]);
+  const [loadingRecipientsCampaign, setLoadingRecipientsCampaign] = useState(false);
 
   // Templates state
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -424,6 +445,26 @@ export default function MarketingPage() {
     if (activeTab === 'automations') fetchWinBack();
     if (activeTab === 'discounts') fetchDiscounts();
   }, [activeTab, fetchRecipients, fetchCampaigns, fetchTemplates, fetchRetention, fetchWinBack, fetchDiscounts]);
+
+  const fetchCampaignRecipients = async (campaignId: string) => {
+    if (expandedCampaignId === campaignId) {
+      setExpandedCampaignId(null);
+      setCampaignRecipients([]);
+      return;
+    }
+    setExpandedCampaignId(campaignId);
+    setLoadingRecipientsCampaign(true);
+    try {
+      const res = await fetch(`/api/marketing/campaigns/${campaignId}/recipients`);
+      const data = await res.json();
+      if (data.success) setCampaignRecipients(data.data);
+      else setCampaignRecipients([]);
+    } catch {
+      setCampaignRecipients([]);
+    } finally {
+      setLoadingRecipientsCampaign(false);
+    }
+  };
 
   const handleSendBulk = async () => {
     if (selectedIds.length === 0 || !messageBody) return;
@@ -944,50 +985,146 @@ export default function MarketingPage() {
               ) : (
                 <div className="space-y-3">
                   {campaigns.map((c) => (
-                    <Card key={c.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-sm truncate">{c.name}</h3>
-                            {statusBadge(c.status)}
-                            <span className="text-xs text-gray-500">{c.channel}</span>
+                    <Card key={c.id} className="overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-sm truncate">{c.name}</h3>
+                              {statusBadge(c.status)}
+                              <span className="text-xs text-gray-500">{c.channel}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 truncate">{c.body}</p>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                              <span>{formatDate(c.createdAt)}</span>
+                              {c.status === 'SENT' && (
+                                <>
+                                  <span className="text-green-600">{c.sentCount} sent</span>
+                                  {c.failedCount > 0 && <span className="text-red-600">{c.failedCount} failed</span>}
+                                </>
+                              )}
+                              <span>by {c.user.name}</span>
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-500 truncate">{c.body}</p>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                            <span>{formatDate(c.createdAt)}</span>
-                            {c.status === 'SENT' && (
-                              <>
-                                <span className="text-green-600">{c.sentCount} sent</span>
-                                {c.failedCount > 0 && <span className="text-red-600">{c.failedCount} failed</span>}
-                              </>
+                          <div className="flex items-center gap-2 ml-4">
+                            {(c.status === 'SENT' || c.status === 'FAILED' || c.status === 'SENDING') && (c._count?.recipients || 0) > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => fetchCampaignRecipients(c.id)}
+                                className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              >
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                {c._count?.recipients || c.recipientCount} recipients
+                                <ChevronDown className={`h-3.5 w-3.5 ml-1 transition-transform ${expandedCampaignId === c.id ? 'rotate-180' : ''}`} />
+                              </Button>
                             )}
-                            <span>by {c.user.name}</span>
+                            {c.status === 'DRAFT' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleSendCampaign(c.id)}
+                                disabled={sendingCampaignId === c.id}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <Send className="h-3.5 w-3.5 mr-1" />
+                                {sendingCampaignId === c.id ? 'Sending...' : 'Send'}
+                              </Button>
+                            )}
+                            {(c.status === 'DRAFT' || c.status === 'SENT' || c.status === 'FAILED') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteCampaign(c.id)}
+                                className="text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          {c.status === 'DRAFT' && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleSendCampaign(c.id)}
-                              disabled={sendingCampaignId === c.id}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Send className="h-3.5 w-3.5 mr-1" />
-                              {sendingCampaignId === c.id ? 'Sending...' : 'Send'}
-                            </Button>
-                          )}
-                          {(c.status === 'DRAFT' || c.status === 'SENT' || c.status === 'FAILED') && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteCampaign(c.id)}
-                              className="text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
                         </div>
                       </div>
+
+                      {/* Expanded Recipients List */}
+                      {expandedCampaignId === c.id && (
+                        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              Recipients ({campaignRecipients.length})
+                            </h4>
+                            <div className="flex items-center gap-3 text-xs">
+                              <span className="flex items-center gap-1 text-green-600">
+                                <CheckCircle className="h-3 w-3" />
+                                {campaignRecipients.filter(r => r.status === 'SENT').length} sent
+                              </span>
+                              {campaignRecipients.filter(r => r.status === 'FAILED').length > 0 && (
+                                <span className="flex items-center gap-1 text-red-600">
+                                  <XCircle className="h-3 w-3" />
+                                  {campaignRecipients.filter(r => r.status === 'FAILED').length} failed
+                                </span>
+                              )}
+                              {campaignRecipients.filter(r => r.status === 'PENDING').length > 0 && (
+                                <span className="flex items-center gap-1 text-gray-500">
+                                  <Clock className="h-3 w-3" />
+                                  {campaignRecipients.filter(r => r.status === 'PENDING').length} pending
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {loadingRecipientsCampaign ? (
+                            <div className="p-6 text-center text-gray-500 text-sm">Loading recipients...</div>
+                          ) : campaignRecipients.length === 0 ? (
+                            <div className="p-6 text-center text-gray-500 text-sm">No recipient data available</div>
+                          ) : (
+                            <div className="max-h-80 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+                              {campaignRecipients.map((r) => (
+                                <div key={r.id} className="px-4 py-2.5 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-800">
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                      r.status === 'SENT' ? 'bg-green-500' :
+                                      r.status === 'FAILED' ? 'bg-red-500' :
+                                      'bg-gray-400'
+                                    }`} />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                        {r.client.name}
+                                      </p>
+                                      <p className="text-xs text-gray-500 truncate">
+                                        {r.channel === 'SMS' || r.channel === 'BOTH' ? r.client.phone || '' : ''}
+                                        {r.channel === 'BOTH' && r.client.phone && r.client.email ? ' • ' : ''}
+                                        {r.channel === 'EMAIL' || r.channel === 'BOTH' ? r.client.email || '' : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3 ml-3">
+                                    {r.client.tags.length > 0 && (
+                                      <div className="hidden sm:flex gap-1">
+                                        {r.client.tags.slice(0, 2).map((t) => (
+                                          <span key={t} className="text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                                            {t}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                      r.status === 'SENT' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                      r.status === 'FAILED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                      'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                                    }`}>
+                                      {r.status}
+                                    </span>
+                                    {r.sentAt && (
+                                      <span className="text-xs text-gray-400 hidden sm:inline">
+                                        {new Date(r.sentAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </Card>
                   ))}
                 </div>

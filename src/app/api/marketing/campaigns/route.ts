@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { name: true } },
+        _count: { select: { recipients: true } },
       },
     });
 

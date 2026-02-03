@@ -328,6 +328,9 @@ model Client {
   // Win-back tracking
   winBackAttempts              WinBackAttempt[]
 
+  // Campaign recipient tracking
+  campaignRecipients           CampaignRecipient[]
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -810,12 +813,35 @@ model Campaign {
   scheduledFor    DateTime?
   sentAt          DateTime?
 
+  // Recipients
+  recipients      CampaignRecipient[]
+
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([companyId])
   @@index([userId])
   @@index([status])
+}
+
+model CampaignRecipient {
+  id          String          @id @default(cuid())
+
+  campaignId  String
+  campaign    Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  clientId    String
+  client      Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  channel     CampaignChannel
+  status      String          @default("PENDING") // PENDING, SENT, FAILED
+
+  sentAt      DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@unique([campaignId, clientId])
+  @@index([campaignId])
+  @@index([clientId])
 }
 
 // ============================================

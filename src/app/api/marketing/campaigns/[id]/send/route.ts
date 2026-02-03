@@ -82,6 +82,17 @@ export async function POST(
       data: { status: 'SENDING', recipientCount: recipients.length },
     });
 
+    // Create recipient records
+    await prisma.campaignRecipient.createMany({
+      data: recipients.map((r) => ({
+        campaignId: params.id,
+        clientId: r.id,
+        channel: campaign.channel,
+        status: 'PENDING',
+      })),
+      skipDuplicates: true,
+    });
+
     // Get company for credentials
     const company = await prisma.company.findUnique({
       where: { id: user.companyId },
@@ -136,8 +147,22 @@ export async function POST(
 
           if (smsResult.success) sentCount++;
           else failedCount++;
+
+          // Update recipient status (only for SMS-only campaigns, BOTH handled after email)
+          if (campaign.channel === 'SMS') {
+            await prisma.campaignRecipient.updateMany({
+              where: { campaignId: params.id, clientId: recipient.id },
+              data: { status: smsResult.success ? 'SENT' : 'FAILED', sentAt: new Date() },
+            });
+          }
         } catch {
           failedCount++;
+          if (campaign.channel === 'SMS') {
+            await prisma.campaignRecipient.updateMany({
+              where: { campaignId: params.id, clientId: recipient.id },
+              data: { status: 'FAILED', sentAt: new Date() },
+            });
+          }
         }
       }
 
@@ -171,8 +196,22 @@ export async function POST(
 
           if (emailResult.success) sentCount++;
           else failedCount++;
+
+          // Update recipient status for EMAIL or BOTH
+          if (campaign.channel === 'EMAIL' || campaign.channel === 'BOTH') {
+            await prisma.campaignRecipient.updateMany({
+              where: { campaignId: params.id, clientId: recipient.id },
+              data: { status: emailResult.success ? 'SENT' : 'FAILED', sentAt: new Date() },
+            });
+          }
         } catch {
           failedCount++;
+          if (campaign.channel === 'EMAIL' || campaign.channel === 'BOTH') {
+            await prisma.campaignRecipient.updateMany({
+              where: { campaignId: params.id, clientId: recipient.id },
+              data: { status: 'FAILED', sentAt: new Date() },
+            });
+          }
         }
       }
     }
