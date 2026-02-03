@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "restore-data": "ts-node --compiler-options {\\\"module\\\":\\\"commonjs\\\"} scripts/restore-data.ts"
+    "restore-data": "ts-node --compiler-options {\\\"module\\\":\\\"commonjs\\\"} scripts/restore-data.ts",
+    "seed-platform-admin": "ts-node --compiler-options {\\\"module\\\":\\\"commonjs\\\"} scripts/seed-platform-admin.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
