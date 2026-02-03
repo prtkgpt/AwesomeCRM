@@ -82,7 +82,7 @@ export default function CompanyCustomerPortal() {
       const companyRes = await fetch(`/api/public/company/${slug}`);
       if (companyRes.ok) {
         const companyData = await companyRes.json();
-        setCompany(companyData);
+        setCompany(companyData.data);
       }
 
       // Fetch customer dashboard stats
