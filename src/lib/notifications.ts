@@ -97,13 +97,12 @@ export async function sendBookingConfirmation(bookingId: string) {
     if (client.phone && company.twilioPhoneNumber) {
       try {
         const smsBody = fillTemplate(
-          'Your cleaning with {{companyName}} is confirmed! 📅 {{date}} at {{time}} 📍 {{address}} 💰 ${{price}}. We look forward to serving you!',
+          'Your cleaning with {{companyName}} is confirmed! 📅 {{date}} at {{time}} 📍 {{address}}. We look forward to serving you!',
           {
             companyName: company.name,
             date: formatDate(booking.scheduledDate, 'MMM d'),
             time: formatTime(booking.scheduledDate),
             address: formattedAddress,
-            price: booking.price.toFixed(2),
           }
         );
 
