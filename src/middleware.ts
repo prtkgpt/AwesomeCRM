@@ -15,6 +15,7 @@ export default withAuth(
       path.startsWith('/compare') || // Public comparison page
       path.startsWith('/estimate/') || // Public estimate acceptance pages
       path.startsWith('/feedback/') || // Public feedback pages
+      path.startsWith('/blog') || // Public blog pages
       path.endsWith('/book') || // Public booking pages (e.g., /awesome-maids/book)
       path.startsWith('/api/public/') || // Public API routes
       path.startsWith('/api/auth/') || // NextAuth API routes
@@ -32,6 +33,14 @@ export default withAuth(
     }
 
     const userRole = token.role as string;
+    const isPlatformAdmin = token.isPlatformAdmin as boolean;
+
+    // Platform admin routes - require isPlatformAdmin flag
+    if (path.startsWith('/platform')) {
+      if (!isPlatformAdmin) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+    }
 
     // Role-based route protection
     // Only OWNER and ADMIN can access team management
@@ -95,6 +104,7 @@ export default withAuth(
           path.startsWith('/compare') || // Public comparison page
           path.startsWith('/estimate/') ||
           path.startsWith('/feedback/') ||
+          path.startsWith('/blog') || // Public blog pages
           path.endsWith('/book') || // Public booking pages (e.g., /awesome-maids/book)
           path.startsWith('/api/public/') ||
           path.startsWith('/api/auth/') ||

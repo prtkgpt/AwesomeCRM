@@ -24,6 +24,7 @@ export const authOptions: NextAuthOptions = {
             name: true,
             role: true,
             companyId: true,
+            isPlatformAdmin: true,
           },
         });
 
@@ -51,6 +52,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           companyId: user.companyId,
+          isPlatformAdmin: user.isPlatformAdmin,
         };
       },
     }),
@@ -68,6 +70,7 @@ export const authOptions: NextAuthOptions = {
         token.name = (user as any).name;
         token.role = (user as any).role;
         token.companyId = (user as any).companyId;
+        token.isPlatformAdmin = (user as any).isPlatformAdmin;
       }
       return token;
     },
@@ -77,6 +80,7 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name as string;
         (session.user as any).role = token.role;
         (session.user as any).companyId = token.companyId;
+        (session.user as any).isPlatformAdmin = token.isPlatformAdmin;
       }
       return session;
     },
