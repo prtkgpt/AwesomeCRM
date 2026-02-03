@@ -121,8 +121,16 @@ export async function PATCH(
     let updateData: any = {};
 
     if (lineItems) {
+      if (!Array.isArray(lineItems)) {
+        return NextResponse.json({ error: 'Line items must be an array' }, { status: 400 });
+      }
+      for (const item of lineItems) {
+        if (typeof item.amount !== 'number' || item.amount < 0) {
+          return NextResponse.json({ error: 'Line item amounts must be non-negative numbers' }, { status: 400 });
+        }
+      }
       const subtotal = lineItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
-      const taxAmount = tax !== undefined ? tax : existingInvoice.tax;
+      const taxAmount = typeof tax === 'number' && tax >= 0 ? tax : (existingInvoice.tax || 0);
       updateData.lineItems = lineItems;
       updateData.subtotal = subtotal;
       updateData.tax = taxAmount;

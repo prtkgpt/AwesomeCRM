@@ -75,12 +75,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Discount type must be PERCENT or FIXED' }, { status: 400 });
     }
 
-    if (!discountValue || discountValue <= 0) {
+    if (!discountValue || typeof discountValue !== 'number' || discountValue <= 0) {
       return NextResponse.json({ error: 'Discount value must be greater than 0' }, { status: 400 });
     }
 
     if (discountType === 'PERCENT' && discountValue > 100) {
       return NextResponse.json({ error: 'Percentage discount cannot exceed 100%' }, { status: 400 });
+    }
+
+    if (discountType === 'FIXED' && discountValue > 10000) {
+      return NextResponse.json({ error: 'Fixed discount cannot exceed $10,000' }, { status: 400 });
+    }
+
+    if (maxUses !== undefined && maxUses !== null && (typeof maxUses !== 'number' || maxUses < 1)) {
+      return NextResponse.json({ error: 'Max uses must be at least 1' }, { status: 400 });
     }
 
     if (!validFrom || !validUntil) {

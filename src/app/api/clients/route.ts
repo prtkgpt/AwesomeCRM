@@ -280,15 +280,9 @@ export async function POST(request: NextRequest) {
 
     // Handle Zod validation errors
     if (error instanceof Error && error.name === 'ZodError') {
-      const zodError = error as any;
-      const fieldErrors = zodError.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
-      console.error('🔴 Validation errors:', fieldErrors);
+      console.error('🔴 Validation errors:', error);
       return NextResponse.json(
-        {
-          success: false,
-          error: fieldErrors || 'Invalid input data',
-          details: zodError.errors
-        },
+        { success: false, error: 'Invalid input data' },
         { status: 400 }
       );
     }

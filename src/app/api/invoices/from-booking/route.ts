@@ -51,9 +51,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Check if booking already has an invoice
+    // Check if booking already has an invoice (scoped to company)
     const existingInvoice = await prisma.invoice.findFirst({
-      where: { bookingId },
+      where: { bookingId, companyId: user.companyId },
     });
 
     if (existingInvoice) {

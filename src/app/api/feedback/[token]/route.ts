@@ -87,13 +87,16 @@ export async function POST(
       );
     }
 
+    // Validate tip amount if provided
+    const validTip = typeof tipAmount === 'number' && tipAmount > 0 ? tipAmount : null;
+
     // Update booking with feedback (allow updates)
     const updatedBooking = await prisma.booking.update({
       where: { id: booking.id },
       data: {
         customerRating: rating,
-        customerFeedback: feedback || null,
-        tipAmount: tipAmount || null,
+        customerFeedback: typeof feedback === 'string' ? feedback.slice(0, 5000) : null,
+        tipAmount: validTip,
         feedbackSubmittedAt: booking.feedbackSubmittedAt || new Date(), // Only set on first submission
       },
     });
