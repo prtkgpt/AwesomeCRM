@@ -48,7 +48,7 @@ async function main() {
   const userResult: any[] = await prisma.$queryRawUnsafe(`
     INSERT INTO "User" ("id", "email", "passwordHash", "name", "companyId", "role", "isPlatformAdmin", "createdAt", "updatedAt")
     VALUES (gen_random_uuid()::text, $1, $2, 'Scooter Gupta', $3, 'OWNER', true, NOW(), NOW())
-    ON CONFLICT ("email") DO UPDATE SET "isPlatformAdmin" = true, "passwordHash" = $2
+    ON CONFLICT ("email") DO UPDATE SET "isPlatformAdmin" = true, "passwordHash" = $2, "role" = 'OWNER', "companyId" = $3, "name" = 'Scooter Gupta'
     RETURNING "id"
   `, email, passwordHash, companyId);
 
