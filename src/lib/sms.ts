@@ -1,5 +1,6 @@
 // SMS utility using Twilio
 // Install: npm install twilio
+import { formatDate, formatTime } from '@/lib/utils';
 
 interface SendSMSParams {
   to: string;
@@ -56,16 +57,8 @@ export function getBookingConfirmationSMSMessage(data: {
   scheduledDate: string;
   address: string;
 }) {
-  const date = new Date(data.scheduledDate);
-  const dateStr = date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
-  });
-  const timeStr = date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit'
-  });
+  const dateStr = formatDate(data.scheduledDate, 'EEEE, MMMM d');
+  const timeStr = formatTime(data.scheduledDate);
 
   return `Hi ${data.customerName}! Your cleaning with ${data.companyName} is confirmed for ${dateStr} at ${timeStr}. Location: ${data.address}. We look forward to serving you!`;
 }

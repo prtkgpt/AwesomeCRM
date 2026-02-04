@@ -16,14 +16,17 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email and password are required');
         }
 
+        const email = credentials.email.toLowerCase().trim();
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
           select: {
             id: true,
             email: true,
             name: true,
             role: true,
             companyId: true,
+            isPlatformAdmin: true,
           },
         });
 
@@ -32,7 +35,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const userWithPassword = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
           select: { passwordHash: true },
         });
 
@@ -51,6 +54,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           companyId: user.companyId,
+          isPlatformAdmin: user.isPlatformAdmin,
         };
       },
     }),
@@ -65,16 +69,20 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
-        token.companyId = (user as any).companyId;
+        token.name = user.name;
+        token.role = user.role;
+        token.companyId = user.companyId;
+        token.isPlatformAdmin = user.isPlatformAdmin;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        (session.user as any).role = token.role;
-        (session.user as any).companyId = token.companyId;
+        session.user.name = token.name as string;
+        session.user.role = token.role;
+        session.user.companyId = token.companyId;
+        session.user.isPlatformAdmin = token.isPlatformAdmin;
       }
       return session;
     },

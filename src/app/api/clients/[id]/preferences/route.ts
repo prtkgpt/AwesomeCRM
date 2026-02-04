@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET - Fetch client preferences
 export async function GET(
   req: NextRequest,
@@ -20,9 +23,22 @@ export async function GET(
 
     const clientId = params.id;
 
-    // Get client with preferences
-    const client = await prisma.client.findUnique({
-      where: { id: clientId },
+    // Get user's company for multi-tenant scoping
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get client with preferences, scoped to company
+    const client = await prisma.client.findFirst({
+      where: { id: clientId, companyId: user.companyId },
       include: {
         preferences: true,
       },
@@ -74,9 +90,22 @@ export async function PUT(
     const clientId = params.id;
     const body = await req.json();
 
-    // Verify client exists
-    const client = await prisma.client.findUnique({
-      where: { id: clientId },
+    // Get user's company for multi-tenant scoping
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Verify client exists and belongs to company
+    const client = await prisma.client.findFirst({
+      where: { id: clientId, companyId: user.companyId },
       include: {
         preferences: true,
       },
@@ -178,6 +207,31 @@ export async function DELETE(
     }
 
     const clientId = params.id;
+
+    // Get user's company for multi-tenant scoping
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Verify client belongs to company
+    const client = await prisma.client.findFirst({
+      where: { id: clientId, companyId: user.companyId },
+    });
+
+    if (!client) {
+      return NextResponse.json(
+        { error: 'Client not found' },
+        { status: 404 }
+      );
+    }
 
     // Check if preferences exist
     const existing = await prisma.clientPreference.findUnique({

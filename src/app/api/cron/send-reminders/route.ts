@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { sendSMS } from '@/lib/twilio';
 import { sendEmail } from '@/lib/email';
 import { formatDate, formatTime, normalizePhoneNumber } from '@/lib/utils';
+import { checkRateLimit } from '@/lib/rate-limit';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 /**
  * Automated Reminder Cron Job
@@ -14,6 +18,10 @@ import { formatDate, formatTime, normalizePhoneNumber } from '@/lib/utils';
  * 3. Morning-of reminder for cleaner (day of appointment at configured time)
  */
 export async function GET(request: NextRequest) {
+  // Rate limit: 2 cron executions per minute
+  const rateLimited = checkRateLimit(request, 'cron', 'cron-send-reminders');
+  if (rateLimited) return rateLimited;
+
   try {
     // Verify cron secret
     const authHeader = request.headers.get('authorization');

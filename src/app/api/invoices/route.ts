@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/invoices - List all invoices
 export async function GET(request: Request) {
   try {
@@ -78,9 +81,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate line items
+    for (const item of lineItems) {
+      if (typeof item.amount !== 'number' || item.amount < 0) {
+        return NextResponse.json({ error: 'Line item amounts must be non-negative numbers' }, { status: 400 });
+      }
+    }
+    const taxAmount = typeof tax === 'number' && tax >= 0 ? tax : 0;
+
     // Calculate totals
     const subtotal = lineItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
-    const taxAmount = tax || 0;
     const total = subtotal + taxAmount;
 
     // Generate invoice number (format: INV-YYYYMMDD-XXXX)

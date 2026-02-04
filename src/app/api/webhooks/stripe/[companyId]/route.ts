@@ -3,6 +3,9 @@ import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // Multi-tenant webhook endpoint - each company has their own URL
 // URL format: /api/webhooks/stripe/[companyId]
 export async function POST(
@@ -75,7 +78,7 @@ export async function POST(
         err.message
       );
       return NextResponse.json(
-        { error: `Webhook signature verification failed: ${err.message}` },
+        { error: 'Webhook signature verification failed' },
         { status: 400 }
       );
     }

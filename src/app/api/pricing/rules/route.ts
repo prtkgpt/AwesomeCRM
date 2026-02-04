@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // Validation schema for pricing rules
 const pricingRuleSchema = z.object({
   type: z.enum(['BEDROOM', 'BATHROOM', 'ADDON', 'CUSTOM']),
@@ -112,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: 'Invalid input data', details: error.errors },
+        { success: false, error: 'Invalid input data' },
         { status: 400 }
       );
     }

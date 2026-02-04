@@ -3,6 +3,24 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
+// Helper: get customer's client record scoped to company
+async function getCustomerClient(sessionUserId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: sessionUserId },
+    select: { companyId: true },
+  });
+
+  if (!user?.companyId) return null;
+
+  return prisma.client.findFirst({
+    where: { customerUserId: sessionUserId, companyId: user.companyId },
+    include: { preferences: true },
+  });
+}
+
 // GET - Fetch customer's own preferences
 export async function GET(req: NextRequest) {
   try {
@@ -15,11 +33,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get the client record for this user
-    const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
-      include: { preferences: true },
-    });
+    const client = await getCustomerClient(session.user.id);
 
     if (!client) {
       return NextResponse.json(
@@ -53,11 +67,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Get the client record for this user
-    const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
-      include: { preferences: true },
-    });
+    const client = await getCustomerClient(session.user.id);
 
     if (!client) {
       return NextResponse.json(
@@ -123,11 +133,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Get the client record for this user
-    const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
-      include: { preferences: true },
-    });
+    const client = await getCustomerClient(session.user.id);
 
     if (!client) {
       return NextResponse.json(

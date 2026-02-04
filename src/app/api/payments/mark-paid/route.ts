@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { markPaidSchema } from '@/lib/validations';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/payments/mark-paid - Mark booking as paid (cash/check/zelle)
 export async function POST(request: NextRequest) {
   try {
@@ -15,11 +18,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = markPaidSchema.parse(body);
 
-    // Verify booking ownership
+    // Get user's company for multi-tenant scoping
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Verify booking belongs to user's company
     const booking = await prisma.booking.findFirst({
       where: {
         id: validatedData.bookingId,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 

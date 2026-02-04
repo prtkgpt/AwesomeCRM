@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { updateBookingSchema } from '@/lib/validations';
 import { sendSMS } from '@/lib/twilio';
 import { sendEmail } from '@/lib/email';
+import { formatDate, formatTime } from '@/lib/utils';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 // GET /api/bookings/[id] - Get booking details
 export async function GET(
@@ -220,16 +224,8 @@ export async function PUT(
       const cleanerEmail = booking.assignee.user.email;
       const cleanerPhone = booking.assignee.user.phone;
 
-      const scheduledDate = new Date(booking.scheduledDate);
-      const dateStr = scheduledDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      });
-      const timeStr = scheduledDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-      });
+      const dateStr = formatDate(booking.scheduledDate, 'EEEE, MMMM d');
+      const timeStr = formatTime(booking.scheduledDate);
 
       const fullAddress = `${booking.address.street}, ${booking.address.city}, ${booking.address.state} ${booking.address.zip}`;
 

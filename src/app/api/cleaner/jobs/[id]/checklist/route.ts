@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getChecklistTemplate, calculateChecklistStats, ChecklistTemplate } from '@/lib/checklist-templates';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -20,9 +23,22 @@ export async function GET(
 
     const bookingId = params.id;
 
-    // Get the booking to verify it exists and is assigned to this cleaner
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    // Get user's company for multi-tenant scoping
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get the booking to verify it exists, belongs to company, and is assigned to this cleaner
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, companyId: user.companyId },
       include: {
         assignee: {
           select: {
@@ -126,9 +142,22 @@ export async function PUT(
       );
     }
 
-    // Get the booking to verify access
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    // Get user's company for multi-tenant scoping
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get the booking to verify access and company scope
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, companyId: user.companyId },
       include: {
         assignee: {
           select: {

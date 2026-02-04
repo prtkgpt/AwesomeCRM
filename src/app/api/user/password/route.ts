@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(8, 'Password must be at least 8 characters'),
@@ -84,18 +87,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to change password: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to change password - unknown error' },
+      { success: false, error: 'Failed to change password' },
       { status: 500 }
     );
   }

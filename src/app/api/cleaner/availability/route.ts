@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET /api/cleaner/availability - Get cleaner's availability
 export async function GET(request: NextRequest) {
   try {
@@ -51,18 +54,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('🔴 GET /api/cleaner/availability error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to fetch availability: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch availability - unknown error' },
+      { success: false, error: 'Failed to fetch availability' },
       { status: 500 }
     );
   }
@@ -143,27 +136,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('🔴 POST /api/cleaner/availability error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-
-      // Check for specific Prisma errors
-      if (error.message.includes('Foreign key constraint')) {
-        return NextResponse.json({
-          success: false,
-          error: 'Invalid company or user reference - please contact support'
-        }, { status: 400 });
-      }
-
-      return NextResponse.json({
-        success: false,
-        error: `Failed to update availability: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to update availability - unknown error' },
+      { success: false, error: 'Failed to update availability' },
       { status: 500 }
     );
   }

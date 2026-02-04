@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/payments/pre-auth-check - Check card validity 24 hours before cleaning
 // This should be called by a cron job or scheduled task
 export async function POST(request: NextRequest) {
@@ -114,11 +117,20 @@ export async function POST(request: NextRequest) {
       } catch (error: any) {
         console.error(`🔴 Pre-auth failed for booking ${booking.id}:`, error.message);
 
+        // Sanitize error - don't expose raw Stripe error details
+        let errorReason = 'Payment verification failed';
+        if (error?.type === 'StripeCardError') {
+          errorReason = 'Card declined or expired';
+        } else if (error?.type === 'StripeAuthenticationError') {
+          errorReason = 'Stripe authentication failed';
+        } else if (error?.code === 'payment_method_not_available') {
+          errorReason = 'Payment method no longer available';
+        }
+
         results.push({
           bookingId: booking.id,
           status: 'error',
-          error: error.message,
-          code: error.code,
+          error: errorReason,
         });
 
         // TODO: Notify admin about failed pre-auth

@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST - Submit a customer review for a booking
 export async function POST(
   req: NextRequest,
@@ -18,6 +21,18 @@ export async function POST(
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user?.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
     const bookingId = params.id;
     const body = await req.json();
     const { rating, feedback } = body;
@@ -30,16 +45,13 @@ export async function POST(
       );
     }
 
-    // Get the booking and verify ownership
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    // Get the booking scoped to company and verify ownership
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, companyId: user.companyId },
       include: {
-        client: true,
-        assignee: {
-          include: {
-            user: true
-          }
-        }
+        client: {
+          select: { customerUserId: true },
+        },
       },
     });
 
@@ -50,8 +62,8 @@ export async function POST(
       );
     }
 
-    // Verify the booking belongs to a client owned by this user
-    if (booking.client.userId !== session.user.id) {
+    // Verify the booking belongs to this customer's client record
+    if (booking.client.customerUserId !== session.user.id) {
       return NextResponse.json(
         { success: false, error: 'You can only review your own bookings' },
         { status: 403 }
@@ -79,7 +91,7 @@ export async function POST(
       where: { id: bookingId },
       data: {
         customerRating: rating,
-        customerFeedback: feedback || null,
+        customerFeedback: typeof feedback === 'string' ? feedback.slice(0, 5000) : null,
         feedbackSubmittedAt: new Date(),
       },
     });

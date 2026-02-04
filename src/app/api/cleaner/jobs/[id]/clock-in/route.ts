@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/cleaner/jobs/[id]/clock-in - Clock in to a job
 export async function POST(
   request: NextRequest,
@@ -106,18 +109,8 @@ export async function POST(
   } catch (error) {
     console.error('🔴 POST /api/cleaner/jobs/[id]/clock-in error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to clock in: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to clock in - unknown error' },
+      { success: false, error: 'Failed to clock in' },
       { status: 500 }
     );
   }

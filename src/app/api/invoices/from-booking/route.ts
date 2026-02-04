@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { formatDate } from '@/lib/utils';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 // POST /api/invoices/from-booking - Generate invoice from a booking
 export async function POST(request: Request) {
@@ -47,9 +51,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Check if booking already has an invoice
+    // Check if booking already has an invoice (scoped to company)
     const existingInvoice = await prisma.invoice.findFirst({
-      where: { bookingId },
+      where: { bookingId, companyId: user.companyId },
     });
 
     if (existingInvoice) {
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
         subtotal,
         tax: taxAmount,
         total,
-        notes: notes || `Service completed on ${new Date(booking.scheduledDate).toLocaleDateString()}`,
+        notes: notes || `Service completed on ${formatDate(booking.scheduledDate)}`,
         terms: terms || 'Payment due within 30 days',
         status: 'DRAFT',
       },

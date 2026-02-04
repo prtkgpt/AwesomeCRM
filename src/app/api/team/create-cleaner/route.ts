@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 const createCleanerSchema = z.object({
   // User fields
   name: z.string().min(1, 'Name is required'),

@@ -3,6 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
+import { formatDate } from '@/lib/utils';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 // POST /api/invoices/[id]/send - Send invoice email to client
 export async function POST(
@@ -95,14 +99,14 @@ export async function POST(
             ${invoice.booking ? `
               <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
                 <p style="margin: 5px 0; font-size: 14px;"><strong>Service:</strong> ${invoice.booking.serviceType.replace('_', ' ')}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><strong>Date:</strong> ${new Date(invoice.booking.scheduledDate).toLocaleDateString()}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><strong>Date:</strong> ${formatDate(invoice.booking.scheduledDate)}</p>
               </div>
             ` : ''}
 
             <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center;">
               <p style="margin: 0 0 10px 0; font-size: 14px; color: #6b7280;">Amount Due</p>
               <p style="margin: 0; font-size: 36px; font-weight: bold; color: #1e40af;">$${invoice.total.toFixed(2)}</p>
-              <p style="margin: 10px 0 0 0; font-size: 14px; color: #6b7280;">Due by ${new Date(invoice.dueDate).toLocaleDateString()}</p>
+              <p style="margin: 10px 0 0 0; font-size: 14px; color: #6b7280;">Due by ${formatDate(invoice.dueDate)}</p>
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
@@ -165,13 +169,10 @@ export async function POST(
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/invoices/[id]/send error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to send invoice',
-      },
+      { success: false, error: 'Failed to send invoice' },
       { status: 500 }
     );
   }

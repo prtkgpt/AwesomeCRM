@@ -3,6 +3,10 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { signupSchema } from '@/lib/validations';
 import { getDefaultFeatures } from '@/lib/features';
+import { checkRateLimit } from '@/lib/rate-limit';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 // Helper to generate slug from company name
 function generateSlug(name: string): string {
@@ -13,6 +17,10 @@ function generateSlug(name: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 3 signups per minute per IP
+  const rateLimited = checkRateLimit(request, 'signup');
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await request.json();
 

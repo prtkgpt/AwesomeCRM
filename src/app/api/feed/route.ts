@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { formatDate, formatTime } from '@/lib/utils';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 interface ActivityItem {
   id: string;
@@ -242,7 +246,7 @@ export async function GET(request: NextRequest) {
           type: 'activity',
           category: 'payment_charged',
           title: 'Payment processed',
-          description: `${booking.client.name} charged $${booking.price.toFixed(2)} for cleaning on ${scheduledDate.toLocaleDateString()}`,
+          description: `${booking.client.name} charged $${booking.price.toFixed(2)} for cleaning on ${formatDate(scheduledDate)}`,
           timestamp: booking.updatedAt,
           priority: 'low',
           metadata: {
@@ -260,7 +264,7 @@ export async function GET(request: NextRequest) {
           type: 'activity',
           category: 'booking_created',
           title: 'Booking scheduled',
-          description: `Scheduled ${booking.client.name} for ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${booking.assignee ? ` (Assigned to ${booking.assignee.user.name || 'cleaner'})` : ''}`,
+          description: `Scheduled ${booking.client.name} for ${formatDate(scheduledDate)} at ${formatTime(scheduledDate)}${booking.assignee ? ` (Assigned to ${booking.assignee.user.name || 'cleaner'})` : ''}`,
           timestamp: booking.createdAt,
           priority: 'low',
           metadata: {

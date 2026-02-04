@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/cleaner/jobs/[id]/complete - Mark job as completed
 export async function POST(
   request: NextRequest,
@@ -91,27 +94,8 @@ export async function POST(
   } catch (error) {
     console.error('🔴 POST /api/cleaner/jobs/[id]/complete error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-
-      // Check for specific Prisma errors
-      if (error.message.includes('Record to update not found')) {
-        return NextResponse.json({
-          success: false,
-          error: 'Job not found or already updated'
-        }, { status: 404 });
-      }
-
-      return NextResponse.json({
-        success: false,
-        error: `Failed to complete job: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to complete job - unknown error' },
+      { success: false, error: 'Failed to complete job' },
       { status: 500 }
     );
   }

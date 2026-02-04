@@ -46,7 +46,7 @@ export default function CustomerSignupPage() {
           throw new Error('Company not found');
         }
         const data = await response.json();
-        setCompany(data);
+        setCompany(data.data);
       } catch (err) {
         setError('Company not found. Please check the URL.');
       } finally {

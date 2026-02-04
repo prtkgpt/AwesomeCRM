@@ -1,5 +1,6 @@
 // Email utility using Resend (you can also use Nodemailer)
 // Install: npm install resend
+import { formatDate, formatTime, formatDateTime } from '@/lib/utils';
 
 interface SendEmailParams {
   to: string;
@@ -74,30 +75,6 @@ export async function sendEmail({ to, subject, html, from, replyTo, type, apiKey
       return { success: true, data };
     }
 
-    // Fallback: Use Nodemailer (if SMTP credentials are provided)
-    if (process.env.SMTP_HOST) {
-      const nodemailer = require('nodemailer');
-
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASSWORD,
-        },
-      });
-
-      const info = await transporter.sendMail({
-        from: fromAddress,
-        to,
-        subject,
-        html,
-      });
-
-      return { success: true, data: info };
-    }
-
     // Development mode: Just log the email
     if (process.env.NODE_ENV === 'development') {
       console.log('📧 Email (DEV MODE):');
@@ -151,7 +128,7 @@ export function getEstimateEmailTemplate(data: {
         </tr>
         <tr>
           <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Scheduled Date:</strong></td>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${new Date(data.scheduledDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${formatDate(data.scheduledDate, 'EEEE, MMMM d, yyyy')}</td>
         </tr>
         <tr>
           <td style="padding: 10px 0;"><strong>Estimated Price:</strong></td>
@@ -223,7 +200,7 @@ export function getBookingConfirmationEmailTemplate(data: {
         </tr>
         <tr>
           <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Date & Time:</strong></td>
-          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${new Date(data.scheduledDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}<br>${new Date(data.scheduledDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${formatDate(data.scheduledDate, 'EEEE, MMMM d')}<br>${formatTime(data.scheduledDate)}</td>
         </tr>
         <tr>
           <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Address:</strong></td>

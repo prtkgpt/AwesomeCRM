@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // POST /api/feedback/[token]/record-manual-payment - Record manual payment (CashApp, Venmo, etc.)
 export async function POST(
   request: NextRequest,
@@ -66,10 +69,10 @@ export async function POST(
         { status: 400 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/feedback/[token]/record-manual-payment error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to record payment' },
+      { success: false, error: 'Failed to record payment' },
       { status: 500 }
     );
   }
