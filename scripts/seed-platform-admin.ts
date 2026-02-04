@@ -8,40 +8,56 @@ async function main() {
   const password = 'password123';
   const passwordHash = await bcrypt.hash(password, 12);
 
-  // Platform admins need a companyId — upsert a dedicated platform company
-  const platformCompany = await prisma.company.upsert({
-    where: { slug: 'cleanday-platform' },
-    update: {},
-    create: {
-      name: 'CleanDay Platform',
-      slug: 'cleanday-platform',
-      email: 'admin@cleandaycrm.com',
-      plan: 'PRO',
-      subscriptionStatus: 'ACTIVE',
-    },
-  });
+  // Ensure isPlatformAdmin column exists
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isPlatformAdmin" BOOLEAN NOT NULL DEFAULT false
+  `);
 
-  // Upsert the platform admin user
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: {
-      isPlatformAdmin: true,
-      passwordHash,
-    },
-    create: {
-      email,
-      passwordHash,
-      name: 'Scooter Gupta',
-      companyId: platformCompany.id,
-      role: 'OWNER',
-      isPlatformAdmin: true,
-    },
-  });
+  // Ensure winBackEnabled and other required Company columns exist
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "winBackEnabled" BOOLEAN NOT NULL DEFAULT false`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "winBackConfig" JSONB`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "referralEnabled" BOOLEAN NOT NULL DEFAULT false`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "referralReferrerReward" DOUBLE PRECISION DEFAULT 25`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "referralRefereeReward" DOUBLE PRECISION DEFAULT 25`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "onlineBookingEnabled" BOOLEAN NOT NULL DEFAULT true`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "minimumLeadTimeHours" INTEGER NOT NULL DEFAULT 2`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "maxDaysAhead" INTEGER NOT NULL DEFAULT 60`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "requireApproval" BOOLEAN NOT NULL DEFAULT false`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "yelpReviewUrl" TEXT`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "insuranceCost" DOUBLE PRECISION DEFAULT 0`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "bondCost" DOUBLE PRECISION DEFAULT 0`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "workersCompCost" DOUBLE PRECISION DEFAULT 0`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "cleaningSuppliesCost" DOUBLE PRECISION DEFAULT 0`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "gasReimbursementRate" DOUBLE PRECISION DEFAULT 0`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "vaAdminSalary" DOUBLE PRECISION DEFAULT 0`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "ownerSalary" DOUBLE PRECISION DEFAULT 0`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "otherExpenses" DOUBLE PRECISION DEFAULT 0`);
+
+  // Use raw SQL to upsert the platform company (bypasses Prisma schema validation)
+  const companyResult: any[] = await prisma.$queryRawUnsafe(`
+    INSERT INTO "Company" ("id", "name", "slug", "email", "plan", "subscriptionStatus", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid()::text, 'CleanDay Platform', 'cleanday-platform', 'admin@cleandaycrm.com', 'PRO', 'ACTIVE', NOW(), NOW())
+    ON CONFLICT ("slug") DO UPDATE SET "name" = EXCLUDED."name"
+    RETURNING "id", "name"
+  `);
+
+  const companyId = companyResult[0].id;
+  const companyName = companyResult[0].name;
+
+  // Use raw SQL to upsert the platform admin user
+  const userResult: any[] = await prisma.$queryRawUnsafe(`
+    INSERT INTO "User" ("id", "email", "passwordHash", "name", "companyId", "role", "isPlatformAdmin", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid()::text, $1, $2, 'Scooter Gupta', $3, 'OWNER', true, NOW(), NOW())
+    ON CONFLICT ("email") DO UPDATE SET "isPlatformAdmin" = true, "passwordHash" = $2
+    RETURNING "id"
+  `, email, passwordHash, companyId);
+
+  const userId = userResult[0].id;
 
   console.log('Platform admin created successfully:');
   console.log(`  Email: ${email}`);
-  console.log(`  User ID: ${user.id}`);
-  console.log(`  Company: ${platformCompany.name} (${platformCompany.id})`);
+  console.log(`  User ID: ${userId}`);
+  console.log(`  Company: ${companyName} (${companyId})`);
   console.log(`  isPlatformAdmin: true`);
 }
 
