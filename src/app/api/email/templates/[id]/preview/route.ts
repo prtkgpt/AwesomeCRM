@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -19,7 +19,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true, role: true },
       include: {
         company: {
           select: { name: true, logo: true, primaryColor: true, phone: true, email: true },
@@ -95,7 +94,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Identify any remaining unresolved variables
     const unresolvedInSubject = previewSubject.match(/\{\{(\w+)\}\}/g) || [];
     const unresolvedInHtml = previewHtml.match(/\{\{(\w+)\}\}/g) || [];
-    const unresolvedVariables = [...new Set([...unresolvedInSubject, ...unresolvedInHtml])];
+    const unresolvedVariables = Array.from(new Set([...unresolvedInSubject, ...unresolvedInHtml]));
 
     return NextResponse.json({
       success: true,

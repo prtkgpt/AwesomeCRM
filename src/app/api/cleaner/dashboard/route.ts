@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, addDays, format, differenceInMinutes } from 'date-fns';
 
 // GET: Get cleaner dashboard data
@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true, role: true, name: true },
       include: { teamMember: true },
     });
 

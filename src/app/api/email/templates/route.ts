@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const createTemplateSchema = z.object({
@@ -85,12 +85,12 @@ export async function POST(request: NextRequest) {
     // Extract variables from the content ({{variableName}})
     const extractVariables = (content: string): string[] => {
       const matches = content.match(/\{\{(\w+)\}\}/g) || [];
-      return [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, '')))];
+      return Array.from(new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, ''))));
     };
 
     const htmlVariables = extractVariables(validatedData.htmlContent);
     const subjectVariables = extractVariables(validatedData.subject);
-    const allVariables = [...new Set([...htmlVariables, ...subjectVariables])];
+    const allVariables = Array.from(new Set([...htmlVariables, ...subjectVariables]));
 
     const template = await prisma.emailTemplate.create({
       data: {

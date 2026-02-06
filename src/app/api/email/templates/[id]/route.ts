@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const updateTemplateSchema = z.object({
@@ -98,11 +98,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!variables && (validatedData.htmlContent || validatedData.subject)) {
       const extractVariables = (content: string): string[] => {
         const matches = content.match(/\{\{(\w+)\}\}/g) || [];
-        return [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, '')))];
+        return Array.from(new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, ''))));
       };
       const htmlVars = extractVariables(validatedData.htmlContent || existingTemplate.htmlContent);
       const subjectVars = extractVariables(validatedData.subject || existingTemplate.subject);
-      variables = [...new Set([...htmlVars, ...subjectVars])];
+      variables = Array.from(new Set([...htmlVars, ...subjectVars]));
     }
 
     const template = await prisma.emailTemplate.update({

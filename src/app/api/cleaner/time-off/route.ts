@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
 
@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true, role: true },
       include: { teamMember: true },
     });
 
@@ -87,7 +86,6 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true, role: true },
       include: { teamMember: true },
     });
 
@@ -252,7 +250,6 @@ export async function DELETE(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { companyId: true, role: true },
       include: { teamMember: true },
     });
 
