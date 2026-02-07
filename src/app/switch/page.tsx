@@ -2,10 +2,7 @@ import Link from 'next/link';
 import {
   Calendar,
   DollarSign,
-  Users,
   Clock,
-  MessageSquare,
-  TrendingUp,
   Shield,
   Zap,
   Star,
@@ -15,10 +12,7 @@ import {
   ArrowRight,
   AlertTriangle,
   Heart,
-  CreditCard,
   FileText,
-  BarChart3,
-  Bell,
   Settings,
   Sparkles,
   ChevronRight,
@@ -27,6 +21,7 @@ import {
   HeartHandshake,
   Rocket
 } from 'lucide-react';
+import { SwitchPageCTA } from '@/components/marketing';
 
 export const metadata = {
   title: 'Switch to CleanDay CRM - Save 90% on Your Cleaning Business Software',
@@ -168,7 +163,7 @@ export default function SwitchPage() {
               Sign In
             </Link>
             <Link
-              href="https://buy.stripe.com/8wM5kCdLV6yq1gs4gh"
+              href="/signup"
               className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg font-semibold hover:shadow-lg transition-all"
             >
               Start Free Trial
@@ -225,22 +220,7 @@ export default function SwitchPage() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="https://buy.stripe.com/8wM5kCdLV6yq1gs4gh"
-              className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl text-lg font-bold hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2"
-            >
-              <Zap className="h-5 w-5" />
-              Start Free 14-Day Trial
-            </Link>
-            <Link
-              href="/compare"
-              className="bg-white border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-xl text-lg font-bold hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
-            >
-              See Full Comparison
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-          </div>
+          <SwitchPageCTA variant="hero" />
 
           <p className="mt-6 text-gray-500 text-sm">
             No credit card required • Cancel anytime • Free data migration
@@ -554,22 +534,7 @@ export default function SwitchPage() {
             are saving thousands of dollars every year.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <Link
-              href="https://buy.stripe.com/8wM5kCdLV6yq1gs4gh"
-              className="bg-white text-green-700 px-8 py-4 rounded-xl text-lg font-bold hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2"
-            >
-              <Zap className="h-5 w-5" />
-              Start Your Free Trial Now
-            </Link>
-            <Link
-              href="/signup"
-              className="bg-green-700 text-white border-2 border-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-green-800 transition-all flex items-center justify-center gap-2"
-            >
-              <MessageSquare className="h-5 w-5" />
-              Talk to Our Team
-            </Link>
-          </div>
+          <SwitchPageCTA variant="final" />
 
           <div className="flex flex-wrap justify-center gap-6 text-green-100">
             <div className="flex items-center gap-2">

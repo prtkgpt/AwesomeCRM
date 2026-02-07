@@ -1457,6 +1457,48 @@ model NotificationPreference {
 }
 
 // ============================================
+// INBOUND PROSPECTS (Platform-level)
+// ============================================
+
+enum ProspectStatus {
+  NEW           // Fresh lead, not yet contacted
+  CONTACTED     // Initial contact made
+  QUALIFIED     // Qualified as a good lead
+  CONVERTED     // Converted to customer
+  NOT_INTERESTED // Lead declined or not a fit
+}
+
+model Prospect {
+  id              String          @id @default(cuid())
+
+  // Contact info
+  fullName        String
+  businessName    String
+  phone           String
+  email           String
+  area            String          // Service area/location
+  website         String?
+
+  // Lead source
+  source          String          @default("SWITCH_PAGE") // SWITCH_PAGE, LANDING, REFERRAL, etc.
+
+  // Status tracking
+  status          ProspectStatus  @default(NEW)
+  notes           String?         // Admin notes
+
+  // Follow-up
+  lastContactedAt DateTime?
+  followUpDate    DateTime?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+}
+
+// ============================================
 // BLOG / CMS (Platform-level)
 // ============================================
 
