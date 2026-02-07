@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, addDays, format, differenceInMinutes } from 'date-fns';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Get cleaner dashboard data
 export async function GET(request: NextRequest) {
   try {
