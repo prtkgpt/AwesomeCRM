@@ -94,10 +94,10 @@ export async function POST(
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/feedback/[token]/create-tip-payment error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to create payment intent' },
+      { success: false, error: 'Failed to create payment intent' },
       { status: 500 }
     );
   }

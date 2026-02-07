@@ -121,8 +121,16 @@ export async function PATCH(
     let updateData: any = {};
 
     if (lineItems) {
+      if (!Array.isArray(lineItems)) {
+        return NextResponse.json({ error: 'Line items must be an array' }, { status: 400 });
+      }
+      for (const item of lineItems) {
+        if (typeof item.amount !== 'number' || item.amount < 0) {
+          return NextResponse.json({ error: 'Line item amounts must be non-negative numbers' }, { status: 400 });
+        }
+      }
       const subtotal = lineItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
-      const taxAmount = tax !== undefined ? tax : existingInvoice.tax;
+      const taxAmount = typeof tax === 'number' && tax >= 0 ? tax : (existingInvoice.tax || 0);
       updateData.lineItems = lineItems;
       updateData.subtotal = subtotal;
       updateData.tax = taxAmount;
@@ -193,11 +201,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify ownership
+    // Get user's company for multi-tenant scoping
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Verify ownership via company scope
     const invoice = await prisma.invoice.findFirst({
       where: {
         id: params.id,
-        userId: session.user.id,
+        companyId: user.companyId,
       },
     });
 

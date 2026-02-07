@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // Rate limit: 20 estimate views per minute per IP
+  const rateLimited = checkRateLimit(request, 'publicEstimate');
+  if (rateLimited) return rateLimited;
+
   try {
     // Find booking by estimate token
     const booking = await prisma.booking.findFirst({

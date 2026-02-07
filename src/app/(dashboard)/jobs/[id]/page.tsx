@@ -81,6 +81,7 @@ export default function JobDetailPage() {
   const [cleaners, setCleaners] = useState<any[]>([]);
   const [sendingFeedback, setSendingFeedback] = useState(false);
   const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
+  const [copiedPaymentLink, setCopiedPaymentLink] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>('stripe');
   const [copayPaymentMethod, setCopayPaymentMethod] = useState<string>('STRIPE');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -308,8 +309,32 @@ export default function JobDetailPage() {
     }
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fallback for browsers/contexts where clipboard API fails
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        return true;
+      } catch {
+        return false;
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+  };
+
   const handleCreatePaymentLink = async () => {
     setCreatingPaymentLink(true);
+    setCopiedPaymentLink(null);
     try {
       const response = await fetch('/api/payments/create-link', {
         method: 'POST',
@@ -320,9 +345,9 @@ export default function JobDetailPage() {
       const data = await response.json();
 
       if (data.success && data.data.paymentLink) {
-        // Copy payment link to clipboard
-        await navigator.clipboard.writeText(data.data.paymentLink);
-        alert(`Payment link created and copied to clipboard!\n\nYou can now share this link with the customer:\n${data.data.paymentLink}`);
+        const link = data.data.paymentLink;
+        await copyToClipboard(link);
+        setCopiedPaymentLink(link);
         fetchJob(); // Refresh to show updated payment info
       } else {
         alert(data.error || 'Failed to create payment link');
@@ -1454,18 +1479,55 @@ export default function JobDetailPage() {
                 </>
               ) : (
                 <>
-                  <Button
-                    onClick={handleCreatePaymentLink}
-                    disabled={creatingPaymentLink}
-                    size="sm"
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    <CreditCard className="h-4 w-4 mr-1" />
-                    {creatingPaymentLink ? 'Creating...' : 'Create Payment Link'}
-                  </Button>
-                  <p className="text-xs text-gray-500">
-                    Creates a Stripe payment link and copies to clipboard
-                  </p>
+                  {copiedPaymentLink ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1 text-green-700 text-xs font-medium">
+                        <Check className="h-3.5 w-3.5" />
+                        Copied to clipboard!
+                      </div>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          readOnly
+                          value={copiedPaymentLink}
+                          className="flex-1 text-xs bg-gray-50 border rounded px-2 py-1.5 text-gray-600 min-w-0"
+                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0 px-2"
+                          onClick={() => copyToClipboard(copiedPaymentLink)}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <Button
+                        onClick={handleCreatePaymentLink}
+                        disabled={creatingPaymentLink}
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-xs"
+                      >
+                        Create New Link
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={handleCreatePaymentLink}
+                        disabled={creatingPaymentLink}
+                        size="sm"
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        <CreditCard className="h-4 w-4 mr-1" />
+                        {creatingPaymentLink ? 'Creating...' : 'Create Payment Link'}
+                      </Button>
+                      <p className="text-xs text-gray-500">
+                        Creates a Stripe payment link and copies to clipboard
+                      </p>
+                    </>
+                  )}
                 </>
               )}
 
@@ -1730,21 +1792,46 @@ export default function JobDetailPage() {
               ) : (
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
                   <h3 className="font-semibold text-blue-900 mb-2">💳 Send Payment Link</h3>
-                  <p className="text-sm text-blue-700 mb-3">
-                    Create a Stripe payment link and copy to clipboard
-                  </p>
-                  <Button
-                    onClick={() => {
-                      handleCreatePaymentLink();
-                      setShowPaymentModal(false);
-                    }}
-                    disabled={creatingPaymentLink}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    size="lg"
-                  >
-                    <CreditCard className="h-5 w-5 mr-2" />
-                    {creatingPaymentLink ? 'Creating...' : 'Create Payment Link'}
-                  </Button>
+                  {copiedPaymentLink ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-1.5 text-green-700 text-sm font-medium">
+                        <Check className="h-4 w-4" />
+                        Payment link copied to clipboard!
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={copiedPaymentLink}
+                          className="flex-1 text-sm bg-white border rounded-md px-3 py-2 text-gray-600 min-w-0"
+                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                        />
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="shrink-0 px-3"
+                          onClick={() => copyToClipboard(copiedPaymentLink)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-blue-700 mb-3">
+                        Create a Stripe payment link and copy to clipboard
+                      </p>
+                      <Button
+                        onClick={handleCreatePaymentLink}
+                        disabled={creatingPaymentLink}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        size="lg"
+                      >
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        {creatingPaymentLink ? 'Creating...' : 'Create Payment Link'}
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
 

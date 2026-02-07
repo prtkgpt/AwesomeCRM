@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendSMS } from '@/lib/twilio';
 import { sendEmail } from '@/lib/email';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 // GET /api/cron/send-feedback-requests - Automatically send feedback requests 24hrs after job completion
 export async function GET(request: NextRequest) {
+  // Rate limit: 2 cron executions per minute
+  const rateLimited = checkRateLimit(request, 'cron', 'cron-feedback');
+  if (rateLimited) return rateLimited;
+
   try {
     // Verify cron secret
     const authHeader = request.headers.get('authorization');
@@ -105,7 +110,7 @@ export async function GET(request: NextRequest) {
             console.log(`✅ Sent feedback SMS to ${booking.client.phone} for booking ${booking.id}`);
           } catch (error) {
             console.error(`Failed to send feedback SMS for booking ${booking.id}:`, error);
-            errors.push(`SMS: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            errors.push('SMS: Send failed');
           }
         }
 
@@ -180,7 +185,7 @@ export async function GET(request: NextRequest) {
             console.log(`✅ Sent feedback email to ${booking.client.email} for booking ${booking.id}`);
           } catch (error) {
             console.error(`Failed to send feedback email for booking ${booking.id}:`, error);
-            errors.push(`Email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            errors.push('Email: Send failed');
           }
         }
 
@@ -214,7 +219,7 @@ export async function GET(request: NextRequest) {
         failed++;
         results.push({
           bookingId: booking.id,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: 'Failed to process booking',
           success: false,
         });
       }

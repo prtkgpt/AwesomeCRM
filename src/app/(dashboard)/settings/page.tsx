@@ -143,15 +143,6 @@ export default function SettingsPage() {
     errors?: string[];
   } | null>(null);
 
-  // Restore data state
-  const [restoring, setRestoring] = useState(false);
-  const [restoreResults, setRestoreResults] = useState<{
-    success: boolean;
-    message: string;
-    clients?: { restored: number; skipped: number };
-    bookings?: { restored: number; skipped: number; matchedFromBackup: number };
-  } | null>(null);
-
   useEffect(() => {
     fetchProfile();
     const userRole = (session?.user as any)?.role;
@@ -1622,106 +1613,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </form>
-
-              {/* Data Restoration Section */}
-              <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-red-600">Emergency Data Restoration</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-1">
-                    Restore deleted client and booking data from backup
-                  </p>
-                </div>
-
-                <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                    <div className="text-sm text-red-800 dark:text-red-200">
-                      <p className="font-medium">This will restore:</p>
-                      <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>45 clients for Awesome Maids LLC</li>
-                        <li>Their associated addresses</li>
-                        <li>Their bookings/jobs from backup</li>
-                      </ul>
-                      <p className="mt-2 text-xs">Existing records will be skipped (no duplicates).</p>
-                    </div>
-                  </div>
-                </div>
-
-                {restoreResults && (
-                  <div
-                    className={`rounded-lg p-4 border-2 mb-4 ${
-                      restoreResults.success
-                        ? 'bg-green-50 dark:bg-green-950 border-green-500'
-                        : 'bg-red-50 dark:bg-red-950 border-red-500'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      {restoreResults.success ? (
-                        <CheckCircle className="h-6 w-6 text-green-600 mt-0.5" />
-                      ) : (
-                        <XCircle className="h-6 w-6 text-red-600 mt-0.5" />
-                      )}
-                      <div className="flex-1">
-                        <p className="font-semibold">{restoreResults.message}</p>
-                        {restoreResults.clients && (
-                          <p className="text-sm mt-1">
-                            Clients: {restoreResults.clients.restored} restored, {restoreResults.clients.skipped} skipped
-                          </p>
-                        )}
-                        {restoreResults.bookings && (
-                          <p className="text-sm">
-                            Bookings: {restoreResults.bookings.restored} restored, {restoreResults.bookings.skipped} skipped
-                            (matched {restoreResults.bookings.matchedFromBackup} from backup)
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={restoring}
-                  className="w-full"
-                  size="lg"
-                  onClick={async () => {
-                    if (!confirm('Are you sure you want to restore data? This will restore 45 clients and their bookings.')) {
-                      return;
-                    }
-                    setRestoring(true);
-                    setRestoreResults(null);
-                    try {
-                      const response = await fetch('/api/admin/restore-from-backup', {
-                        method: 'POST',
-                      });
-                      const data = await response.json();
-                      setRestoreResults({
-                        success: data.success,
-                        message: data.message || (data.success ? 'Restoration completed!' : data.error),
-                        clients: data.results?.clients,
-                        bookings: data.results?.bookings,
-                      });
-                    } catch (error: any) {
-                      setRestoreResults({
-                        success: false,
-                        message: error.message || 'Restoration failed',
-                      });
-                    } finally {
-                      setRestoring(false);
-                    }
-                  }}
-                >
-                  {restoring ? (
-                    <>Restoring Data...</>
-                  ) : (
-                    <>
-                      <Download className="h-5 w-5 mr-2" />
-                      Restore 45 Clients &amp; Bookings
-                    </>
-                  )}
-                </Button>
-              </div>
             </Card>
           )}
 

@@ -118,13 +118,10 @@ export async function PATCH(
         inviteLink, // Include link so admin can share manually
       }, { status: 500 });
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('PATCH /api/team/invitations/[id] error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to resend invitation',
-      },
+      { success: false, error: 'Failed to resend invitation' },
       { status: 500 }
     );
   }
@@ -194,21 +191,11 @@ export async function DELETE(
       success: true,
       message: 'Invitation deleted successfully',
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('DELETE /api/team/invitations/[id] error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-      invitationId: params.id,
-    });
 
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to delete invitation',
-        details: error.code || undefined,
-      },
+      { success: false, error: 'Failed to delete invitation' },
       { status: 500 }
     );
   }

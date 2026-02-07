@@ -5,12 +5,17 @@ import { prisma } from '@/lib/prisma';
 import { sendSMS, fillTemplate, twilioPhoneNumber } from '@/lib/twilio';
 import { sendMessageSchema } from '@/lib/validations';
 import { normalizePhoneNumber } from '@/lib/utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 // POST /api/messages/send - Send SMS message
 export async function POST(request: NextRequest) {
+  // Rate limit: 20 messages per minute per IP
+  const rateLimited = checkRateLimit(request, 'messages');
+  if (rateLimited) return rateLimited;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

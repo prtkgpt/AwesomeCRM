@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  // Rate limit: 3 customer signups per minute per IP
+  const rateLimited = checkRateLimit(request, 'signup');
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await request.json();
     const { name, email, password, phone } = body;
@@ -96,10 +101,7 @@ export async function POST(
   } catch (error) {
     console.error('POST /api/public/customer/signup error:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to create account',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Failed to create account' },
       { status: 500 }
     );
   }

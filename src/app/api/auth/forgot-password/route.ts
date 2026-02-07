@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import { sendEmail } from '@/lib/email';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 3 password reset requests per 15 minutes per IP
+  const rateLimited = checkRateLimit(request, 'forgotPassword');
+  if (rateLimited) return rateLimited;
+
   try {
     const { email } = await request.json();
 

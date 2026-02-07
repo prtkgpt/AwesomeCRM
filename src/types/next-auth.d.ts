@@ -7,12 +7,14 @@ declare module 'next-auth' {
       id: string;
       role: 'OWNER' | 'ADMIN' | 'CLEANER' | 'CUSTOMER';
       companyId: string;
+      isPlatformAdmin?: boolean;
     } & DefaultSession['user'];
   }
 
   interface User extends DefaultUser {
     role: 'OWNER' | 'ADMIN' | 'CLEANER' | 'CUSTOMER';
     companyId: string;
+    isPlatformAdmin?: boolean;
   }
 }
 
@@ -21,5 +23,6 @@ declare module 'next-auth/jwt' {
     id: string;
     role: 'OWNER' | 'ADMIN' | 'CLEANER' | 'CUSTOMER';
     companyId: string;
+    isPlatformAdmin?: boolean;
   }
 }

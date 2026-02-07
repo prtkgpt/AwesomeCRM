@@ -42,7 +42,7 @@ export async function POST(
     }
 
     // Fetch the booking/estimate
-    const booking = await prisma.booking.findUnique({
+    const booking = await prisma.booking.findFirst({
       where: {
         id: params.id,
         companyId: user.companyId,

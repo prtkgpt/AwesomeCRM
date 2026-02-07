@@ -37,7 +37,9 @@ export default function LoginPage() {
         const userRole = session?.user?.role;
 
         // Redirect based on role
-        if (userRole === 'CLEANER') {
+        if (session?.user?.isPlatformAdmin) {
+          router.push('/platform');
+        } else if (userRole === 'CLEANER') {
           router.push('/cleaner/dashboard');
         } else if (userRole === 'CUSTOMER') {
           router.push('/customer/dashboard');

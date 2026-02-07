@@ -18,9 +18,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get the client record for this user with addresses
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user?.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get the client record scoped to company
     const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
+      where: { customerUserId: session.user.id, companyId: user.companyId },
       include: {
         addresses: {
           orderBy: { createdAt: 'asc' }
@@ -60,9 +72,21 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Get the client record for this user
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true },
+    });
+
+    if (!user?.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get the client record scoped to company
     const client = await prisma.client.findFirst({
-      where: { userId: session.user.id },
+      where: { customerUserId: session.user.id, companyId: user.companyId },
     });
 
     if (!client) {

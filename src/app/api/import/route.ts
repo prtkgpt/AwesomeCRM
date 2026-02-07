@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
         message: 'Failed to process import',
         imported: 0,
         failed: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Import processing failed',
       },
       { status: 500 }
     );

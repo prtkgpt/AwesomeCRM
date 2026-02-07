@@ -84,18 +84,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('🔴 GET /api/cleaner/profile error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to fetch profile: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch profile - unknown error' },
+      { success: false, error: 'Failed to fetch profile' },
       { status: 500 }
     );
   }
@@ -201,26 +191,16 @@ export async function PUT(request: NextRequest) {
     console.error('🔴 PUT /api/cleaner/profile error:', error);
 
     if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-
-      // Check for specific Prisma errors
       if (error.message.includes('Unique constraint')) {
         return NextResponse.json({
           success: false,
           error: 'Phone number already in use by another user'
         }, { status: 400 });
       }
-
-      return NextResponse.json({
-        success: false,
-        error: `Failed to update profile: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
     }
 
     return NextResponse.json(
-      { success: false, error: 'Failed to update profile - unknown error' },
+      { success: false, error: 'Failed to update profile' },
       { status: 500 }
     );
   }

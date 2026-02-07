@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/clients error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch clients', details: error instanceof Error ? error.message : String(error) },
+      { success: false, error: 'Failed to fetch clients' },
       { status: 500 }
     );
   }
@@ -280,25 +280,15 @@ export async function POST(request: NextRequest) {
 
     // Handle Zod validation errors
     if (error instanceof Error && error.name === 'ZodError') {
-      const zodError = error as any;
-      const fieldErrors = zodError.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
-      console.error('🔴 Validation errors:', fieldErrors);
+      console.error('🔴 Validation errors:', error);
       return NextResponse.json(
-        {
-          success: false,
-          error: fieldErrors || 'Invalid input data',
-          details: zodError.errors
-        },
+        { success: false, error: 'Invalid input data' },
         { status: 400 }
       );
     }
 
-    // Handle Prisma errors
+    // Handle specific known errors
     if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-
-      // Check for specific Prisma errors
       if (error.message.includes('Unique constraint')) {
         return NextResponse.json(
           { success: false, error: 'A client with this email or phone already exists' },
@@ -312,20 +302,10 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-
-      // Return the actual error message for debugging
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Failed to create client: ${error.message}`,
-          details: error.stack
-        },
-        { status: 500 }
-      );
     }
 
     return NextResponse.json(
-      { success: false, error: 'Failed to create client. Please try again.' },
+      { success: false, error: 'Failed to create client' },
       { status: 500 }
     );
   }

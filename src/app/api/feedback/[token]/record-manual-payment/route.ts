@@ -69,10 +69,10 @@ export async function POST(
         { status: 400 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/feedback/[token]/record-manual-payment error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to record payment' },
+      { success: false, error: 'Failed to record payment' },
       { status: 500 }
     );
   }

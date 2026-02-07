@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendBirthdayGreeting, sendAnniversaryGreeting } from '@/lib/notifications';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,10 @@ export const dynamic = 'force-dynamic';
  * Schedule: 0 9 * * * (daily at 9:00 AM)
  */
 export async function GET(request: NextRequest) {
+  // Rate limit: 2 cron executions per minute
+  const rateLimited = checkRateLimit(request, 'cron', 'cron-greetings');
+  if (rateLimited) return rateLimited;
+
   try {
     // Verify cron secret to prevent unauthorized access
     const authHeader = request.headers.get('authorization');
@@ -126,7 +131,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Greeting cron job failed',
         timestamp: new Date().toISOString(),
       },
       { status: 500 }

@@ -128,18 +128,8 @@ export async function POST(
   } catch (error) {
     console.error('🔴 POST /api/cleaner/jobs/[id]/clock-out error:', error);
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to clock out: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to clock out - unknown error' },
+      { success: false, error: 'Failed to clock out' },
       { status: 500 }
     );
   }

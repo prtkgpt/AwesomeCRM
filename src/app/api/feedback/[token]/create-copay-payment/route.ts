@@ -93,10 +93,10 @@ export async function POST(
       paymentIntentId: paymentIntent.id,
       amount: copayAmount,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/feedback/[token]/create-copay-payment error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to create payment intent' },
+      { success: false, error: 'Failed to create payment intent' },
       { status: 500 }
     );
   }

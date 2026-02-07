@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -168,7 +169,7 @@ export async function GET(request: NextRequest) {
         id: booking.id,
         type: 'booking',
         title: `${booking.serviceType} - ${booking.client.name}`,
-        subtitle: new Date(booking.scheduledDate).toLocaleDateString(),
+        subtitle: formatDate(booking.scheduledDate),
         description: booking.address
           ? `${booking.address.street}, ${booking.address.city}`
           : '',
@@ -215,7 +216,7 @@ export async function GET(request: NextRequest) {
         type: 'invoice',
         title: `Invoice ${invoice.invoiceNumber}`,
         subtitle: invoice.client.name,
-        description: `Due: ${new Date(invoice.dueDate).toLocaleDateString()}`,
+        description: `Due: ${formatDate(invoice.dueDate)}`,
         metadata: {
           status: invoice.status,
           amount: invoice.total,

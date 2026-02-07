@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { parseDateInCompanyTZ } from '@/lib/utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -60,6 +61,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  // Rate limit: 10 public bookings per minute per IP
+  const rateLimited = checkRateLimit(request, 'publicBooking');
+  if (rateLimited) return rateLimited;
+
   try {
     const { slug } = params;
 

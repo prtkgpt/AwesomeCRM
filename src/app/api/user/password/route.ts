@@ -87,18 +87,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (error instanceof Error && error.message) {
-      console.error('🔴 Error message:', error.message);
-      console.error('🔴 Error stack:', error.stack);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to change password: ${error.message}`,
-        details: error.stack
-      }, { status: 500 });
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to change password - unknown error' },
+      { success: false, error: 'Failed to change password' },
       { status: 500 }
     );
   }

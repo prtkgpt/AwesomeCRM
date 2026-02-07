@@ -86,6 +86,10 @@ model Company {
   ownerSalary           Float?   @default(0)      // Monthly owner salary
   otherExpenses         Float?   @default(0)      // Other monthly operational expenses
 
+  // Win-Back Automation
+  winBackEnabled        Boolean  @default(false)  // Enable/disable automated win-back
+  winBackConfig         Json?    // { steps: [{ days: 14, channel: "SMS", template: "...", discountPercent: 0 }, ...] }
+
   // Referral Program Configuration
   referralEnabled       Boolean  @default(false)  // Enable/disable referral program
   referralReferrerReward Float?  @default(25)     // Credit for referrer (e.g., $25)
@@ -106,6 +110,9 @@ model Company {
   bookings            Booking[]
   messages            Message[]
   messageTemplates    MessageTemplate[]
+  campaigns           Campaign[]
+  winBackAttempts     WinBackAttempt[]
+  discountCodes       DiscountCode[]
   invoices            Invoice[]
   teamMembers         TeamMember[]
   invitations         Invitation[]
@@ -134,6 +141,9 @@ model User {
 
   role          UserRole  @default(CUSTOMER)
 
+  // Platform Admin (CleanDayCRM team)
+  isPlatformAdmin Boolean @default(false)
+
   // Legacy field - kept for compatibility
   workspaceId   String?
 
@@ -142,6 +152,7 @@ model User {
   bookings      Booking[]
   messages      Message[]
   messageTemplates MessageTemplate[]
+  campaigns     Campaign[]
   invoices      Invoice[]
 
   // Cleaner profile (if role = CLEANER)
@@ -165,6 +176,9 @@ model User {
 
   // Backups created
   createdBackups CompanyBackup[]
+
+  // Blog posts authored (platform admin CMS)
+  blogPosts     BlogPost[]
 
   // Password reset
   resetToken       String?
@@ -313,9 +327,18 @@ model Client {
   enableBirthdayGreetings      Boolean @default(true)
   enableAnniversaryGreetings   Boolean @default(true)
 
+  // Marketing opt-out
+  marketingOptOut               Boolean @default(false)
+
   // Tracking sent greetings
   lastBirthdayGreetingSent     DateTime?
   lastAnniversaryGreetingSent  DateTime?
+
+  // Win-back tracking
+  winBackAttempts              WinBackAttempt[]
+
+  // Campaign recipient tracking
+  campaignRecipients           CampaignRecipient[]
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -690,6 +713,23 @@ enum MessageType {
   BIRTHDAY_GREETING
   ANNIVERSARY_GREETING
   REVIEW_REQUEST
+  MARKETING_SMS
+  MARKETING_EMAIL
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum CampaignChannel {
+  SMS
+  EMAIL
+  BOTH
 }
 
 model Message {
@@ -747,6 +787,148 @@ model MessageTemplate {
   @@unique([companyId, type])
   @@index([companyId])
   @@index([userId, type])
+}
+
+// ============================================
+// MARKETING CAMPAIGNS
+// ============================================
+
+model Campaign {
+  id              String          @id @default(cuid())
+
+  // Multi-tenancy
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name            String
+  channel         CampaignChannel @default(SMS)
+  status          CampaignStatus  @default(DRAFT)
+
+  subject         String?         // Email subject line
+  body            String          // Message content with {{variables}}
+
+  // Audience targeting
+  segmentFilter   Json?           // { tags: ["VIP"], noBookingDays: 90, etc. }
+  recipientCount  Int             @default(0)
+
+  // Stats
+  sentCount       Int             @default(0)
+  failedCount     Int             @default(0)
+
+  // Scheduling
+  scheduledFor    DateTime?
+  sentAt          DateTime?
+
+  // Recipients
+  recipients      CampaignRecipient[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([status])
+}
+
+model CampaignRecipient {
+  id          String          @id @default(cuid())
+
+  campaignId  String
+  campaign    Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  clientId    String
+  client      Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  channel     CampaignChannel
+  status      String          @default("PENDING") // PENDING, SENT, FAILED
+
+  sentAt      DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@unique([campaignId, clientId])
+  @@index([campaignId])
+  @@index([clientId])
+}
+
+// ============================================
+// WIN-BACK AUTOMATION
+// ============================================
+
+enum WinBackResult {
+  SENT
+  DELIVERED
+  CONVERTED
+  EXPIRED
+  FAILED
+}
+
+model WinBackAttempt {
+  id            String        @id @default(cuid())
+
+  // Multi-tenancy
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  step          Int           // 1, 2, or 3 (which sequence step)
+  channel       String        // SMS, EMAIL, BOTH
+  discountPercent Int         @default(0)
+
+  result        WinBackResult @default(SENT)
+
+  // If converted, link to the rebooking
+  convertedBookingId String?
+  convertedAt       DateTime?
+  convertedRevenue  Float?    // Revenue from rebooking
+
+  sentAt        DateTime      @default(now())
+  expiresAt     DateTime?     // When this step expires (next step triggers)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([companyId, result])
+  @@index([companyId, clientId, step])
+}
+
+// ============================================
+// DISCOUNT CODES
+// ============================================
+
+model DiscountCode {
+  id              String    @id @default(cuid())
+
+  // Multi-tenancy
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code            String              // e.g., "COMEBACK25", "SPRING2025"
+  discountType    String              // "PERCENT" or "FIXED"
+  discountValue   Float               // 25 (for 25%) or 50 (for $50)
+
+  validFrom       DateTime
+  validUntil      DateTime
+
+  isActive        Boolean   @default(true)
+
+  // Usage limits
+  maxUses         Int?                // null = unlimited
+  usedCount       Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([code])
+  @@index([companyId, isActive])
 }
 
 // ============================================
@@ -983,4 +1165,37 @@ enum BackupStatus {
   RESTORING   // Currently being restored
   ARCHIVED    // Archived (not shown by default)
   DELETED     // Soft deleted
+}
+
+// ============================================
+// BLOG / CMS (Platform-level)
+// ============================================
+
+model BlogPost {
+  id              String    @id @default(cuid())
+
+  title           String
+  slug            String    @unique
+  excerpt         String?             // Short preview text for cards/SEO
+  content         String              // Full post content (HTML or Markdown)
+  coverImage      String?             // URL to cover image
+
+  // SEO
+  metaTitle       String?             // Override for <title> tag
+  metaDescription String?             // Meta description for search engines
+
+  // Author
+  authorId        String
+  author          User      @relation(fields: [authorId], references: [id])
+
+  // Publishing
+  published       Boolean   @default(false)
+  publishedAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([published, publishedAt])
+  @@index([authorId])
 }
