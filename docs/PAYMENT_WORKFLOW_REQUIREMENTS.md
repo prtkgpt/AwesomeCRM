@@ -52,24 +52,16 @@ Timeline:
 
 ---
 
-## Open Questions
+## Decisions
 
-### 4. First Payment Card Save: Opt-in vs Automatic?
+### 4. First Payment Card Save: Automatic
 
-**Question:** When a customer makes their first payment, should saving the card be:
+**Decision:** Card is saved **automatically** when a customer makes their first payment.
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **Opt-in (Checkbox)** | Customer must check a box to save card | Clear consent, GDPR-friendly | Lower card-on-file rate |
-| **Automatic** | Card is saved by default | Higher auto-charge adoption | May feel invasive |
-
-**Recommendation:** _(To be decided)_
-
-**Considerations:**
-- Legal/compliance requirements for the region
-- Customer trust and transparency
-- Business goal of increasing auto-charge adoption
-- Could offer "opt-out" (save by default with option to decline)
+- Card-on-file is enabled by default after first successful payment
+- No checkbox required from customer
+- Maximizes auto-charge adoption rate
+- Customer can remove saved card from their account settings if desired
 
 ---
 
@@ -132,7 +124,7 @@ Failed Charge Fallback:
 | After admin approval trigger | Pending | |
 | 1-hour delay | Pending | |
 | Card preferred = Card on file | Pending | Consolidate UI options |
-| First card save (opt-in vs auto) | **Decision needed** | |
+| First card save: Automatic | **Decided** | Save card by default |
 | 24-hour pre-auth check | Pending | |
 | Failed charge: Retry | Pending | Define retry schedule |
 | Failed charge: Notify | Pending | Template needed |
@@ -151,8 +143,7 @@ Failed Charge Fallback:
 
 ## Next Steps
 
-1. **Decide:** Opt-in checkbox vs automatic card save for first payment
-2. **Implement:** Admin approval → 1hr delay → charge workflow
+1. **Implement:** Admin approval → 1hr delay → charge workflow
 3. **Implement:** 24-hour pre-authorization check cron job
 4. **Implement:** Failed charge retry logic with exponential backoff
 5. **Create:** Notification templates for failed charges
