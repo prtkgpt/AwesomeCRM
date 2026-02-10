@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, access } from 'fs/promises';
+import { constants } from 'fs';
 import path from 'path';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -17,7 +18,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const formData = await req.formData();
+    let formData;
+    try {
+      formData = await req.formData();
+    } catch (formError) {
+      console.error('FormData parsing error:', formError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to parse upload. File may be too large.' },
+        { status: 400 }
+      );
+    }
+
     const file = formData.get('file') as File | null;
 
     if (!file) {
@@ -30,7 +41,7 @@ export async function POST(req: NextRequest) {
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid file type. Allowed: JPG, PNG, GIF, WebP' },
+        { success: false, error: `Invalid file type "${file.type}". Allowed: JPG, PNG, GIF, WebP` },
         { status: 400 }
       );
     }
@@ -38,7 +49,7 @@ export async function POST(req: NextRequest) {
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { success: false, error: 'File too large. Maximum size: 5MB' },
+        { success: false, error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size: 5MB` },
         { status: 400 }
       );
     }
@@ -51,13 +62,51 @@ export async function POST(req: NextRequest) {
 
     // Ensure upload directory exists
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'blog');
-    await mkdir(uploadDir, { recursive: true });
+    try {
+      await mkdir(uploadDir, { recursive: true });
+    } catch (mkdirError) {
+      console.error('Failed to create upload directory:', mkdirError);
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error: cannot create upload directory' },
+        { status: 500 }
+      );
+    }
+
+    // Check write permissions
+    try {
+      await access(uploadDir, constants.W_OK);
+    } catch {
+      console.error('Upload directory not writable:', uploadDir);
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error: upload directory not writable' },
+        { status: 500 }
+      );
+    }
 
     // Write file
-    const bytes = await file.arrayBuffer();
+    let bytes;
+    try {
+      bytes = await file.arrayBuffer();
+    } catch (bufferError) {
+      console.error('Failed to read file buffer:', bufferError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to read uploaded file' },
+        { status: 400 }
+      );
+    }
+
     const buffer = Buffer.from(bytes);
     const filePath = path.join(uploadDir, filename);
-    await writeFile(filePath, buffer);
+
+    try {
+      await writeFile(filePath, buffer);
+    } catch (writeError) {
+      console.error('Failed to write file:', writeError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to save image to disk' },
+        { status: 500 }
+      );
+    }
 
     // Return public URL
     const url = `/uploads/blog/${filename}`;
@@ -68,8 +117,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Blog image upload error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Failed to upload image' },
+      { success: false, error: `Failed to upload image: ${errorMessage}` },
       { status: 500 }
     );
   }

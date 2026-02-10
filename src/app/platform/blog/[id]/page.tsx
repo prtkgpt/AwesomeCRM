@@ -42,6 +42,22 @@ export default function EditBlogPostPage() {
         method: 'POST',
         body: formData,
       });
+
+      if (!res.ok) {
+        if (res.status === 413) {
+          setError('File too large. Maximum size is 5MB.');
+          return;
+        }
+        const errorText = await res.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          setError(errorData.error || 'Failed to upload image');
+        } catch {
+          setError(`Upload failed: ${res.status} ${res.statusText}`);
+        }
+        return;
+      }
+
       const data = await res.json();
 
       if (!data.success) {
@@ -51,7 +67,8 @@ export default function EditBlogPostPage() {
 
       setCoverImage(data.data.url);
     } catch (err) {
-      setError('Failed to upload image');
+      console.error('Image upload error:', err);
+      setError('Failed to upload image. Please try again.');
     } finally {
       setUploading(false);
     }
