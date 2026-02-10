@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { writeFile, mkdir, access } from 'fs/promises';
-import { constants } from 'fs';
-import path from 'path';
+import { put } from '@vercel/blob';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -58,63 +56,26 @@ export async function POST(req: NextRequest) {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
-    const filename = `cover-${timestamp}-${randomStr}.${ext}`;
+    const filename = `blog/cover-${timestamp}-${randomStr}.${ext}`;
 
-    // Ensure upload directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'blog');
+    // Upload to Vercel Blob storage
     try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (mkdirError) {
-      console.error('Failed to create upload directory:', mkdirError);
+      const blob = await put(filename, file, {
+        access: 'public',
+        addRandomSuffix: false,
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: { url: blob.url },
+      });
+    } catch (uploadError) {
+      console.error('Vercel Blob upload error:', uploadError);
       return NextResponse.json(
-        { success: false, error: 'Server configuration error: cannot create upload directory' },
+        { success: false, error: 'Failed to upload image. Please check BLOB_READ_WRITE_TOKEN configuration.' },
         { status: 500 }
       );
     }
-
-    // Check write permissions
-    try {
-      await access(uploadDir, constants.W_OK);
-    } catch {
-      console.error('Upload directory not writable:', uploadDir);
-      return NextResponse.json(
-        { success: false, error: 'Server configuration error: upload directory not writable' },
-        { status: 500 }
-      );
-    }
-
-    // Write file
-    let bytes;
-    try {
-      bytes = await file.arrayBuffer();
-    } catch (bufferError) {
-      console.error('Failed to read file buffer:', bufferError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to read uploaded file' },
-        { status: 400 }
-      );
-    }
-
-    const buffer = Buffer.from(bytes);
-    const filePath = path.join(uploadDir, filename);
-
-    try {
-      await writeFile(filePath, buffer);
-    } catch (writeError) {
-      console.error('Failed to write file:', writeError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to save image to disk' },
-        { status: 500 }
-      );
-    }
-
-    // Return public URL
-    const url = `/uploads/blog/${filename}`;
-
-    return NextResponse.json({
-      success: true,
-      data: { url },
-    });
   } catch (error) {
     console.error('Blog image upload error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
