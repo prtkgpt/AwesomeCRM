@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { marked } from 'marked';
 
 interface BlogPost {
   id: string;
@@ -17,9 +18,8 @@ interface BlogPost {
 
 async function getPost(slug: string): Promise<BlogPost | null> {
   try {
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
+    const baseUrl = process.env.NEXTAUTH_URL
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     const res = await fetch(`${baseUrl}/api/public/blog/${slug}`, {
       next: { revalidate: 60 },
     });
@@ -135,16 +135,10 @@ export default async function BlogPostPage({
         )}
 
         {/* Content */}
-        {isHtml ? (
-          <div
-            className="mt-8 prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl"
-            dangerouslySetInnerHTML={{ __html: post.content }}
-          />
-        ) : (
-          <div className="mt-8 prose prose-lg dark:prose-invert max-w-none whitespace-pre-wrap">
-            {post.content}
-          </div>
-        )}
+        <div
+          className="mt-8 prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl"
+          dangerouslySetInnerHTML={{ __html: isHtml ? post.content : marked.parse(post.content) as string }}
+        />
       </article>
 
       {/* Back link */}

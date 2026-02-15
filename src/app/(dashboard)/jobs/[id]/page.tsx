@@ -25,6 +25,8 @@ import {
   LogIn,
   LogOut,
   CreditCard,
+  Tag,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -85,6 +87,9 @@ export default function JobDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<string>('stripe');
   const [copayPaymentMethod, setCopayPaymentMethod] = useState<string>('STRIPE');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [discountCode, setDiscountCode] = useState('');
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
+  const [issuingRefund, setIssuingRefund] = useState(false);
   const [operationalExpenses, setOperationalExpenses] = useState<{
     insuranceCost: number;
     bondCost: number;
@@ -650,6 +655,98 @@ export default function JobDetailPage() {
     }
   };
 
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) {
+      alert('Please enter a discount code');
+      return;
+    }
+
+    setApplyingDiscount(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}/apply-discount`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discountCode: discountCode.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setJob(data.data);
+        setDiscountCode('');
+        alert(`Discount applied! ${data.discount.type === 'PERCENT' ? data.discount.value + '%' : '$' + data.discount.value} off (saved $${data.discount.amountApplied.toFixed(2)})`);
+      } else {
+        alert(data.error || 'Failed to apply discount');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setApplyingDiscount(false);
+    }
+  };
+
+  const handleRemoveDiscount = async () => {
+    if (!confirm('Remove the applied discount?')) {
+      return;
+    }
+
+    setApplyingDiscount(true);
+    try {
+      const response = await fetch(`/api/bookings/${jobId}/apply-discount`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setJob(data.data);
+        alert('Discount removed');
+      } else {
+        alert(data.error || 'Failed to remove discount');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setApplyingDiscount(false);
+    }
+  };
+
+  const handleIssueRefund = async () => {
+    if (!job) return;
+
+    const amount = job.finalPrice || job.price;
+    const confirmMsg = `Issue a full refund of ${formatCurrency(amount)} to ${job.client.name}?\n\nThis will refund the payment via Stripe.`;
+
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    setIssuingRefund(true);
+    try {
+      const response = await fetch('/api/payments/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: jobId,
+          reason: 'requested_by_customer',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        fetchJob(); // Refresh to show updated status
+        alert(`Refund issued successfully!\n\nAmount: ${formatCurrency(data.data.amount)}\nRefund ID: ${data.data.refundId}`);
+      } else {
+        alert(data.error || 'Failed to issue refund');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIssuingRefund(false);
+    }
+  };
+
   const handleDuplicate = () => {
     if (!job) return;
 
@@ -949,26 +1046,49 @@ export default function JobDetailPage() {
                 <div>
                   <div className="text-sm font-medium text-gray-500">Price</div>
                   <div className="text-lg font-bold">{formatCurrency(job.price)}</div>
-                  {job.isPaid ? (
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                      Paid
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
-                      Unpaid
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {job.isPaid ? (
+                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                        Paid
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
+                        Unpaid
+                      </span>
+                    )}
+                    {job.isPaid && job.stripePaymentIntentId && (
+                      <button
+                        onClick={handleIssueRefund}
+                        disabled={issuingRefund}
+                        className="text-xs px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-full flex items-center gap-1 transition-colors"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        {issuingRefund ? 'Refunding...' : 'Refund'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Referral Credits Applied */}
+            {/* Referral Credits / Discount Applied */}
             {(job as any).referralCreditsApplied > 0 && (
               <div className="pt-2 border-t">
                 <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">🎁</span>
-                    <h3 className="font-semibold text-purple-900">Referral Credits Applied</h3>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-5 w-5 text-purple-600" />
+                      <h3 className="font-semibold text-purple-900">Discount Applied</h3>
+                    </div>
+                    {!job.isPaid && (
+                      <button
+                        onClick={handleRemoveDiscount}
+                        disabled={applyingDiscount}
+                        className="text-xs text-red-600 hover:text-red-700 underline"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
@@ -976,7 +1096,7 @@ export default function JobDetailPage() {
                       <span className="font-semibold">{formatCurrency(job.price)}</span>
                     </div>
                     <div className="flex justify-between text-green-600">
-                      <span>Credits Applied:</span>
+                      <span>Discount:</span>
                       <span className="font-semibold">-{formatCurrency((job as any).referralCreditsApplied)}</span>
                     </div>
                     <div className="flex justify-between text-base font-bold border-t border-purple-200 pt-2">
@@ -984,6 +1104,34 @@ export default function JobDetailPage() {
                       <span className="text-purple-700">{formatCurrency((job as any).finalPrice || 0)}</span>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Apply Discount Code */}
+            {!job.isPaid && (job as any).referralCreditsApplied === 0 && (
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-2 mb-2">
+                  <Tag className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">Apply Discount Code</span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                    placeholder="Enter code"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <Button
+                    onClick={handleApplyDiscount}
+                    disabled={applyingDiscount || !discountCode.trim()}
+                    size="sm"
+                    variant="outline"
+                    className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                  >
+                    {applyingDiscount ? 'Applying...' : 'Apply'}
+                  </Button>
                 </div>
               </div>
             )}

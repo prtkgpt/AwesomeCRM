@@ -2,10 +2,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, addDays, addWeeks, addMonths, isAfter, isBefore } from "date-fns";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
-
-// Company timezone - used for parsing input dates (e.g., from booking forms)
-// Dates are stored in UTC and displayed in each user's local timezone
-const COMPANY_TIMEZONE = 'America/Los_Angeles'; // PST/PDT
+import { getDeviceTimezone, getTimezoneAbbreviation } from './timezone';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -34,16 +31,19 @@ export function formatPhoneNumber(phone: string): string {
 }
 
 /**
- * Format date for display in PST timezone
- * All dates shown in PST regardless of user location
- * Example: 10 AM PST job shows as "10:00 AM PST" for everyone
+ * Format date for display in user's device timezone
+ * Dates are shown in the user's local timezone for convenience
+ * @param date - Date object or ISO string
+ * @param formatStr - date-fns format string (default: 'MMM d, yyyy')
+ * @param timezone - Optional timezone override (defaults to device timezone)
  */
-export function formatDate(date: Date | string, formatStr: string = 'MMM d, yyyy'): string {
+export function formatDate(date: Date | string, formatStr: string = 'MMM d, yyyy', timezone?: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
+  const tz = timezone || getDeviceTimezone();
 
-  // Convert to PST timezone for display
-  const pstString = d.toLocaleString('en-US', {
-    timeZone: COMPANY_TIMEZONE,
+  // Convert to user's timezone for display
+  const localString = d.toLocaleString('en-US', {
+    timeZone: tz,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -53,27 +53,29 @@ export function formatDate(date: Date | string, formatStr: string = 'MMM d, yyyy
     hour12: false
   });
 
-  // Parse the PST string back to a Date object for formatting
-  const [datePart, timePart] = pstString.split(', ');
+  // Parse the local string back to a Date object for formatting
+  const [datePart, timePart] = localString.split(', ');
   const [month, day, year] = datePart.split('/');
   const [hour, minute, second] = timePart.split(':');
-  const pstDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+  const localDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
                            parseInt(hour), parseInt(minute), parseInt(second));
 
-  return format(pstDate, formatStr);
+  return format(localDate, formatStr);
 }
 
 /**
- * Format date and time for display in PST timezone
- * All bookings shown in PST regardless of user location
- * Example: 10 AM PST job shows as "10:00 AM PST" for everyone
+ * Format date and time for display in user's device timezone
+ * Times are shown in the user's local timezone with timezone indicator
+ * @param date - Date object or ISO string
+ * @param timezone - Optional timezone override (defaults to device timezone)
  */
-export function formatDateTime(date: Date | string): string {
+export function formatDateTime(date: Date | string, timezone?: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
+  const tz = timezone || getDeviceTimezone();
 
-  // Convert to PST timezone for display
-  const pstString = d.toLocaleString('en-US', {
-    timeZone: COMPANY_TIMEZONE,
+  // Convert to user's timezone for display
+  const localString = d.toLocaleString('en-US', {
+    timeZone: tz,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -83,35 +85,34 @@ export function formatDateTime(date: Date | string): string {
     hour12: false
   });
 
-  // Parse the PST string back to a Date object for formatting
-  const [datePart, timePart] = pstString.split(', ');
+  // Parse the local string back to a Date object for formatting
+  const [datePart, timePart] = localString.split(', ');
   const [month, day, year] = datePart.split('/');
   const [hour, minute, second] = timePart.split(':');
-  const pstDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+  const localDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
                            parseInt(hour), parseInt(minute), parseInt(second));
 
-  const formatted = format(pstDate, 'MMM d, yyyy h:mm a');
+  const formatted = format(localDate, 'MMM d, yyyy h:mm a');
 
-  // Add PST/PDT indicator
-  const monthNum = pstDate.getMonth();
-  // DST runs roughly March-November in PST
-  const isDST = monthNum >= 2 && monthNum <= 10;
-  const tzAbbr = isDST ? 'PDT' : 'PST';
+  // Add timezone abbreviation
+  const tzAbbr = getTimezoneAbbreviation(d, tz);
 
   return `${formatted} ${tzAbbr}`;
 }
 
 /**
- * Format time only in PST timezone
- * All times shown in PST regardless of user location
- * Example: 10 AM PST job shows as "10:00 AM PST" for everyone
+ * Format time only in user's device timezone
+ * Times are shown in the user's local timezone with timezone indicator
+ * @param date - Date object or ISO string
+ * @param timezone - Optional timezone override (defaults to device timezone)
  */
-export function formatTime(date: Date | string): string {
+export function formatTime(date: Date | string, timezone?: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
+  const tz = timezone || getDeviceTimezone();
 
-  // Convert to PST timezone for display
-  const pstString = d.toLocaleString('en-US', {
-    timeZone: COMPANY_TIMEZONE,
+  // Convert to user's timezone for display
+  const localString = d.toLocaleString('en-US', {
+    timeZone: tz,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -121,32 +122,32 @@ export function formatTime(date: Date | string): string {
     hour12: false
   });
 
-  // Parse the PST string back to a Date object for formatting
-  const [datePart, timePart] = pstString.split(', ');
+  // Parse the local string back to a Date object for formatting
+  const [datePart, timePart] = localString.split(', ');
   const [month, day, year] = datePart.split('/');
   const [hour, minute, second] = timePart.split(':');
-  const pstDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+  const localDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
                            parseInt(hour), parseInt(minute), parseInt(second));
 
-  const formatted = format(pstDate, 'h:mm a');
+  const formatted = format(localDate, 'h:mm a');
 
-  // Add PST/PDT indicator
-  const monthNum = pstDate.getMonth();
-  // DST runs roughly March-November in PST
-  const isDST = monthNum >= 2 && monthNum <= 10;
-  const tzAbbr = isDST ? 'PDT' : 'PST';
+  // Add timezone abbreviation
+  const tzAbbr = getTimezoneAbbreviation(d, tz);
 
   return `${formatted} ${tzAbbr}`;
 }
 
 /**
- * Parse a date+time string as if it's in company timezone (PST)
- * Converts PST time to UTC for database storage
+ * Parse a date+time string as if it's in the user's device timezone
+ * Converts local time to UTC for database storage
  * @param dateStr - Date string in format "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"
+ * @param timezone - Optional timezone override (defaults to device timezone)
  * @returns Date object in UTC
- * @example parseDateInCompanyTZ("2026-01-20T10:00") => Date representing 10 AM PST (6 PM UTC)
+ * @example parseDateInLocalTZ("2026-01-20T10:00") => Date representing 10 AM local time in UTC
  */
-export function parseDateInCompanyTZ(dateStr: string): Date {
+export function parseDateInLocalTZ(dateStr: string, timezone?: string): Date {
+  const tz = timezone || getDeviceTimezone();
+
   // If it's just a date (YYYY-MM-DD), append midnight
   if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
     dateStr = `${dateStr}T00:00:00`;
@@ -155,10 +156,19 @@ export function parseDateInCompanyTZ(dateStr: string): Date {
   // Create a Date object from the string (this will be interpreted in local server time)
   const localDate = new Date(dateStr);
 
-  // Treat this date as if it's in PST and convert to UTC
+  // Treat this date as if it's in the user's timezone and convert to UTC
   // fromZonedTime interprets the date as being in the specified timezone
-  const utcDate = fromZonedTime(localDate, COMPANY_TIMEZONE);
+  const utcDate = fromZonedTime(localDate, tz);
   return utcDate;
+}
+
+/**
+ * @deprecated Use parseDateInLocalTZ() instead
+ * Parse a date+time string as if it's in company timezone (PST)
+ * Kept for backward compatibility
+ */
+export function parseDateInCompanyTZ(dateStr: string): Date {
+  return parseDateInLocalTZ(dateStr, 'America/Los_Angeles');
 }
 
 /**

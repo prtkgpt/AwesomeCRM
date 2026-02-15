@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote, TrendingUp, DollarSign, Calendar, FileText, Download, Eye, BellOff, Bell } from 'lucide-react';
+import { ArrowLeft, Plus, Mail, Phone, MapPin, Trash2, Edit, Save, X, StickyNote, TrendingUp, DollarSign, Calendar, FileText, Download, Eye, BellOff, Bell, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -364,6 +364,15 @@ export default function ClientDetailPage() {
               
               </div>
             ))}
+          </div>
+        )}
+
+        {client.stripeCustomerId && (
+          <div className="flex items-center gap-2 text-gray-700 pt-2 border-t border-gray-200 dark:border-gray-700 mt-3">
+            <CreditCard className="h-4 w-4 text-gray-400" />
+            <span className="text-sm">
+              Stripe ID: <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs">{client.stripeCustomerId}</code>
+            </span>
           </div>
         )}
 

@@ -14,10 +14,22 @@ export default withAuth(
       path.startsWith('/signup') ||
       path.startsWith('/invite') ||
       path.startsWith('/compare') || // Public comparison page
+      path.startsWith('/switch') || // Public switch/marketing page
+      path.startsWith('/privacy') || // Privacy policy
+      path.startsWith('/terms') || // Terms of service
+      path.startsWith('/faq') || // FAQ page
+      path.startsWith('/product-release') || // Product release notes
+      path.startsWith('/tutorials') || // Tutorial pages
       path.startsWith('/estimate/') || // Public estimate acceptance pages
       path.startsWith('/feedback/') || // Public feedback pages
       path.startsWith('/blog') || // Public blog pages
+      path.startsWith('/pay-copay/') || // Public payment pages
+      path.startsWith('/forgot-password') || // Password reset
+      path.startsWith('/reset-password') || // Password reset
       path.endsWith('/book') || // Public booking pages (e.g., /awesome-maids/book)
+      path.endsWith('/login') || // Tenant login pages (e.g., /awesome-maids/login)
+      path.endsWith('/signup') || // Tenant signup pages (e.g., /awesome-maids/signup)
+      path.endsWith('/portal') || // Customer portal pages (e.g., /awesome-maids/portal)
       path.startsWith('/api/public/') || // Public API routes
       path.startsWith('/api/auth/') || // NextAuth API routes
       path.startsWith('/api/platform/setup') || // Platform admin first-run setup
@@ -109,10 +121,22 @@ export default withAuth(
           path.startsWith('/signup') ||
           path.startsWith('/invite') ||
           path.startsWith('/compare') || // Public comparison page
+          path.startsWith('/switch') || // Public switch/marketing page
+          path.startsWith('/privacy') || // Privacy policy
+          path.startsWith('/terms') || // Terms of service
+          path.startsWith('/faq') || // FAQ page
+          path.startsWith('/product-release') || // Product release notes
+          path.startsWith('/tutorials') || // Tutorial pages
           path.startsWith('/estimate/') ||
           path.startsWith('/feedback/') ||
           path.startsWith('/blog') || // Public blog pages
+          path.startsWith('/pay-copay/') || // Public payment pages
+          path.startsWith('/forgot-password') || // Password reset
+          path.startsWith('/reset-password') || // Password reset
           path.endsWith('/book') || // Public booking pages (e.g., /awesome-maids/book)
+          path.endsWith('/login') || // Tenant login pages (e.g., /awesome-maids/login)
+          path.endsWith('/signup') || // Tenant signup pages (e.g., /awesome-maids/signup)
+          path.endsWith('/portal') || // Customer portal pages (e.g., /awesome-maids/portal)
           path.startsWith('/api/public/') ||
           path.startsWith('/api/auth/') ||
           path.startsWith('/api/platform/setup') || // Platform admin first-run setup

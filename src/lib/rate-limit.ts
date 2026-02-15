@@ -24,6 +24,7 @@ export const RATE_LIMIT_PRESETS = {
   publicBooking: { limit: 10, windowMs: 60 * 1000 }, // 10 per minute
   publicEstimate: { limit: 20, windowMs: 60 * 1000 }, // 20 per minute
   publicCompanyInfo: { limit: 60, windowMs: 60 * 1000 }, // 60 per minute (read-only)
+  prospect: { limit: 5, windowMs: 60 * 1000 }, // 5 prospect submissions per minute per IP
 
   // Protected API routes - higher limits for authenticated users
   api: { limit: 100, windowMs: 60 * 1000 }, // 100 per minute

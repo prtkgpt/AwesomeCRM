@@ -121,6 +121,13 @@ model Company {
   pricingRules        PricingRule[]
   backups             CompanyBackup[]
 
+  // Analytics
+  analyticsSnapshots  AnalyticsSnapshot[]
+
+  // Email management
+  emailTemplates2     EmailTemplate[]
+  emailLogs           EmailLog[]
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -180,6 +187,10 @@ model User {
   // Blog posts authored (platform admin CMS)
   blogPosts     BlogPost[]
 
+  // Push notifications
+  pushSubscriptions      PushSubscription[]
+  notificationPreference NotificationPreference?
+
   // Password reset
   resetToken       String?
   resetTokenExpiry DateTime?
@@ -227,6 +238,13 @@ model TeamMember {
 
   // Pay logs
   payLogs           PayLog[]
+
+  // Location tracking
+  locations         CleanerLocation[]
+
+  // Availability
+  availabilitySlots CleanerAvailability[]
+  timeOff           CleanerTimeOff[]
 
   isActive          Boolean   @default(true)
 
@@ -635,6 +653,9 @@ model Booking {
 
   messages              Message[]
   invoice               Invoice?
+
+  // Job photos
+  photos                JobPhoto[]
 
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
@@ -1165,6 +1186,316 @@ enum BackupStatus {
   RESTORING   // Currently being restored
   ARCHIVED    // Archived (not shown by default)
   DELETED     // Soft deleted
+}
+
+// ============================================
+// ANALYTICS
+// ============================================
+
+model AnalyticsSnapshot {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  date            DateTime  @db.Date
+  type            String    // DAILY, WEEKLY, MONTHLY
+
+  // Revenue metrics
+  totalRevenue          Float     @default(0)
+  averageBookingValue   Float     @default(0)
+  revenueByService      Json?     // { "STANDARD": 1000, "DEEP": 500 }
+  unpaidRevenue         Float     @default(0)
+
+  // Booking metrics
+  totalBookings         Int       @default(0)
+  completedBookings     Int       @default(0)
+  cancelledBookings     Int       @default(0)
+  noShowBookings        Int       @default(0)
+  scheduledBookings     Int       @default(0)
+
+  // Customer metrics
+  newCustomers          Int       @default(0)
+  returningCustomers    Int       @default(0)
+  totalActiveCustomers  Int       @default(0)
+  churned               Int       @default(0)
+
+  // Team metrics
+  activeCleaners        Int       @default(0)
+  averageJobsPerCleaner Float     @default(0)
+  totalHoursWorked      Float     @default(0)
+
+  // Referral metrics
+  referralSignups       Int       @default(0)
+  referralConversions   Int       @default(0)
+  referralCreditsAwarded Float    @default(0)
+  referralCreditsUsed    Float    @default(0)
+
+  // Customer satisfaction
+  averageRating         Float?
+  totalReviews          Int       @default(0)
+  totalTips             Float     @default(0)
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([companyId, date, type])
+  @@index([companyId, date])
+  @@index([companyId, type])
+}
+
+// ============================================
+// EMAIL MANAGEMENT
+// ============================================
+
+model EmailTemplate {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name            String
+  category        String    // TRANSACTIONAL, MARKETING, AUTOMATED
+  subject         String
+  htmlContent     String    @db.Text
+  textContent     String?   @db.Text
+  variables       Json?     // Available variables for this template: ["clientName", "date", etc.]
+
+  isDefault       Boolean   @default(false)
+  isActive        Boolean   @default(true)
+
+  emailLogs       EmailLog[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId, category])
+  @@index([companyId, isActive])
+}
+
+model EmailLog {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  templateId      String?
+  template        EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  campaignId      String?
+
+  recipientId     String?   // Client or User ID
+  recipientEmail  String
+  recipientType   String?   // CLIENT, USER
+
+  subject         String
+  status          String    // QUEUED, SENT, DELIVERED, OPENED, CLICKED, BOUNCED, FAILED
+
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  bouncedAt       DateTime?
+  failedAt        DateTime?
+
+  errorMessage    String?
+  metadata        Json?     // Additional tracking data
+
+  // External provider tracking
+  providerId      String?   // Resend message ID
+  providerStatus  String?
+
+  createdAt       DateTime  @default(now())
+
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([campaignId])
+  @@index([recipientEmail])
+  @@index([templateId])
+}
+
+// ============================================
+// CLEANER ENHANCEMENTS
+// ============================================
+
+model JobPhoto {
+  id              String    @id @default(cuid())
+  bookingId       String
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  type            String    // BEFORE, AFTER, ISSUE
+  url             String
+  caption         String?
+  tags            String[]  @default([])
+
+  // Location data (optional)
+  latitude        Float?
+  longitude       Float?
+
+  uploadedById    String
+  uploadedAt      DateTime  @default(now())
+
+  @@index([bookingId])
+  @@index([bookingId, type])
+}
+
+model CleanerLocation {
+  id              String    @id @default(cuid())
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  latitude        Float
+  longitude       Float
+  accuracy        Float?
+  altitude        Float?
+  speed           Float?
+  heading         Float?
+
+  // Context
+  bookingId       String?   // Which job they're working on
+  action          String?   // CLOCK_IN, CLOCK_OUT, ON_MY_WAY, ENROUTE
+
+  recordedAt      DateTime  @default(now())
+
+  @@index([teamMemberId, recordedAt])
+  @@index([bookingId])
+}
+
+model CleanerAvailability {
+  id              String    @id @default(cuid())
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  // Day of week (0 = Sunday, 6 = Saturday)
+  dayOfWeek       Int
+
+  // Time slots
+  startTime       String    // HH:mm format
+  endTime         String    // HH:mm format
+
+  isAvailable     Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([teamMemberId, dayOfWeek])
+  @@index([teamMemberId])
+}
+
+model CleanerTimeOff {
+  id              String    @id @default(cuid())
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  startDate       DateTime  @db.Date
+  endDate         DateTime  @db.Date
+  reason          String?
+  isApproved      Boolean   @default(false)
+  approvedById    String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([teamMemberId])
+  @@index([teamMemberId, startDate, endDate])
+}
+
+// ============================================
+// PWA & PUSH NOTIFICATIONS
+// ============================================
+
+model PushSubscription {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint        String    @db.Text
+  p256dh          String
+  auth            String
+
+  deviceType      String?   // mobile, desktop, tablet
+  deviceName      String?   // User-friendly device name
+  userAgent       String?   @db.Text
+  platform        String?   // ios, android, web
+
+  isActive        Boolean   @default(true)
+  lastUsed        DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@index([userId, isActive])
+}
+
+model NotificationPreference {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Push notification settings
+  pushEnabled           Boolean   @default(true)
+  pushJobAssignments    Boolean   @default(true)
+  pushJobReminders      Boolean   @default(true)
+  pushPaymentReceived   Boolean   @default(true)
+  pushReviewReceived    Boolean   @default(true)
+  pushChatMessages      Boolean   @default(true)
+
+  // Email notification settings
+  emailEnabled          Boolean   @default(true)
+  emailJobAssignments   Boolean   @default(true)
+  emailJobReminders     Boolean   @default(true)
+  emailDailyDigest      Boolean   @default(false)
+  emailWeeklyReport     Boolean   @default(true)
+  emailMarketingOptIn   Boolean   @default(true)
+
+  // SMS notification settings
+  smsEnabled            Boolean   @default(true)
+  smsJobReminders       Boolean   @default(true)
+  smsUrgentOnly         Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
+// INBOUND PROSPECTS (Platform-level)
+// ============================================
+
+enum ProspectStatus {
+  NEW           // Fresh lead, not yet contacted
+  CONTACTED     // Initial contact made
+  QUALIFIED     // Qualified as a good lead
+  CONVERTED     // Converted to customer
+  NOT_INTERESTED // Lead declined or not a fit
+}
+
+model Prospect {
+  id              String          @id @default(cuid())
+
+  // Contact info
+  fullName        String
+  businessName    String
+  phone           String
+  email           String
+  area            String          // Service area/location
+  website         String?
+
+  // Lead source
+  source          String          @default("SWITCH_PAGE") // SWITCH_PAGE, LANDING, REFERRAL, etc.
+
+  // Status tracking
+  status          ProspectStatus  @default(NEW)
+  notes           String?         // Admin notes
+
+  // Follow-up
+  lastContactedAt DateTime?
+  followUpDate    DateTime?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
 }
 
 // ============================================

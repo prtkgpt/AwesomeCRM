@@ -396,88 +396,48 @@ export default async function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="container mx-auto px-4 py-12 border-t border-gray-200">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+      <footer className="bg-gray-900 text-gray-400 py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-lg font-bold text-gray-900">CleanDay CRM</span>
+                <span className="text-xl font-bold text-white">CleanDay CRM</span>
               </div>
-              <p className="text-sm text-gray-600">
-                The affordable CRM built specifically for cleaning businesses.
+              <p className="text-sm">
+                The affordable all-in-one platform for cleaning businesses.
+                Built by people who understand your business.
               </p>
             </div>
-
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Product</h3>
+              <h4 className="font-bold text-white mb-4">Product</h4>
               <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/compare" className="text-gray-600 hover:text-gray-900">
-                    Compare vs Competitors
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/#features" className="text-gray-600 hover:text-gray-900">
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <span className="text-gray-600">Pricing - $20/month</span>
-                </li>
+                <li><Link href="/" className="hover:text-white">Features</Link></li>
+                <li><Link href="/compare" className="hover:text-white">Compare</Link></li>
+                <li><Link href="/switch" className="hover:text-white">Switch & Save</Link></li>
+                <li><Link href="/tutorials" className="hover:text-white">Tutorials</Link></li>
               </ul>
             </div>
-
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Company</h3>
+              <h4 className="font-bold text-white mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
-                <li>
-                  <a href="mailto:prateek@prateekgupta.org" className="text-gray-600 hover:text-gray-900">
-                    Contact Support
-                  </a>
-                </li>
-                <li>
-                  <Link href="/login" className="text-gray-600 hover:text-gray-900">
-                    Sign In
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/signup" className="text-gray-600 hover:text-gray-900">
-                    Sign Up
-                  </Link>
-                </li>
+                <li><Link href="/blog" className="hover:text-white">Blog</Link></li>
+                <li><Link href="/faq" className="hover:text-white">FAQ</Link></li>
+                <li><Link href="/product-release" className="hover:text-white">Product Updates</Link></li>
               </ul>
             </div>
-
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Coming Soon</h3>
+              <h4 className="font-bold text-white mb-4">Legal</h4>
               <ul className="space-y-2 text-sm">
-                <li className="text-gray-600 flex items-center gap-2">
-                  <Smartphone className="h-4 w-4" />
-                  iOS App (10 days)
-                </li>
-                <li className="text-gray-600 flex items-center gap-2">
-                  <Smartphone className="h-4 w-4" />
-                  Android App (10 days)
-                </li>
+                <li><Link href="/privacy" className="hover:text-white">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-white">Terms of Service</Link></li>
               </ul>
             </div>
           </div>
-
-          <div className="border-t border-gray-200 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-600">
-            <div>
-              © 2026 CleanDay CRM. Built for cleaning businesses who deserve affordable software.
-            </div>
-            <div className="flex gap-6">
-              <a href="mailto:prateek@prateekgupta.org" className="hover:text-gray-900">
-                Contact
-              </a>
-              <Link href="/compare" className="hover:text-gray-900">
-                Compare
-              </Link>
-            </div>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
+            <p>&copy; {new Date().getFullYear()} CleanDay CRM. All rights reserved.</p>
           </div>
         </div>
       </footer>

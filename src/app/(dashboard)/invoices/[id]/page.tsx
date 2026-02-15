@@ -342,14 +342,14 @@ export default function InvoiceDetailPage() {
               <Download className="w-4 h-4" />
               PDF
             </Button>
-            {invoice.status !== 'SENT' && invoice.status !== 'PAID' && (
+            {invoice.status !== 'CANCELLED' && (
               <Button
                 onClick={handleSendInvoice}
                 disabled={updating || !invoice.client.email}
                 className="flex items-center gap-2"
               >
                 <Mail className="w-4 h-4" />
-                Send
+                {invoice.status === 'DRAFT' ? 'Send' : invoice.status === 'PAID' ? 'Send Receipt' : 'Resend'}
               </Button>
             )}
             {invoice.status !== 'PAID' && (
