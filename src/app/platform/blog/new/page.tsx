@@ -1,18 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Save, Globe } from 'lucide-react';
+import { ArrowLeft, Save, Globe, Upload, X, Loader2 } from 'lucide-react';
 
 export default function NewBlogPostPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
@@ -21,6 +23,57 @@ export default function NewBlogPostPage() {
   const [coverImage, setCoverImage] = useState('');
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
+
+  async function handleImageUpload(file: File) {
+    setError('');
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/platform/blog/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        if (res.status === 413) {
+          setError('File too large. Maximum size is 5MB.');
+          return;
+        }
+        const errorText = await res.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          setError(errorData.error || 'Failed to upload image');
+        } catch {
+          setError(`Upload failed: ${res.status} ${res.statusText}`);
+        }
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setError(data.error || 'Failed to upload image');
+        return;
+      }
+
+      setCoverImage(data.data.url);
+    } catch (err) {
+      console.error('Image upload error:', err);
+      setError('Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+  }
 
   function handleTitleChange(value: string) {
     setTitle(value);
@@ -173,19 +226,52 @@ export default function NewBlogPostPage() {
             <CardHeader>
               <CardTitle className="text-sm">Cover Image</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Input
-                value={coverImage}
-                onChange={(e) => setCoverImage(e.target.value)}
-                placeholder="https://example.com/image.jpg"
+            <CardContent className="space-y-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleFileChange}
+                className="hidden"
               />
-              {coverImage && (
-                <img
-                  src={coverImage}
-                  alt="Cover preview"
-                  className="mt-2 rounded-lg w-full h-32 object-cover"
-                />
+              {coverImage ? (
+                <div className="relative">
+                  <img
+                    src={coverImage}
+                    alt="Cover preview"
+                    className="rounded-lg w-full h-32 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCoverImage('')}
+                    className="absolute top-2 right-2 p-1 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full h-32 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-gray-300 dark:hover:border-gray-600 transition-colors disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+                      <span className="text-sm text-gray-500">Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-6 w-6 text-gray-400" />
+                      <span className="text-sm text-gray-500">Click to upload</span>
+                    </>
+                  )}
+                </button>
               )}
+              <p className="text-xs text-gray-400">
+                Recommended: 1200 x 630px (JPG, PNG, WebP). Max 5MB.
+              </p>
             </CardContent>
           </Card>
 

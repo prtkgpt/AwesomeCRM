@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     console.log('🟢 CLEANER JOBS - Today range:', todayStart, 'to', todayEnd);
     console.log('🟢 CLEANER JOBS - Current time:', now);
 
-    // Get today's jobs (assigned to this cleaner OR unassigned)
+    // Get today's jobs assigned to this cleaner only
     const todayJobsRaw = await prisma.booking.findMany({
       where: {
         companyId: user.companyId, // Only jobs from the same company
@@ -57,10 +57,7 @@ export async function GET(request: NextRequest) {
           gte: todayStart,
           lte: todayEnd,
         },
-        OR: [
-          { assignedTo: teamMember.id }, // Assigned to this cleaner
-          { assignedTo: null },          // Unassigned jobs
-        ],
+        assignedTo: teamMember.id, // Only jobs assigned to this cleaner
       },
       include: {
         client: {
@@ -111,7 +108,7 @@ export async function GET(request: NextRequest) {
       })));
     }
 
-    // Get upcoming jobs (next 7 days) - assigned to this cleaner OR unassigned
+    // Get upcoming jobs (next 7 days) - only assigned to this cleaner
     const nextWeek = new Date(tomorrow);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
@@ -123,10 +120,7 @@ export async function GET(request: NextRequest) {
           lt: nextWeek,
         },
         status: 'SCHEDULED',
-        OR: [
-          { assignedTo: teamMember.id }, // Assigned to this cleaner
-          { assignedTo: null },          // Unassigned jobs
-        ],
+        assignedTo: teamMember.id, // Only jobs assigned to this cleaner
       },
       include: {
         client: {

@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Clock,
   XCircle,
+  Mail,
 } from 'lucide-react';
 
 interface Invoice {
@@ -36,11 +37,14 @@ interface Invoice {
   };
 }
 
+type SendingState = { [invoiceId: string]: boolean };
+
 export default function InvoicesPage() {
   const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [sending, setSending] = useState<SendingState>({});
 
   useEffect(() => {
     fetchInvoices();
@@ -82,6 +86,38 @@ export default function InvoicesPage() {
     } catch (error) {
       console.error('Error downloading PDF:', error);
       alert('Failed to download PDF');
+    }
+  };
+
+  const handleResendInvoice = async (invoice: Invoice) => {
+    if (!invoice.client.email) {
+      alert('Client does not have an email address');
+      return;
+    }
+
+    const action = invoice.status === 'PAID' ? 'receipt' : 'invoice';
+    if (!confirm(`Resend ${action} to ${invoice.client.email}?`)) {
+      return;
+    }
+
+    setSending(prev => ({ ...prev, [invoice.id]: true }));
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/send`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`${action.charAt(0).toUpperCase() + action.slice(1)} sent to ${invoice.client.email}`);
+        fetchInvoices();
+      } else {
+        alert(data.error || `Failed to send ${action}`);
+      }
+    } catch (error) {
+      console.error('Error sending invoice:', error);
+      alert(`Failed to send ${action}`);
+    } finally {
+      setSending(prev => ({ ...prev, [invoice.id]: false }));
     }
   };
 
@@ -237,6 +273,18 @@ export default function InvoicesPage() {
                     <Eye className="w-4 h-4" />
                     <span className="hidden md:inline">View</span>
                   </button>
+                  {invoice.status !== 'CANCELLED' && invoice.client.email && (
+                    <button
+                      onClick={() => handleResendInvoice(invoice)}
+                      disabled={sending[invoice.id]}
+                      className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                    >
+                      <Mail className="w-4 h-4" />
+                      <span className="hidden md:inline">
+                        {sending[invoice.id] ? 'Sending...' : (invoice.status === 'PAID' ? 'Receipt' : 'Resend')}
+                      </span>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDownloadPDF(invoice.id, invoice.invoiceNumber)}
                     className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"

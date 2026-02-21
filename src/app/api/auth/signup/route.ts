@@ -27,9 +27,12 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validatedData = signupSchema.parse(body);
 
+    // Normalize email to lowercase for consistent comparison
+    const normalizedEmail = validatedData.email.toLowerCase().trim();
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email: validatedData.email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
         data: {
           name: companyName,
           slug,
-          email: validatedData.email,
+          email: normalizedEmail,
           phone: validatedData.phone,
           businessType,
           enabledFeatures,
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
       // Create user with OWNER role
       const user = await tx.user.create({
         data: {
-          email: validatedData.email,
+          email: normalizedEmail,
           passwordHash,
           name: validatedData.name,
           phone: validatedData.phone,
