@@ -76,15 +76,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: [] });
       }
 
-      // For cleaners: build query with OR filter for assignments
+      // For cleaners: only show jobs assigned to them
       const conditions: any[] = [
         { companyId: user.companyId },
-        {
-          OR: [
-            { assignedTo: teamMember.id },
-            { assignedTo: null },
-          ],
-        },
+        { assignedTo: teamMember.id }, // Only jobs assigned to this cleaner
       ];
 
       if (status) conditions.push({ status: status as any });
