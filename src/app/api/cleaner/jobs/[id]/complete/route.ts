@@ -58,7 +58,8 @@ export async function POST(
     }
 
     // Generate feedback token if doesn't exist
-    const feedbackToken = booking.feedbackToken || `fb_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    const { generateSecureToken } = await import('@/lib/utils');
+    const feedbackToken = booking.feedbackToken || generateSecureToken('fb');
 
     // Update booking status to CLEANER_COMPLETED (pending admin review)
     const updatedBooking = await prisma.booking.update({

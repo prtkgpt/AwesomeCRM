@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       return NextResponse.json(
-        { success: false, error: 'User with this email already exists' },
+        { success: false, error: 'Unable to create account. Please check your details or try logging in.' },
         { status: 400 }
       );
     }

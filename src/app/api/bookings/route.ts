@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
     const clientId = searchParams.get('clientId');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')));
+    const skip = (page - 1) * limit;
 
     // Build date filter based on what's provided
     let dateFilter: any = {};
@@ -63,13 +66,6 @@ export async function GET(request: NextRequest) {
         select: { id: true },
       });
 
-      console.log('🔍 CLEANER QUERY DEBUG:', {
-        userId: session.user.id,
-        userRole: user.role,
-        teamMemberId: teamMember?.id,
-        companyId: user.companyId,
-      });
-
       if (!teamMember) {
         console.log('❌ No team member found for cleaner');
         // If no team member found, return empty array
@@ -92,7 +88,6 @@ export async function GET(request: NextRequest) {
       if (Object.keys(dateFilter).length > 0) conditions.push({ scheduledDate: dateFilter });
 
       whereClause = { AND: conditions };
-      console.log('📋 WHERE CLAUSE:', JSON.stringify(whereClause, null, 2));
     } else {
       // For admins/owners: standard query without assignment filter
       whereClause = {
@@ -103,39 +98,35 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const bookings = await prisma.booking.findMany({
-      where: whereClause,
-      include: {
-        client: true,
-        address: true,
-        assignee: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where: whereClause,
+        include: {
+          client: true,
+          address: true,
+          assignee: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        scheduledDate: 'asc',
-      },
+        orderBy: { scheduledDate: 'asc' },
+        take: limit,
+        skip,
+      }),
+      prisma.booking.count({ where: whereClause }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: bookings,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
-
-    if (user.role === 'CLEANER') {
-      console.log('📊 QUERY RESULTS:', {
-        totalBookings: bookings.length,
-        bookingAssignments: bookings.map(b => ({
-          client: b.client.name,
-          assignedTo: b.assignedTo,
-          assigneeName: b.assignee?.user?.name || 'UNASSIGNED',
-        })),
-      });
-    }
-
-    return NextResponse.json({ success: true, data: bookings });
   } catch (error) {
     console.error('GET /api/bookings error:', error);
     return NextResponse.json(

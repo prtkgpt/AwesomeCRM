@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface BlogPost {
   id: string;
@@ -138,7 +139,7 @@ export default async function BlogPostPage({
         {isHtml ? (
           <div
             className="mt-8 prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl"
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
           />
         ) : (
           <div className="mt-8 prose prose-lg dark:prose-invert max-w-none whitespace-pre-wrap">

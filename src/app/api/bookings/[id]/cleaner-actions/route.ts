@@ -150,7 +150,8 @@ export async function POST(
         }
 
         // Generate unique feedback token if not exists
-        const feedbackToken = booking.feedbackToken || `fb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const { generateSecureToken } = await import('@/lib/utils');
+        const feedbackToken = booking.feedbackToken || generateSecureToken('fb');
 
         updateData = {
           clockedOutAt: now,

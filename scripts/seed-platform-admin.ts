@@ -4,8 +4,19 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'scootergupta@gmail.com';
-  const password = 'password123';
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    console.error('Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables');
+    process.exit(1);
+  }
+
+  if (password.length < 12) {
+    console.error('Password must be at least 12 characters');
+    process.exit(1);
+  }
+
   const passwordHash = await bcrypt.hash(password, 12);
 
   // Ensure isPlatformAdmin column exists
@@ -47,8 +58,8 @@ async function main() {
   // Use raw SQL to upsert the platform admin user
   const userResult: any[] = await prisma.$queryRawUnsafe(`
     INSERT INTO "User" ("id", "email", "passwordHash", "name", "companyId", "role", "isPlatformAdmin", "createdAt", "updatedAt")
-    VALUES (gen_random_uuid()::text, $1, $2, 'Scooter Gupta', $3, 'OWNER', true, NOW(), NOW())
-    ON CONFLICT ("email") DO UPDATE SET "isPlatformAdmin" = true, "passwordHash" = $2, "role" = 'OWNER', "companyId" = $3, "name" = 'Scooter Gupta'
+    VALUES (gen_random_uuid()::text, $1, $2, 'Platform Admin', $3, 'OWNER', true, NOW(), NOW())
+    ON CONFLICT ("email") DO UPDATE SET "isPlatformAdmin" = true, "passwordHash" = $2, "role" = 'OWNER', "companyId" = $3
     RETURNING "id"
   `, email, passwordHash, companyId);
 

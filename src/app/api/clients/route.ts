@@ -31,33 +31,45 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const tags = searchParams.get('tags')?.split(',').filter(Boolean);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')));
+    const skip = (page - 1) * limit;
 
-    const clients = await prisma.client.findMany({
-      where: {
-        companyId: user.companyId,
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-            { phone: { contains: search, mode: 'insensitive' } },
-          ],
-        }),
-        ...(tags && tags.length > 0 && {
-          tags: { hasSome: tags },
-        }),
-      },
-      include: {
-        addresses: true,
-        _count: {
-          select: { bookings: true },
+    const whereClause = {
+      companyId: user.companyId,
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { email: { contains: search, mode: 'insensitive' as const } },
+          { phone: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }),
+      ...(tags && tags.length > 0 && {
+        tags: { hasSome: tags },
+      }),
+    };
+
+    const [clients, total] = await Promise.all([
+      prisma.client.findMany({
+        where: whereClause,
+        include: {
+          addresses: true,
+          _count: {
+            select: { bookings: true },
+          },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip,
+      }),
+      prisma.client.count({ where: whereClause }),
+    ]);
 
-    return NextResponse.json({ success: true, data: clients });
+    return NextResponse.json({
+      success: true,
+      data: clients,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     console.error('GET /api/clients error:', error);
     return NextResponse.json(
@@ -76,10 +88,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('🔵 CLIENT CREATION - Raw body:', JSON.stringify(body, null, 2));
 
     const validatedData = createClientSchema.parse(body);
-    console.log('🔵 CLIENT CREATION - Validated hasInsurance:', validatedData.hasInsurance);
 
     // Get user with companyId
     const user = await prisma.user.findUnique({
@@ -196,17 +206,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log('🟢 CLIENT CREATED - hasInsurance in DB:', client.hasInsurance);
-    console.log('🟢 CLIENT CREATED - Full client:', JSON.stringify({
-      id: client.id,
-      name: client.name,
-      hasInsurance: client.hasInsurance,
-      insuranceProvider: client.insuranceProvider,
-      helperBeesReferralId: client.helperBeesReferralId,
-      referralCode: client.referralCode,
-      referredById: client.referredById,
-    }, null, 2));
-
     // Award referral credits if client was referred
     if (referrerId && client.id) {
       try {
@@ -255,7 +254,7 @@ export async function POST(request: NextRequest) {
                 apiKey: company.resendApiKey || undefined,
               });
 
-              console.log('📧 Referral notification email sent to', referrer.email);
+              console.log('📧 Referral notification email sent');
             }
           } catch (emailError) {
             console.error('❌ Failed to send referral notification email:', emailError);

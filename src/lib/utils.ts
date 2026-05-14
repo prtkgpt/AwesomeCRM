@@ -2,6 +2,11 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, addDays, addWeeks, addMonths, isAfter, isBefore } from "date-fns";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { randomBytes } from 'crypto';
+
+export function generateSecureToken(prefix: string = 'fb'): string {
+  return `${prefix}_${randomBytes(32).toString('hex')}`;
+}
 
 // Company timezone - used for parsing input dates (e.g., from booking forms)
 // Dates are stored in UTC and displayed in each user's local timezone
