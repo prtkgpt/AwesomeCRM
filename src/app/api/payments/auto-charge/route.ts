@@ -14,6 +14,8 @@ export async function POST(request: NextRequest) {
   const rateLimited = checkRateLimit(request, 'payments');
   if (rateLimited) return rateLimited;
 
+  let bookingId: string | undefined;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { bookingId } = await request.json();
+    ({ bookingId } = await request.json());
 
     if (!bookingId) {
       return NextResponse.json(
@@ -130,17 +132,14 @@ export async function POST(request: NextRequest) {
     console.error('🔴 POST /api/payments/auto-charge error:', error);
 
     // Record failed attempt
-    if (request.json) {
-      const { bookingId } = await request.json();
-      if (bookingId) {
-        await prisma.booking.update({
-          where: { id: bookingId },
-          data: {
-            autoChargeAttemptedAt: new Date(),
-            autoChargeSuccessful: false,
-          },
-        }).catch(e => console.error('Failed to record failed auto-charge attempt:', e));
-      }
+    if (bookingId) {
+      await prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          autoChargeAttemptedAt: new Date(),
+          autoChargeSuccessful: false,
+        },
+      }).catch(e => console.error('Failed to record failed auto-charge attempt:', e));
     }
 
     // Map Stripe errors to safe, user-friendly messages

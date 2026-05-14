@@ -515,10 +515,19 @@ export async function PATCH(
 
     // Handle status updates
     if (body.status !== undefined) {
+      if (user.role === 'CLEANER') {
+        const allowedCleanerStatuses = ['CLEANER_COMPLETED', 'IN_PROGRESS'];
+        if (!allowedCleanerStatuses.includes(body.status)) {
+          return NextResponse.json(
+            { success: false, error: 'Cleaners cannot set this status' },
+            { status: 403 }
+          );
+        }
+      }
+
       updateData.status = body.status;
 
-      // If marking as completed, track who completed it and when
-      if (body.status === 'COMPLETED') {
+      if (body.status === 'COMPLETED' || body.status === 'CLEANER_COMPLETED') {
         updateData.completedAt = new Date();
         updateData.completedBy = session.user.id;
       }
