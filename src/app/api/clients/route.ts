@@ -31,33 +31,45 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const tags = searchParams.get('tags')?.split(',').filter(Boolean);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')));
+    const skip = (page - 1) * limit;
 
-    const clients = await prisma.client.findMany({
-      where: {
-        companyId: user.companyId,
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-            { phone: { contains: search, mode: 'insensitive' } },
-          ],
-        }),
-        ...(tags && tags.length > 0 && {
-          tags: { hasSome: tags },
-        }),
-      },
-      include: {
-        addresses: true,
-        _count: {
-          select: { bookings: true },
+    const whereClause = {
+      companyId: user.companyId,
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { email: { contains: search, mode: 'insensitive' as const } },
+          { phone: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }),
+      ...(tags && tags.length > 0 && {
+        tags: { hasSome: tags },
+      }),
+    };
+
+    const [clients, total] = await Promise.all([
+      prisma.client.findMany({
+        where: whereClause,
+        include: {
+          addresses: true,
+          _count: {
+            select: { bookings: true },
+          },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip,
+      }),
+      prisma.client.count({ where: whereClause }),
+    ]);
 
-    return NextResponse.json({ success: true, data: clients });
+    return NextResponse.json({
+      success: true,
+      data: clients,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     console.error('GET /api/clients error:', error);
     return NextResponse.json(

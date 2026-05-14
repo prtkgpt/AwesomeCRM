@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
     const clientId = searchParams.get('clientId');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')));
+    const skip = (page - 1) * limit;
 
     // Build date filter based on what's provided
     let dateFilter: any = {};
@@ -103,26 +106,29 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const bookings = await prisma.booking.findMany({
-      where: whereClause,
-      include: {
-        client: true,
-        address: true,
-        assignee: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where: whereClause,
+        include: {
+          client: true,
+          address: true,
+          assignee: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        scheduledDate: 'asc',
-      },
-    });
+        orderBy: { scheduledDate: 'asc' },
+        take: limit,
+        skip,
+      }),
+      prisma.booking.count({ where: whereClause }),
+    ]);
 
     if (user.role === 'CLEANER') {
       console.log('📊 QUERY RESULTS:', {
@@ -135,7 +141,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, data: bookings });
+    return NextResponse.json({
+      success: true,
+      data: bookings,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     console.error('GET /api/bookings error:', error);
     return NextResponse.json(
