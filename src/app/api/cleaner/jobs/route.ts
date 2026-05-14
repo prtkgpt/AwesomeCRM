@@ -38,16 +38,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Team member profile not found' }, { status: 404 });
     }
 
-    console.log('🟢 CLEANER JOBS - User:', user.id);
-    console.log('🟢 CLEANER JOBS - TeamMember ID:', teamMember.id);
-
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
     const tomorrow = new Date(todayEnd.getTime() + 1);
-
-    console.log('🟢 CLEANER JOBS - Today range:', todayStart, 'to', todayEnd);
-    console.log('🟢 CLEANER JOBS - Current time:', now);
 
     // Get today's jobs (assigned to this cleaner OR unassigned)
     const todayJobsRaw = await prisma.booking.findMany({
@@ -102,15 +96,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    console.log('🟢 CLEANER JOBS - Found today jobs:', todayJobs.length);
-    if (todayJobs.length > 0) {
-      console.log('🟢 CLEANER JOBS - Today jobs:', todayJobs.map(j => ({
-        id: j.id.slice(0, 8),
-        scheduledDate: j.scheduledDate,
-        client: j.client.name
-      })));
-    }
-
     // Get upcoming jobs (next 7 days) - assigned to this cleaner OR unassigned
     const nextWeek = new Date(tomorrow);
     nextWeek.setDate(nextWeek.getDate() + 7);
@@ -164,15 +149,6 @@ export async function GET(request: NextRequest) {
         hourlyRate: teamMember.hourlyRate || 0, // Cleaner's hourly rate
       };
     });
-
-    console.log('🟢 CLEANER JOBS - Found upcoming jobs:', upcomingJobs.length);
-    if (upcomingJobs.length > 0) {
-      console.log('🟢 CLEANER JOBS - Upcoming jobs:', upcomingJobs.map(j => ({
-        id: j.id.slice(0, 8),
-        scheduledDate: j.scheduledDate,
-        client: j.client.name
-      })));
-    }
 
     return NextResponse.json({
       success: true,

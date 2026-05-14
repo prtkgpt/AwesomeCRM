@@ -24,10 +24,6 @@ export async function GET(
     const params = await Promise.resolve(context.params);
     const token = params.token;
 
-    console.log(`🔍 Looking up invitation with token: ${token}`);
-    console.log(`🔍 Full params:`, params);
-    console.log(`🔍 Request URL:`, request.url);
-
     if (!token) {
       console.error(`❌ No token provided in params`);
       return NextResponse.json(

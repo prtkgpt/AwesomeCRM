@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -26,14 +26,12 @@ jobs:
         run: npx prisma generate
 
       - name: TypeScript Check
-        run: npx tsc --noEmit || true
-        # Allow TypeScript errors for now since there are pre-existing ones
-        # Remove '|| true' when all TS errors are fixed
+        run: npx tsc --noEmit
+        continue-on-error: true
 
       - name: Build
         run: npm run build
         env:
-          # Mock environment variables for build
           DATABASE_URL: postgresql://user:password@localhost:5432/test
           NEXTAUTH_URL: https://example.com
           NEXTAUTH_SECRET: test-secret-at-least-32-characters-long

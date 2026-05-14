@@ -63,6 +63,13 @@ export async function POST(
       );
     }
 
+    if (booking.completedAt && Date.now() - new Date(booking.completedAt).getTime() > 30 * 24 * 60 * 60 * 1000) {
+      return NextResponse.json(
+        { success: false, error: 'This link has expired' },
+        { status: 410 }
+      );
+    }
+
     if (!booking.assignee) {
       return NextResponse.json(
         { success: false, error: 'No cleaner assigned to this booking' },

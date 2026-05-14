@@ -44,6 +44,13 @@ export async function POST(
       );
     }
 
+    if (booking.completedAt && Date.now() - new Date(booking.completedAt).getTime() > 30 * 24 * 60 * 60 * 1000) {
+      return NextResponse.json(
+        { success: false, error: 'This link has expired' },
+        { status: 410 }
+      );
+    }
+
     // Check if copay is already paid
     if (booking.copayPaid) {
       return NextResponse.json(

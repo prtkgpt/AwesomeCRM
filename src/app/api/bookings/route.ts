@@ -66,13 +66,6 @@ export async function GET(request: NextRequest) {
         select: { id: true },
       });
 
-      console.log('🔍 CLEANER QUERY DEBUG:', {
-        userId: session.user.id,
-        userRole: user.role,
-        teamMemberId: teamMember?.id,
-        companyId: user.companyId,
-      });
-
       if (!teamMember) {
         console.log('❌ No team member found for cleaner');
         // If no team member found, return empty array
@@ -95,7 +88,6 @@ export async function GET(request: NextRequest) {
       if (Object.keys(dateFilter).length > 0) conditions.push({ scheduledDate: dateFilter });
 
       whereClause = { AND: conditions };
-      console.log('📋 WHERE CLAUSE:', JSON.stringify(whereClause, null, 2));
     } else {
       // For admins/owners: standard query without assignment filter
       whereClause = {
@@ -129,17 +121,6 @@ export async function GET(request: NextRequest) {
       }),
       prisma.booking.count({ where: whereClause }),
     ]);
-
-    if (user.role === 'CLEANER') {
-      console.log('📊 QUERY RESULTS:', {
-        totalBookings: bookings.length,
-        bookingAssignments: bookings.map(b => ({
-          client: b.client.name,
-          assignedTo: b.assignedTo,
-          assigneeName: b.assignee?.user?.name || 'UNASSIGNED',
-        })),
-      });
-    }
 
     return NextResponse.json({
       success: true,

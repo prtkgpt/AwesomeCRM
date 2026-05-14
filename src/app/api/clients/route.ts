@@ -88,10 +88,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('🔵 CLIENT CREATION - Raw body:', JSON.stringify(body, null, 2));
 
     const validatedData = createClientSchema.parse(body);
-    console.log('🔵 CLIENT CREATION - Validated hasInsurance:', validatedData.hasInsurance);
 
     // Get user with companyId
     const user = await prisma.user.findUnique({
@@ -208,17 +206,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log('🟢 CLIENT CREATED - hasInsurance in DB:', client.hasInsurance);
-    console.log('🟢 CLIENT CREATED - Full client:', JSON.stringify({
-      id: client.id,
-      name: client.name,
-      hasInsurance: client.hasInsurance,
-      insuranceProvider: client.insuranceProvider,
-      helperBeesReferralId: client.helperBeesReferralId,
-      referralCode: client.referralCode,
-      referredById: client.referredById,
-    }, null, 2));
-
     // Award referral credits if client was referred
     if (referrerId && client.id) {
       try {
@@ -267,7 +254,7 @@ export async function POST(request: NextRequest) {
                 apiKey: company.resendApiKey || undefined,
               });
 
-              console.log('📧 Referral notification email sent to', referrer.email);
+              console.log('📧 Referral notification email sent');
             }
           } catch (emailError) {
             console.error('❌ Failed to send referral notification email:', emailError);

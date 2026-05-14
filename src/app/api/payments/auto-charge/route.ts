@@ -118,8 +118,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log(`✅ Auto-charged ${booking.client.name} $${booking.price} for booking ${booking.id}`);
-
     return NextResponse.json({
       success: true,
       data: {
