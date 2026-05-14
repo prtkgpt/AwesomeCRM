@@ -127,6 +127,12 @@ export async function PUT(
 
       // Update primary address if provided
       if (body.addressId && body.address) {
+        const addressOwnership = await tx.address.findFirst({
+          where: { id: body.addressId, clientId: params.id },
+        });
+        if (!addressOwnership) {
+          throw new Error('ADDRESS_NOT_OWNED');
+        }
         await tx.address.update({
           where: { id: body.addressId },
           data: {
@@ -167,6 +173,13 @@ export async function PUT(
     });
   } catch (error) {
     console.error('PUT /api/clients/[id] error:', error);
+
+    if (error instanceof Error && error.message === 'ADDRESS_NOT_OWNED') {
+      return NextResponse.json(
+        { success: false, error: 'Address not found for this client' },
+        { status: 403 }
+      );
+    }
 
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
