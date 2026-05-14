@@ -50,7 +50,7 @@ export async function POST(
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'An account with this email already exists' },
+        { error: 'Unable to create account. Please check your details or try logging in.' },
         { status: 400 }
       );
     }

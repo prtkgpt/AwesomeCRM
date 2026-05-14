@@ -90,24 +90,17 @@ function cleanup() {
  * Handles various proxy headers
  */
 export function getClientIp(request: NextRequest): string {
-  // Check various headers in order of preference
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    // x-forwarded-for can contain multiple IPs, take the first (client)
-    return forwardedFor.split(',')[0].trim();
-  }
-
+  // Prefer headers set by trusted infrastructure (cannot be spoofed by client)
   const realIp = request.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp.trim();
-  }
+  if (realIp) return realIp.trim();
 
   const cfConnectingIp = request.headers.get('cf-connecting-ip');
-  if (cfConnectingIp) {
-    return cfConnectingIp.trim();
-  }
+  if (cfConnectingIp) return cfConnectingIp.trim();
 
-  // Fallback - this may not work in all environments
+  // x-forwarded-for is less reliable (can be spoofed) — use as fallback
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) return forwardedFor.split(',')[0].trim();
+
   return 'unknown';
 }
 
