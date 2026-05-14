@@ -228,7 +228,7 @@ export default function PlatformDashboard() {
       </div>
 
       {/* Trial Status Section */}
-      {trialStatus && (
+      {trialStatus?.expiringTrials && trialStatus?.expiredTrials && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Expiring Trials */}
           <Card>
