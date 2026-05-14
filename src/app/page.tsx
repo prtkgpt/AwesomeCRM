@@ -30,6 +30,12 @@ export default async function Home() {
               Compare
             </Link>
             <Link
+              href="/blog"
+              className="text-sm text-gray-600 hover:text-gray-900 font-medium hidden md:inline"
+            >
+              Blog
+            </Link>
+            <Link
               href="/login"
               className="text-sm text-gray-600 hover:text-gray-900 font-medium"
             >
@@ -425,6 +431,11 @@ export default async function Home() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/blog" className="text-gray-600 hover:text-gray-900">
+                    Blog
+                  </Link>
+                </li>
+                <li>
                   <span className="text-gray-600">Pricing - $20/month</span>
                 </li>
               </ul>
@@ -474,6 +485,9 @@ export default async function Home() {
               <a href="mailto:prateek@prateekgupta.org" className="hover:text-gray-900">
                 Contact
               </a>
+              <Link href="/blog" className="hover:text-gray-900">
+                Blog
+              </Link>
               <Link href="/compare" className="hover:text-gray-900">
                 Compare
               </Link>
