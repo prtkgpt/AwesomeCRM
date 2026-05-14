@@ -105,6 +105,11 @@ model Company {
   plan                String   @default("FREE")  // FREE, BASIC, PRO
   subscriptionStatus  String   @default("ACTIVE")
 
+  // Trial Period
+  trialEndsAt         DateTime?                   // When 30-day trial expires
+  trialExpiredNotified Boolean  @default(false)   // Whether we've sent trial expiry nudge
+  couponCodeUsed      String?                     // Coupon code used at signup
+
   users               User[]
   clients             Client[]
   bookings            Booking[]
@@ -125,6 +130,8 @@ model Company {
   updatedAt           DateTime @updatedAt
 
   @@index([slug])
+  @@index([plan])
+  @@index([trialEndsAt])
 }
 
 model User {
@@ -179,6 +186,13 @@ model User {
 
   // Blog posts authored (platform admin CMS)
   blogPosts     BlogPost[]
+
+  // Announcements created (platform admin)
+  announcements Announcement[]
+
+  // Support tickets
+  createdTickets  SupportTicket[] @relation("TicketCreator")
+  assignedTickets SupportTicket[] @relation("TicketAssignee")
 
   // Password reset
   resetToken       String?
@@ -1198,4 +1212,161 @@ model BlogPost {
   @@index([slug])
   @@index([published, publishedAt])
   @@index([authorId])
+}
+
+// ============================================
+// PLATFORM ADMIN: ANNOUNCEMENTS
+// ============================================
+
+model Announcement {
+  id              String    @id @default(cuid())
+  title           String
+  message         String
+  type            String    @default("info")     // info, warning, update, promo
+  targetPlans     String[]  @default([])         // Empty = all plans, or ["FREE","BASIC"]
+  isActive        Boolean   @default(true)
+  dismissible     Boolean   @default(true)
+  expiresAt       DateTime?
+
+  createdById     String
+  createdBy       User      @relation(fields: [createdById], references: [id])
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isActive, expiresAt])
+}
+
+// ============================================
+// PLATFORM ADMIN: PLAN CONFIGURATION
+// ============================================
+
+model PlatformPlan {
+  id              String    @id @default(cuid())
+  name            String    @unique              // FREE, BASIC, PRO
+  displayName     String                         // "Free", "Basic", "Pro"
+  price           Float     @default(0)          // Monthly price in dollars
+  maxClients      Int?                           // null = unlimited
+  maxUsers        Int?
+  maxBookingsPerMonth Int?
+  features        Json?                          // { teamManagement: true, insuranceBilling: false, ... }
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ============================================
+// PLATFORM ADMIN: COUPON CODES
+// ============================================
+
+model CouponCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  description     String?
+  discountType    String    @default("percent")  // percent, fixed, trial_extension
+  discountValue   Float     @default(0)          // 50 = 50% off or $50 off
+  trialDays       Int?                           // Extra trial days (for trial_extension type)
+  maxUses         Int?                           // null = unlimited
+  usedCount       Int       @default(0)
+  isActive        Boolean   @default(true)
+  expiresAt       DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// ============================================
+// PLATFORM ADMIN: AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  action        String                         // CREATE, UPDATE, DELETE, LOGIN, EXPORT, etc.
+  entity        String                         // Company, Client, Booking, User, Invoice, etc.
+  entityId      String?                        // ID of the affected record
+  description   String                         // Human-readable: "Deleted client John Smith"
+  metadata      Json?                          // Extra context: { before: {...}, after: {...} }
+
+  // Who performed the action
+  userId        String?
+  userName      String?
+  userEmail     String?
+
+  // Which company (null for platform-level actions)
+  companyId     String?
+  companyName   String?
+
+  ipAddress     String?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([entity, action])
+  @@index([createdAt])
+}
+
+// ============================================
+// PLATFORM ADMIN: SYSTEM HEALTH EVENTS
+// ============================================
+
+model SystemEvent {
+  id            String    @id @default(cuid())
+  type          String                         // cron_success, cron_failure, api_error, stripe_error, twilio_error
+  source        String                         // cron/send-reminders, api/payments, webhook/stripe, etc.
+  status        String    @default("error")    // success, error, warning
+  message       String
+  metadata      Json?                          // { statusCode: 500, duration: 1234, ... }
+
+  companyId     String?
+  companyName   String?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([type, createdAt])
+  @@index([status, createdAt])
+  @@index([source, createdAt])
+  @@index([createdAt])
+}
+
+// ============================================
+// PLATFORM ADMIN: SUPPORT TICKETS
+// ============================================
+
+model SupportTicket {
+  id            String    @id @default(cuid())
+  subject       String
+  message       String
+  status        String    @default("open")     // open, in_progress, resolved, closed
+  priority      String    @default("normal")   // low, normal, high, urgent
+
+  // Submitted by
+  userId        String
+  user          User      @relation("TicketCreator", fields: [userId], references: [id])
+  companyId     String
+  companyName   String
+
+  // Assigned to (platform admin)
+  assignedToId  String?
+  assignedTo    User?     @relation("TicketAssignee", fields: [assignedToId], references: [id])
+
+  // Resolution
+  resolvedAt    DateTime?
+  resolution    String?
+
+  // Admin notes
+  adminNotes    String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([companyId])
+  @@index([userId])
+  @@index([assignedToId])
 }

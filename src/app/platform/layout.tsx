@@ -2,12 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, FileText, BarChart3, LogOut } from 'lucide-react';
+import { Building2, FileText, BarChart3, LogOut, CreditCard, Tag, Megaphone, ScrollText, Activity, LifeBuoy, Mail } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 const navItems = [
   { label: 'Dashboard', href: '/platform', icon: BarChart3 },
   { label: 'Companies', href: '/platform/companies', icon: Building2 },
+  { label: 'Plans', href: '/platform/plans', icon: CreditCard },
+  { label: 'Coupons', href: '/platform/coupons', icon: Tag },
+  { label: 'Announcements', href: '/platform/announcements', icon: Megaphone },
+  { label: 'Audit Log', href: '/platform/audit-log', icon: ScrollText },
+  { label: 'System Health', href: '/platform/health', icon: Activity },
+  { label: 'Tickets', href: '/platform/tickets', icon: LifeBuoy },
+  { label: 'Bulk Email', href: '/platform/bulk-email', icon: Mail },
   { label: 'Blog', href: '/platform/blog', icon: FileText },
 ];
 
