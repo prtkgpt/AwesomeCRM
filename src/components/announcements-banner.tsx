@@ -46,7 +46,11 @@ export function AnnouncementsBanner() {
   }, []);
 
   function dismiss(id: string) {
-    setDismissedIds((prev) => new Set([...prev, id]));
+    setDismissedIds((prev) => {
+      const next = new Set(Array.from(prev));
+      next.add(id);
+      return next;
+    });
   }
 
   const visible = announcements.filter((a) => !dismissedIds.has(a.id));

@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { Sidebar } from '@/components/layout/sidebar';
 import { PageFooter } from '@/components/layout/page-footer';
+import { TrialBanner } from '@/components/trial-banner';
+import { AnnouncementsBanner } from '@/components/announcements-banner';
 
 export default async function DashboardLayout({
   children,
@@ -23,6 +25,8 @@ export default async function DashboardLayout({
 
       {/* Main Content */}
       <div className="md:pl-64 pb-16 md:pb-0 flex-1 flex flex-col">
+        <TrialBanner />
+        <AnnouncementsBanner />
         <main className="mx-auto max-w-7xl flex-1 w-full">
           {children}
         </main>
