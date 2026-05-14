@@ -35,7 +35,7 @@ export async function generateMetadata({
       title,
       description,
       type: 'article',
-      publishedTime: post.publishedAt || undefined,
+      publishedTime: post.publishedAt?.toISOString(),
       authors: post.author.name ? [post.author.name] : undefined,
       images: post.coverImage ? [{ url: post.coverImage }] : undefined,
     },
