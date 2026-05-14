@@ -1,33 +1,17 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { prisma } from '@/lib/prisma';
 
-interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  content: string;
-  coverImage: string | null;
-  metaTitle: string | null;
-  metaDescription: string | null;
-  publishedAt: string | null;
-  author: { name: string | null };
-}
+export const revalidate = 60;
 
-async function getPost(slug: string): Promise<BlogPost | null> {
-  try {
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/public/blog/${slug}`, {
-      next: { revalidate: 60 },
-    });
-    const data = await res.json();
-    return data.success ? data.data : null;
-  } catch {
-    return null;
-  }
+async function getPost(slug: string) {
+  const post = await prisma.blogPost.findUnique({
+    where: { slug },
+    include: { author: { select: { name: true } } },
+  });
+  if (!post || !post.published) return null;
+  return post;
 }
 
 export async function generateMetadata({

@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { prisma } from '@/lib/prisma';
+
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: 'Blog - CleanDayCRM | Tips & Insights for Cleaning Businesses',
@@ -12,29 +15,21 @@ export const metadata: Metadata = {
   },
 };
 
-interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  coverImage: string | null;
-  publishedAt: string | null;
-  author: { name: string | null };
-}
-
-async function getPosts(): Promise<BlogPost[]> {
-  try {
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/public/blog?limit=20`, {
-      next: { revalidate: 60 },
-    });
-    const data = await res.json();
-    return data.success ? data.data : [];
-  } catch {
-    return [];
-  }
+async function getPosts() {
+  return prisma.blogPost.findMany({
+    where: { published: true },
+    orderBy: { publishedAt: 'desc' },
+    take: 20,
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      coverImage: true,
+      publishedAt: true,
+      author: { select: { name: true } },
+    },
+  });
 }
 
 export default async function BlogListPage() {
