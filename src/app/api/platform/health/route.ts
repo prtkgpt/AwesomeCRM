@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const warnings = allEvents.filter((e) => e.status === 'warning').length;
     const successes = allEvents.filter((e) => e.status === 'success').length;
 
-    const summary = { totalEvents, errors, warnings, successes };
+    const summary = { total: totalEvents, errors, warnings, successes };
 
     // By source
     const sourceMap = new Map<
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
       success: true,
       data: {
         summary,
-        bySource,
+        sources: bySource,
         recentErrors,
         cronStatus,
       },

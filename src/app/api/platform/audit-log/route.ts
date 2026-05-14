@@ -66,13 +66,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        logs,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        entries: logs,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
