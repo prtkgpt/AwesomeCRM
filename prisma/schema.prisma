@@ -190,6 +190,10 @@ model User {
   // Announcements created (platform admin)
   announcements Announcement[]
 
+  // Support tickets
+  createdTickets  SupportTicket[] @relation("TicketCreator")
+  assignedTickets SupportTicket[] @relation("TicketAssignee")
+
   // Password reset
   resetToken       String?
   resetTokenExpiry DateTime?
@@ -1274,4 +1278,95 @@ model CouponCode {
 
   @@index([code])
   @@index([isActive])
+}
+
+// ============================================
+// PLATFORM ADMIN: AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  action        String                         // CREATE, UPDATE, DELETE, LOGIN, EXPORT, etc.
+  entity        String                         // Company, Client, Booking, User, Invoice, etc.
+  entityId      String?                        // ID of the affected record
+  description   String                         // Human-readable: "Deleted client John Smith"
+  metadata      Json?                          // Extra context: { before: {...}, after: {...} }
+
+  // Who performed the action
+  userId        String?
+  userName      String?
+  userEmail     String?
+
+  // Which company (null for platform-level actions)
+  companyId     String?
+  companyName   String?
+
+  ipAddress     String?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([entity, action])
+  @@index([createdAt])
+}
+
+// ============================================
+// PLATFORM ADMIN: SYSTEM HEALTH EVENTS
+// ============================================
+
+model SystemEvent {
+  id            String    @id @default(cuid())
+  type          String                         // cron_success, cron_failure, api_error, stripe_error, twilio_error
+  source        String                         // cron/send-reminders, api/payments, webhook/stripe, etc.
+  status        String    @default("error")    // success, error, warning
+  message       String
+  metadata      Json?                          // { statusCode: 500, duration: 1234, ... }
+
+  companyId     String?
+  companyName   String?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([type, createdAt])
+  @@index([status, createdAt])
+  @@index([source, createdAt])
+  @@index([createdAt])
+}
+
+// ============================================
+// PLATFORM ADMIN: SUPPORT TICKETS
+// ============================================
+
+model SupportTicket {
+  id            String    @id @default(cuid())
+  subject       String
+  message       String
+  status        String    @default("open")     // open, in_progress, resolved, closed
+  priority      String    @default("normal")   // low, normal, high, urgent
+
+  // Submitted by
+  userId        String
+  user          User      @relation("TicketCreator", fields: [userId], references: [id])
+  companyId     String
+  companyName   String
+
+  // Assigned to (platform admin)
+  assignedToId  String?
+  assignedTo    User?     @relation("TicketAssignee", fields: [assignedToId], references: [id])
+
+  // Resolution
+  resolvedAt    DateTime?
+  resolution    String?
+
+  // Admin notes
+  adminNotes    String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([companyId])
+  @@index([userId])
+  @@index([assignedToId])
 }
