@@ -105,6 +105,11 @@ model Company {
   plan                String   @default("FREE")  // FREE, BASIC, PRO
   subscriptionStatus  String   @default("ACTIVE")
 
+  // Trial Period
+  trialEndsAt         DateTime?                   // When 30-day trial expires
+  trialExpiredNotified Boolean  @default(false)   // Whether we've sent trial expiry nudge
+  couponCodeUsed      String?                     // Coupon code used at signup
+
   users               User[]
   clients             Client[]
   bookings            Booking[]
@@ -125,6 +130,8 @@ model Company {
   updatedAt           DateTime @updatedAt
 
   @@index([slug])
+  @@index([plan])
+  @@index([trialEndsAt])
 }
 
 model User {
@@ -179,6 +186,9 @@ model User {
 
   // Blog posts authored (platform admin CMS)
   blogPosts     BlogPost[]
+
+  // Announcements created (platform admin)
+  announcements Announcement[]
 
   // Password reset
   resetToken       String?
@@ -1198,4 +1208,70 @@ model BlogPost {
   @@index([slug])
   @@index([published, publishedAt])
   @@index([authorId])
+}
+
+// ============================================
+// PLATFORM ADMIN: ANNOUNCEMENTS
+// ============================================
+
+model Announcement {
+  id              String    @id @default(cuid())
+  title           String
+  message         String
+  type            String    @default("info")     // info, warning, update, promo
+  targetPlans     String[]  @default([])         // Empty = all plans, or ["FREE","BASIC"]
+  isActive        Boolean   @default(true)
+  dismissible     Boolean   @default(true)
+  expiresAt       DateTime?
+
+  createdById     String
+  createdBy       User      @relation(fields: [createdById], references: [id])
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isActive, expiresAt])
+}
+
+// ============================================
+// PLATFORM ADMIN: PLAN CONFIGURATION
+// ============================================
+
+model PlatformPlan {
+  id              String    @id @default(cuid())
+  name            String    @unique              // FREE, BASIC, PRO
+  displayName     String                         // "Free", "Basic", "Pro"
+  price           Float     @default(0)          // Monthly price in dollars
+  maxClients      Int?                           // null = unlimited
+  maxUsers        Int?
+  maxBookingsPerMonth Int?
+  features        Json?                          // { teamManagement: true, insuranceBilling: false, ... }
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ============================================
+// PLATFORM ADMIN: COUPON CODES
+// ============================================
+
+model CouponCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  description     String?
+  discountType    String    @default("percent")  // percent, fixed, trial_extension
+  discountValue   Float     @default(0)          // 50 = 50% off or $50 off
+  trialDays       Int?                           // Extra trial days (for trial_extension type)
+  maxUses         Int?                           // null = unlimited
+  usedCount       Int       @default(0)
+  isActive        Boolean   @default(true)
+  expiresAt       DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([code])
+  @@index([isActive])
 }
