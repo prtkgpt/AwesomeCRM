@@ -43,9 +43,8 @@ export async function GET(req: NextRequest) {
       proCompanies,
       freeCompanies,
       churnedCompanies,
-      expiringIn7Days,
-      expiredTrials,
-      neverConverted,
+      expiringTrialCompanies,
+      expiredTrialCompanies,
       companiesForHealth,
     ] = await Promise.all([
       prisma.company.count(),
@@ -64,28 +63,25 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: 'desc' },
         take: 5,
       }),
-      // Revenue stats
       prisma.company.count({ where: { plan: 'BASIC' } }),
       prisma.company.count({ where: { plan: 'PRO' } }),
       prisma.company.count({ where: { plan: 'FREE' } }),
       prisma.company.count({ where: { subscriptionStatus: { not: 'ACTIVE' } } }),
-      // Trial status
-      prisma.company.count({
+      // Trial: expiring in 7 days (return full objects for UI)
+      prisma.company.findMany({
         where: {
           trialEndsAt: { gte: now, lte: sevenDaysFromNow },
+          plan: 'FREE',
         },
+        select: { id: true, name: true, trialEndsAt: true },
       }),
-      prisma.company.count({
+      // Trial: already expired
+      prisma.company.findMany({
         where: {
           trialEndsAt: { lt: now },
           plan: 'FREE',
         },
-      }),
-      prisma.company.count({
-        where: {
-          plan: 'FREE',
-          trialEndsAt: { lt: now },
-        },
+        select: { id: true, name: true, trialEndsAt: true },
       }),
       // Health scores - get companies with counts
       prisma.company.findMany({
@@ -114,9 +110,10 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    // Calculate revenue
     const paidCompanies = basicCompanies + proCompanies;
-    const mrr = basicCompanies * 20; // BASIC = $20/month
+    const mrr = basicCompanies * 20 + proCompanies * 50;
+    const total = totalCompanies || 1;
+    const conversionRate = (paidCompanies / total) * 100;
 
     const revenue = {
       mrr,
@@ -125,12 +122,12 @@ export async function GET(req: NextRequest) {
       basicCompanies,
       proCompanies,
       churnedCompanies,
+      conversionRate,
     };
 
     const trialStatus = {
-      expiringIn7Days,
-      expired: expiredTrials,
-      neverConverted,
+      expiringTrials: expiringTrialCompanies,
+      expiredTrials: expiredTrialCompanies,
     };
 
     // Calculate health scores
@@ -175,10 +172,10 @@ export async function GET(req: NextRequest) {
         plan: company.plan,
         createdAt: company.createdAt,
         trialEndsAt: company.trialEndsAt,
-        clientCount,
-        bookingCount,
-        userCount,
-        lastBookingDate,
+        clients: clientCount,
+        bookings: bookingCount,
+        users: userCount,
+        lastActivity: lastBookingDate,
         healthScore,
         healthLabel,
       };
