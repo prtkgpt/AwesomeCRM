@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
         // Generate feedback token if doesn't exist
         let feedbackToken = booking.feedbackToken;
         if (!feedbackToken) {
-          feedbackToken = `fb_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+          const { generateSecureToken } = await import('@/lib/utils');
+          feedbackToken = generateSecureToken('fb');
           await prisma.booking.update({
             where: { id: booking.id },
             data: { feedbackToken },

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // POST /api/platform/setup — first-run platform admin creation
 // Only works if no platform admin exists yet
 export async function POST(req: NextRequest) {
+  const rateLimited = checkRateLimit(req, 'signup', 'platform-setup');
+  if (rateLimited) return rateLimited;
+
   try {
     // Check if a platform admin already exists
     const existingAdmin = await prisma.user.findFirst({
@@ -26,6 +30,13 @@ export async function POST(req: NextRequest) {
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 12) {
+      return NextResponse.json(
+        { error: 'Password must be at least 12 characters' },
         { status: 400 }
       );
     }
